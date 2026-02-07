@@ -17,10 +17,14 @@ pnpm start:prod         # production (runs dist/main)
 pnpm start:debug        # development + debug + watch mode
 
 # Test
-pnpm test               # unit tests
+pnpm test               # unit tests (src/**/*.spec.ts)
 pnpm test:watch         # watch mode
 pnpm test:cov           # coverage
-pnpm test:e2e           # e2e tests
+pnpm test:e2e           # e2e tests (test/**/*.e2e-spec.ts)
+
+# Run a single test file
+npx jest src/posts/posts.service.spec.ts
+npx jest --config ./test/jest-e2e.json test/posts.e2e-spec.ts
 
 # Lint & Format
 pnpm lint
@@ -63,3 +67,12 @@ Controller → Facade → Service → IPostRepository (abstract class) → PostR
 ### Swagger
 
 `/api` 경로에서 Swagger UI 확인 가능. DTO에 `@ApiProperty`/`@ApiPropertyOptional` 적용.
+
+### 테스트 구조
+
+- **단위 테스트** (`src/**/*.spec.ts`) — 각 레이어는 직접 의존하는 하위 레이어만 모킹
+  - Repository: `DataSource.manager.getRepository()` 체인을 모킹
+  - Service: `{ provide: IPostRepository, useValue: mockRepository }`
+  - Facade: `{ provide: PostsService, useValue: mockService }`
+  - Controller: `{ provide: PostsFacade, useValue: mockFacade }`
+- **e2e 테스트** (`test/**/*.e2e-spec.ts`) — `PostsModule`을 import 후 `overrideProvider(IPostRepository).useValue(mock)`로 DB 의존 제거. `ValidationPipe`(`whitelist`, `forbidNonWhitelisted`, `transform`)을 `main.ts`와 동일하게 설정.
