@@ -19,7 +19,17 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "migration:local": "cross-env NODE_ENV=local typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
+    "migration:dev": "cross-env NODE_ENV=development typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
+    "migration:prod": "cross-env NODE_ENV=production typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
+    "migration:generate:local": "cross-env NODE_ENV=local typeorm-ts-node-commonjs migration:generate -d src/data-source.ts",
+    "migration:generate:dev": "cross-env NODE_ENV=development typeorm-ts-node-commonjs migration:generate -d src/data-source.ts",
+    "migration:generate:prod": "cross-env NODE_ENV=production typeorm-ts-node-commonjs migration:generate -d src/data-source.ts",
+    "migration:revert:local": "cross-env NODE_ENV=local typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
+    "migration:revert:dev": "cross-env NODE_ENV=development typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
+    "migration:revert:prod": "cross-env NODE_ENV=production typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
+    "migration:create": "typeorm migration:create"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -30,6 +40,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "dotenv": "^17.2.4",
     "pg": "^8.18.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

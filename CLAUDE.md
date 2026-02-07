@@ -29,6 +29,14 @@ npx jest --config ./test/jest-e2e.json test/posts.e2e-spec.ts
 # Lint & Format
 pnpm lint
 pnpm format
+
+# Migration (environment-specific)
+pnpm migration:local                                           # 로컬 DB에 pending migration 실행
+pnpm migration:dev                                             # dev DB에 pending migration 실행
+pnpm migration:prod                                            # prod DB에 pending migration 실행
+pnpm migration:generate:local -- src/migrations/CreatePostTable  # 엔티티 diff로 migration 자동 생성
+pnpm migration:revert:local                                    # 마지막 migration 롤백
+pnpm migration:create -- src/migrations/AddCategoryToPost      # 빈 migration 템플릿 생성
 ```
 
 ## Architecture
@@ -62,7 +70,8 @@ Controller → Facade → Service → IPostRepository (abstract class) → PostR
 - `cross-env`로 `NODE_ENV`를 설정하면 `ConfigModule`이 `.env.${NODE_ENV}` 파일을 로드
 - `.env.local`, `.env.development`, `.env.production` — Git에서 제외됨
 - `.env.example` — 템플릿, Git에 포함
-- `synchronize`와 `logging`은 production이 아닌 환경에서만 활성화
+- `synchronize`는 모든 환경에서 `false` — 스키마 변경은 migration으로 관리
+- `logging`은 production이 아닌 환경에서만 활성화
 
 ### Swagger
 
