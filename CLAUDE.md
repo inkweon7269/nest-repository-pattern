@@ -31,11 +31,15 @@ pnpm format
 
 NestJS 프로젝트에 **Repository Pattern**을 적용한 CRUD API. TypeORM + PostgreSQL 사용.
 
-### Request Flow
+### Request Flow (Facade Pattern)
 
 ```
-Controller → Service → IPostRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
+Controller → Facade → Service → IPostRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
 ```
+
+- **Controller** — 라우팅(HTTP 데코레이터)만 담당
+- **Facade** — DTO 변환(`ResponseDto.of`), 예외 처리(`NotFoundException`) 등 오케스트레이션
+- **Service** — 순수 비즈니스 로직, 엔티티 반환
 
 ### Repository Pattern DI 구조
 

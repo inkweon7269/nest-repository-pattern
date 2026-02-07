@@ -1,24 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { IPostRepository } from './post-repository.interface';
+import { Post } from './entities/post.entity';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
-import { PostResponseDto } from './dto/response/post.response.dto';
 
 @Injectable()
 export class PostsService {
   constructor(private readonly postRepository: IPostRepository) {}
 
-  async viewPostById(id: number): Promise<PostResponseDto | null> {
-    const post = await this.postRepository.findById(id);
-    return post ? PostResponseDto.of(post) : null;
+  async findById(id: number): Promise<Post | null> {
+    return this.postRepository.findById(id);
   }
 
-  async getAllPosts(): Promise<PostResponseDto[]> {
-    const posts = await this.postRepository.findAll();
-    return posts.map(PostResponseDto.of);
+  async findAll(): Promise<Post[]> {
+    return this.postRepository.findAll();
   }
 
-  async createPost(dto: CreatePostRequestDto): Promise<PostResponseDto> {
-    const post = await this.postRepository.create(dto);
-    return PostResponseDto.of(post);
+  async create(dto: CreatePostRequestDto): Promise<Post> {
+    return this.postRepository.create(dto);
   }
 }
