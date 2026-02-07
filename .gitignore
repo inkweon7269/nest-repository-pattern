@@ -1,0 +1,33 @@
+# compiled output
+/dist
+
+# dependencies
+/node_modules
+
+# IDE
+/.idea
+/.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# env files (keep .env.example)
+.env
+.env.local
+.env.development
+.env.production
+
+# debug
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# tests
+/coverage
+
+# misc
+*.tsbuildinfo
