@@ -20,7 +20,7 @@ pnpm start:debug        # development + debug + watch mode
 pnpm test               # unit tests (src/**/*.spec.ts)
 pnpm test:watch         # watch mode
 pnpm test:cov           # coverage
-pnpm test:e2e           # e2e tests (test/**/*.e2e-spec.ts)
+pnpm test:e2e           # e2e + integration tests (test/**/*.(e2e|integration)-spec.ts)
 
 # Run a single test file
 npx jest src/posts/posts.service.spec.ts
@@ -85,3 +85,4 @@ Controller → Facade → Service → IPostRepository (abstract class) → PostR
   - Facade: `{ provide: PostsService, useValue: mockService }`
   - Controller: `{ provide: PostsFacade, useValue: mockFacade }`
 - **e2e 테스트** (`test/**/*.e2e-spec.ts`) — `PostsModule`을 import 후 `overrideProvider(IPostRepository).useValue(mock)`로 DB 의존 제거. `ValidationPipe`(`whitelist`, `forbidNonWhitelisted`, `transform`)을 `main.ts`와 동일하게 설정.
+- **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `truncateAllTables()`로 테이블을 초기화하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.

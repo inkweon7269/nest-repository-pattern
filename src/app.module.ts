@@ -12,10 +12,12 @@ const nodeEnv = process.env.NODE_ENV || 'local';
       isGlobal: true,
       envFilePath: `.env.${nodeEnv}`,
     }),
-    TypeOrmModule.forRoot({
-      ...createDataSourceOptions(process.env),
-      synchronize: false,
-      migrationsRun: nodeEnv === 'production',
+    TypeOrmModule.forRootAsync({
+      useFactory: () => ({
+        ...createDataSourceOptions(process.env),
+        synchronize: false,
+        migrationsRun: nodeEnv === 'production',
+      }),
     }),
     PostsModule,
   ],
