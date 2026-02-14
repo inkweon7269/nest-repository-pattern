@@ -3,7 +3,9 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { PostsModule } from '../src/posts/posts.module';
-import { IPostRepository } from '../src/posts/post-repository.interface';
+import { IPostReadRepository } from '../src/posts/post-read-repository.interface';
+import { IPostWriteRepository } from '../src/posts/post-write-repository.interface';
+import { PostRepository } from '../src/posts/post.repository';
 import { Post } from '../src/posts/entities/post.entity';
 
 describe('Posts (e2e)', () => {
@@ -30,7 +32,7 @@ describe('Posts (e2e)', () => {
     },
   ];
 
-  const mockRepository: Partial<IPostRepository> = {
+  const mockRepository: Partial<IPostReadRepository & IPostWriteRepository> = {
     findAll: jest.fn().mockResolvedValue(mockPosts),
     findById: jest.fn().mockImplementation((id: number) => {
       const post = mockPosts.find((p) => p.id === id) ?? null;
@@ -53,7 +55,11 @@ describe('Posts (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PostsModule],
     })
-      .overrideProvider(IPostRepository)
+      .overrideProvider(PostRepository)
+      .useValue(mockRepository)
+      .overrideProvider(IPostReadRepository)
+      .useValue(mockRepository)
+      .overrideProvider(IPostWriteRepository)
       .useValue(mockRepository)
       .compile();
 

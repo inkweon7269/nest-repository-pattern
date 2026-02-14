@@ -1,8 +1,10 @@
 import { Provider } from '@nestjs/common';
-import { IPostRepository } from './post-repository.interface';
+import { IPostReadRepository } from './post-read-repository.interface';
+import { IPostWriteRepository } from './post-write-repository.interface';
 import { PostRepository } from './post.repository';
 
-export const postRepositoryProvider: Provider = {
-  provide: IPostRepository,
-  useClass: PostRepository,
-};
+export const postRepositoryProviders: Provider[] = [
+  PostRepository,
+  { provide: IPostReadRepository, useExisting: PostRepository },
+  { provide: IPostWriteRepository, useExisting: PostRepository },
+];

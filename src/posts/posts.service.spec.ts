@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PostsService } from './posts.service';
-import { IPostRepository } from './post-repository.interface';
+import { IPostReadRepository } from './post-read-repository.interface';
+import { IPostWriteRepository } from './post-write-repository.interface';
 import { Post } from './entities/post.entity';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
 
 describe('PostsService', () => {
   let service: PostsService;
-  let mockRepository: jest.Mocked<IPostRepository>;
+  let mockReadRepository: jest.Mocked<IPostReadRepository>;
+  let mockWriteRepository: jest.Mocked<IPostWriteRepository>;
 
   const now = new Date();
 
@@ -20,18 +22,22 @@ describe('PostsService', () => {
   };
 
   beforeEach(async () => {
-    mockRepository = {
+    mockReadRepository = {
       findById: jest.fn(),
       findAll: jest.fn(),
+    } as jest.Mocked<IPostReadRepository>;
+
+    mockWriteRepository = {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
-    } as jest.Mocked<IPostRepository>;
+    } as jest.Mocked<IPostWriteRepository>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PostsService,
-        { provide: IPostRepository, useValue: mockRepository },
+        { provide: IPostReadRepository, useValue: mockReadRepository },
+        { provide: IPostWriteRepository, useValue: mockWriteRepository },
       ],
     }).compile();
 
@@ -40,20 +46,20 @@ describe('PostsService', () => {
 
   describe('findById', () => {
     it('should call repository.findById and return a post', async () => {
-      mockRepository.findById.mockResolvedValue(mockPost);
+      mockReadRepository.findById.mockResolvedValue(mockPost);
 
       const result = await service.findById(1);
 
-      expect(mockRepository.findById).toHaveBeenCalledWith(1);
+      expect(mockReadRepository.findById).toHaveBeenCalledWith(1);
       expect(result).toEqual(mockPost);
     });
 
     it('should return null when post not found', async () => {
-      mockRepository.findById.mockResolvedValue(null);
+      mockReadRepository.findById.mockResolvedValue(null);
 
       const result = await service.findById(999);
 
-      expect(mockRepository.findById).toHaveBeenCalledWith(999);
+      expect(mockReadRepository.findById).toHaveBeenCalledWith(999);
       expect(result).toBeNull();
     });
   });
@@ -61,20 +67,20 @@ describe('PostsService', () => {
   describe('findAll', () => {
     it('should call repository.findAll and return posts', async () => {
       const posts = [mockPost];
-      mockRepository.findAll.mockResolvedValue(posts);
+      mockReadRepository.findAll.mockResolvedValue(posts);
 
       const result = await service.findAll();
 
-      expect(mockRepository.findAll).toHaveBeenCalled();
+      expect(mockReadRepository.findAll).toHaveBeenCalled();
       expect(result).toEqual(posts);
     });
 
     it('should return an empty array when no posts exist', async () => {
-      mockRepository.findAll.mockResolvedValue([]);
+      mockReadRepository.findAll.mockResolvedValue([]);
 
       const result = await service.findAll();
 
-      expect(mockRepository.findAll).toHaveBeenCalled();
+      expect(mockReadRepository.findAll).toHaveBeenCalled();
       expect(result).toEqual([]);
     });
   });
@@ -85,11 +91,11 @@ describe('PostsService', () => {
         title: 'New Post',
         content: 'New Content',
       };
-      mockRepository.create.mockResolvedValue(mockPost);
+      mockWriteRepository.create.mockResolvedValue(mockPost);
 
       const result = await service.create(dto);
 
-      expect(mockRepository.create).toHaveBeenCalledWith(dto);
+      expect(mockWriteRepository.create).toHaveBeenCalledWith(dto);
       expect(result).toEqual(mockPost);
     });
   });

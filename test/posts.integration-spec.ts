@@ -2,7 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
-import { createIntegrationApp, truncateAllTables } from './setup/integration-helper';
+import {
+  createIntegrationApp,
+  truncateAllTables,
+} from './setup/integration-helper';
 
 describe('Posts (integration)', () => {
   let app: INestApplication<App>;
@@ -62,9 +65,7 @@ describe('Posts (integration)', () => {
 
   describe('GET /posts', () => {
     it('should return all persisted posts', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/posts')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/posts').expect(200);
 
       expect(res.body.length).toBeGreaterThanOrEqual(2);
       expect(res.body[0].id).toBeDefined();
