@@ -1,18 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PostsService } from './posts.service';
+import { PostsValidationService } from './posts-validation.service';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
 import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
 import { PostResponseDto } from './dto/response/post.response.dto';
 
 @Injectable()
 export class PostsFacade {
-  constructor(private readonly postsService: PostsService) {}
+  constructor(
+    private readonly postsService: PostsService,
+    private readonly postsValidationService: PostsValidationService,
+  ) {}
 
   async getPostById(id: number): Promise<PostResponseDto> {
-    const post = await this.postsService.findById(id);
-    if (!post) {
-      throw new NotFoundException(`Post with ID ${id} not found`);
-    }
+    const post = await this.postsValidationService.validatePostExists(id);
     return PostResponseDto.of(post);
   }
 
@@ -30,18 +31,13 @@ export class PostsFacade {
     id: number,
     dto: UpdatePostRequestDto,
   ): Promise<PostResponseDto> {
-    const post = await this.postsService.update(id, dto);
-    if (!post) {
-      throw new NotFoundException(`Post with ID ${id} not found`);
-    }
+    await this.postsValidationService.validatePostExists(id);
+    const post = (await this.postsService.update(id, dto))!;
     return PostResponseDto.of(post);
   }
 
   async deletePost(id: number): Promise<void> {
-    const post = await this.postsService.findById(id);
-    if (!post) {
-      throw new NotFoundException(`Post with ID ${id} not found`);
-    }
+    await this.postsValidationService.validatePostExists(id);
     await this.postsService.delete(id);
   }
 }

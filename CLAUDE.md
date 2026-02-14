@@ -46,11 +46,12 @@ NestJS 프로젝트에 **Repository Pattern**을 적용한 CRUD API. TypeORM + P
 ### Request Flow (Facade Pattern)
 
 ```
-Controller → Facade → Service → IPostReadRepository / IPostWriteRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
+Controller → Facade → PostsValidationService (존재 검증) + PostsService (비즈니스 로직) → IPostReadRepository / IPostWriteRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
 ```
 
 - **Controller** — 라우팅(HTTP 데코레이터)만 담당
-- **Facade** — DTO 변환(`ResponseDto.of`), 예외 처리(`NotFoundException`) 등 오케스트레이션
+- **Facade** — DTO 변환(`ResponseDto.of`), 오케스트레이션
+- **PostsValidationService** — 엔티티 존재 여부 검증(`findById → null 체크 → NotFoundException`). `IPostReadRepository` 직접 주입
 - **Service** — 순수 비즈니스 로직, 엔티티 반환
 
 ### Repository Pattern DI 구조 (ISP 적용)
@@ -82,7 +83,8 @@ Controller → Facade → Service → IPostReadRepository / IPostWriteRepository
 원칙: **로직은 단위 테스트, 연결(wiring)은 통합 테스트.** pass-through 레이어(Controller, Service, Repository)의 단위 테스트는 작성하지 않는다.
 
 - **단위 테스트** (`src/**/*.spec.ts`) — 실제 조건 분기/변환 로직이 있는 레이어만 테스트
-  - Facade: `{ provide: PostsService, useValue: mockService }` — NotFoundException 분기, DTO 변환
+  - Facade: `{ provide: PostsService, useValue: mockService }` + `{ provide: PostsValidationService, useValue: mockValidationService }` — DTO 변환 검증
   - DTO: `PostResponseDto.of()` — 순수 팩토리 함수
+  - `PostsValidationService`는 pass-through 성격이므로 단위 테스트 대상이 아님 (e2e/통합 테스트에서 커버)
 - **e2e 테스트** (`test/**/*.e2e-spec.ts`) — `PostsModule`을 import 후 `overrideProvider`로 DB 의존 제거. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드) 검증. Docker 불필요. **주의:** `useExisting` 패턴 때문에 `PostRepository` 자체도 override 해야 `DataSource` 해결 오류가 발생하지 않음.
 - **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { PostsFacade } from './posts.facade';
 import { PostsService } from './posts.service';
+import { PostsValidationService } from './posts-validation.service';
 import { PostResponseDto } from './dto/response/post.response.dto';
 import { Post } from './entities/post.entity';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
@@ -9,6 +9,7 @@ import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
 describe('PostsFacade', () => {
   let facade: PostsFacade;
   let mockService: jest.Mocked<PostsService>;
+  let mockValidationService: jest.Mocked<PostsValidationService>;
 
   const now = new Date();
 
@@ -30,10 +31,15 @@ describe('PostsFacade', () => {
       delete: jest.fn(),
     } as unknown as jest.Mocked<PostsService>;
 
+    mockValidationService = {
+      validatePostExists: jest.fn(),
+    } as unknown as jest.Mocked<PostsValidationService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PostsFacade,
         { provide: PostsService, useValue: mockService },
+        { provide: PostsValidationService, useValue: mockValidationService },
       ],
     }).compile();
 
@@ -42,29 +48,14 @@ describe('PostsFacade', () => {
 
   describe('getPostById', () => {
     it('should return a PostResponseDto when post exists', async () => {
-      mockService.findById.mockResolvedValue(mockPost);
+      mockValidationService.validatePostExists.mockResolvedValue(mockPost);
 
       const result = await facade.getPostById(1);
 
-      expect(mockService.findById).toHaveBeenCalledWith(1);
+      expect(mockValidationService.validatePostExists).toHaveBeenCalledWith(1);
       expect(result).toBeInstanceOf(PostResponseDto);
       expect(result.id).toBe(mockPost.id);
       expect(result.title).toBe(mockPost.title);
-    });
-
-    it('should throw NotFoundException when post not found', async () => {
-      mockService.findById.mockResolvedValue(null);
-
-      await expect(facade.getPostById(999)).rejects.toThrow(NotFoundException);
-      expect(mockService.findById).toHaveBeenCalledWith(999);
-    });
-
-    it('should include post ID in the error message', async () => {
-      mockService.findById.mockResolvedValue(null);
-
-      await expect(facade.getPostById(42)).rejects.toThrow(
-        'Post with ID 42 not found',
-      );
     });
   });
 
@@ -110,58 +101,28 @@ describe('PostsFacade', () => {
     it('should return PostResponseDto when post exists', async () => {
       const dto = { title: 'Updated Title' };
       const updatedPost: Post = { ...mockPost, title: 'Updated Title' };
+      mockValidationService.validatePostExists.mockResolvedValue(mockPost);
       mockService.update.mockResolvedValue(updatedPost);
 
       const result = await facade.updatePost(1, dto);
 
+      expect(mockValidationService.validatePostExists).toHaveBeenCalledWith(1);
       expect(mockService.update).toHaveBeenCalledWith(1, dto);
       expect(result).toBeInstanceOf(PostResponseDto);
       expect(result.id).toBe(mockPost.id);
       expect(result.title).toBe('Updated Title');
     });
-
-    it('should throw NotFoundException when post not found', async () => {
-      mockService.update.mockResolvedValue(null);
-
-      await expect(facade.updatePost(999, { title: 'X' })).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockService.update).toHaveBeenCalledWith(999, { title: 'X' });
-    });
-
-    it('should include post ID in the error message', async () => {
-      mockService.update.mockResolvedValue(null);
-
-      await expect(facade.updatePost(42, { title: 'X' })).rejects.toThrow(
-        'Post with ID 42 not found',
-      );
-    });
   });
 
   describe('deletePost', () => {
     it('should call delete when post exists', async () => {
-      mockService.findById.mockResolvedValue(mockPost);
+      mockValidationService.validatePostExists.mockResolvedValue(mockPost);
       mockService.delete.mockResolvedValue(undefined);
 
       await facade.deletePost(1);
 
-      expect(mockService.findById).toHaveBeenCalledWith(1);
+      expect(mockValidationService.validatePostExists).toHaveBeenCalledWith(1);
       expect(mockService.delete).toHaveBeenCalledWith(1);
-    });
-
-    it('should throw NotFoundException when post not found', async () => {
-      mockService.findById.mockResolvedValue(null);
-
-      await expect(facade.deletePost(999)).rejects.toThrow(NotFoundException);
-      expect(mockService.findById).toHaveBeenCalledWith(999);
-    });
-
-    it('should include post ID in the error message', async () => {
-      mockService.findById.mockResolvedValue(null);
-
-      await expect(facade.deletePost(42)).rejects.toThrow(
-        'Post with ID 42 not found',
-      );
     });
   });
 });
