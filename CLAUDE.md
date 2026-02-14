@@ -23,7 +23,7 @@ pnpm test:cov           # coverage
 pnpm test:e2e           # e2e + integration tests (test/**/*.(e2e|integration)-spec.ts)
 
 # Run a single test file
-npx jest src/posts/posts.service.spec.ts
+npx jest src/posts/posts.facade.spec.ts
 npx jest --config ./test/jest-e2e.json test/posts.e2e-spec.ts
 
 # Lint & Format
@@ -46,18 +46,18 @@ NestJS 프로젝트에 **Repository Pattern**을 적용한 CRUD API. TypeORM + P
 ### Request Flow (Facade Pattern)
 
 ```
-Controller → Facade → Service → IPostRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
+Controller → Facade → Service → IPostReadRepository / IPostWriteRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
 ```
 
 - **Controller** — 라우팅(HTTP 데코레이터)만 담당
 - **Facade** — DTO 변환(`ResponseDto.of`), 예외 처리(`NotFoundException`) 등 오케스트레이션
 - **Service** — 순수 비즈니스 로직, 엔티티 반환
 
-### Repository Pattern DI 구조
+### Repository Pattern DI 구조 (ISP 적용)
 
-1. **`IPostRepository`** (abstract class) — DI 토큰 겸 인터페이스 역할
-2. **`PostRepository`** — 구현체, `BaseRepository` 상속
-3. **`postRepositoryProvider`** — `{ provide: IPostRepository, useClass: PostRepository }` 커스텀 프로바이더
+1. **`IPostReadRepository`** / **`IPostWriteRepository`** (abstract class) — 읽기/쓰기 분리된 DI 토큰 겸 인터페이스
+2. **`PostRepository`** — 두 인터페이스를 모두 구현, `BaseRepository` 상속
+3. **`postRepositoryProviders`** — `PostRepository`를 등록 후 `useExisting`으로 두 추상 클래스 토큰에 동일 인스턴스를 매핑
 4. 모듈에서 `TypeOrmModule.forFeature()`를 사용하지 않음. `BaseRepository`가 `DataSource`를 직접 주입받아 `getRepository<T>()`로 접근
 
 ### DTO 구조
@@ -77,12 +77,12 @@ Controller → Facade → Service → IPostRepository (abstract class) → PostR
 
 `/api` 경로에서 Swagger UI 확인 가능. DTO에 `@ApiProperty`/`@ApiPropertyOptional` 적용.
 
-### 테스트 구조
+### 테스트 구조 (Classical School)
 
-- **단위 테스트** (`src/**/*.spec.ts`) — 각 레이어는 직접 의존하는 하위 레이어만 모킹
-  - Repository: `DataSource.manager.getRepository()` 체인을 모킹
-  - Service: `{ provide: IPostRepository, useValue: mockRepository }`
-  - Facade: `{ provide: PostsService, useValue: mockService }`
-  - Controller: `{ provide: PostsFacade, useValue: mockFacade }`
-- **e2e 테스트** (`test/**/*.e2e-spec.ts`) — `PostsModule`을 import 후 `overrideProvider(IPostRepository).useValue(mock)`로 DB 의존 제거. `ValidationPipe`(`whitelist`, `forbidNonWhitelisted`, `transform`)을 `main.ts`와 동일하게 설정.
-- **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `truncateAllTables()`로 테이블을 초기화하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+원칙: **로직은 단위 테스트, 연결(wiring)은 통합 테스트.** pass-through 레이어(Controller, Service, Repository)의 단위 테스트는 작성하지 않는다.
+
+- **단위 테스트** (`src/**/*.spec.ts`) — 실제 조건 분기/변환 로직이 있는 레이어만 테스트
+  - Facade: `{ provide: PostsService, useValue: mockService }` — NotFoundException 분기, DTO 변환
+  - DTO: `PostResponseDto.of()` — 순수 팩토리 함수
+- **e2e 테스트** (`test/**/*.e2e-spec.ts`) — `PostsModule`을 import 후 `overrideProvider`로 DB 의존 제거. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드) 검증. Docker 불필요. **주의:** `useExisting` 패턴 때문에 `PostRepository` 자체도 override 해야 `DataSource` 해결 오류가 발생하지 않음.
+- **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
