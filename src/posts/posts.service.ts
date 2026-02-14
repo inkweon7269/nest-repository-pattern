@@ -3,6 +3,7 @@ import { IPostReadRepository } from './post-read-repository.interface';
 import { IPostWriteRepository } from './post-write-repository.interface';
 import { Post } from './entities/post.entity';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
+import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
 
 @Injectable()
 export class PostsService {
@@ -21,5 +22,13 @@ export class PostsService {
 
   async create(dto: CreatePostRequestDto): Promise<Post> {
     return this.postWriteRepository.create(dto);
+  }
+
+  async update(id: number, dto: UpdatePostRequestDto): Promise<Post | null> {
+    return this.postWriteRepository.update(id, dto);
+  }
+
+  async delete(id: number): Promise<void> {
+    return this.postWriteRepository.delete(id);
   }
 }

@@ -1,14 +1,19 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PostsFacade } from './posts.facade';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
+import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
 import { PostResponseDto } from './dto/response/post.response.dto';
 
 @ApiTags('Posts')
@@ -36,5 +41,21 @@ export class PostsController {
     @Body() dto: CreatePostRequestDto,
   ): Promise<PostResponseDto> {
     return this.postsFacade.createPost(dto);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: '게시글 수정' })
+  async updatePost(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePostRequestDto,
+  ): Promise<PostResponseDto> {
+    return this.postsFacade.updatePost(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '게시글 삭제' })
+  async deletePost(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.postsFacade.deletePost(id);
   }
 }

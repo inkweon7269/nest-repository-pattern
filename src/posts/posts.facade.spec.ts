@@ -26,6 +26,8 @@ describe('PostsFacade', () => {
       findById: jest.fn(),
       findAll: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     } as unknown as jest.Mocked<PostsService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -101,6 +103,65 @@ describe('PostsFacade', () => {
       expect(mockService.create).toHaveBeenCalledWith(dto);
       expect(result).toBeInstanceOf(PostResponseDto);
       expect(result.id).toBe(mockPost.id);
+    });
+  });
+
+  describe('updatePost', () => {
+    it('should return PostResponseDto when post exists', async () => {
+      const dto = { title: 'Updated Title' };
+      const updatedPost: Post = { ...mockPost, title: 'Updated Title' };
+      mockService.update.mockResolvedValue(updatedPost);
+
+      const result = await facade.updatePost(1, dto);
+
+      expect(mockService.update).toHaveBeenCalledWith(1, dto);
+      expect(result).toBeInstanceOf(PostResponseDto);
+      expect(result.id).toBe(mockPost.id);
+      expect(result.title).toBe('Updated Title');
+    });
+
+    it('should throw NotFoundException when post not found', async () => {
+      mockService.update.mockResolvedValue(null);
+
+      await expect(facade.updatePost(999, { title: 'X' })).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockService.update).toHaveBeenCalledWith(999, { title: 'X' });
+    });
+
+    it('should include post ID in the error message', async () => {
+      mockService.update.mockResolvedValue(null);
+
+      await expect(facade.updatePost(42, { title: 'X' })).rejects.toThrow(
+        'Post with ID 42 not found',
+      );
+    });
+  });
+
+  describe('deletePost', () => {
+    it('should call delete when post exists', async () => {
+      mockService.findById.mockResolvedValue(mockPost);
+      mockService.delete.mockResolvedValue(undefined);
+
+      await facade.deletePost(1);
+
+      expect(mockService.findById).toHaveBeenCalledWith(1);
+      expect(mockService.delete).toHaveBeenCalledWith(1);
+    });
+
+    it('should throw NotFoundException when post not found', async () => {
+      mockService.findById.mockResolvedValue(null);
+
+      await expect(facade.deletePost(999)).rejects.toThrow(NotFoundException);
+      expect(mockService.findById).toHaveBeenCalledWith(999);
+    });
+
+    it('should include post ID in the error message', async () => {
+      mockService.findById.mockResolvedValue(null);
+
+      await expect(facade.deletePost(42)).rejects.toThrow(
+        'Post with ID 42 not found',
+      );
     });
   });
 });

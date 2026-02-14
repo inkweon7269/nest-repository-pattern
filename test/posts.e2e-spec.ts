@@ -49,6 +49,17 @@ describe('Posts (e2e)', () => {
       };
       return Promise.resolve(post);
     }),
+    update: jest.fn().mockImplementation((id: number, dto) => {
+      const post = mockPosts.find((p) => p.id === id);
+      if (!post) return Promise.resolve(null);
+      const defined = Object.fromEntries(
+        Object.entries(dto as Record<string, unknown>).filter(
+          ([, v]) => v !== undefined,
+        ),
+      );
+      return Promise.resolve({ ...post, ...defined, updatedAt: now });
+    }),
+    delete: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeAll(async () => {
@@ -167,6 +178,75 @@ describe('Posts (e2e)', () => {
         .post('/posts')
         .send({ title: 'Post', content: 'Content', hacked: true })
         .expect(400);
+    });
+  });
+
+  describe('PATCH /posts/:id', () => {
+    it('should update a post with valid body', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: 'Updated Title' })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.id).toBe(1);
+          expect(res.body.title).toBe('Updated Title');
+          expect(res.body.content).toBe('Hello World');
+        });
+    });
+
+    it('should return 404 when post not found', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/999')
+        .send({ title: 'Updated' })
+        .expect(404)
+        .expect((res) => {
+          expect(res.body.message).toBe('Post with ID 999 not found');
+        });
+    });
+
+    it('should return 400 for non-numeric id', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/abc')
+        .send({ title: 'Updated' })
+        .expect(400);
+    });
+
+    it('should return 400 for invalid body', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: 123 })
+        .expect(400);
+    });
+
+    it('should strip unknown properties (forbidNonWhitelisted)', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: 'Updated', hacked: true })
+        .expect(400);
+    });
+  });
+
+  describe('DELETE /posts/:id', () => {
+    it('should delete a post', () => {
+      return request(app.getHttpServer())
+        .delete('/posts/1')
+        .expect(204)
+        .expect((res) => {
+          expect(res.body).toEqual({});
+        });
+    });
+
+    it('should return 404 when post not found', () => {
+      return request(app.getHttpServer())
+        .delete('/posts/999')
+        .expect(404)
+        .expect((res) => {
+          expect(res.body.message).toBe('Post with ID 999 not found');
+        });
+    });
+
+    it('should return 400 for non-numeric id', () => {
+      return request(app.getHttpServer()).delete('/posts/abc').expect(400);
     });
   });
 });

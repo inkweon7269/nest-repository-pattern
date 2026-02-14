@@ -116,9 +116,7 @@ describe('Posts (integration)', () => {
   // ============================================================
   describe('GET /posts', () => {
     it('should return empty array when no posts exist', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/posts')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/posts').expect(200);
 
       expect(res.body).toEqual([]);
     });
@@ -127,9 +125,7 @@ describe('Posts (integration)', () => {
       await createPost({ title: 'Post A', content: 'Content A' }).expect(201);
       await createPost({ title: 'Post B', content: 'Content B' }).expect(201);
 
-      const res = await request(app.getHttpServer())
-        .get('/posts')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/posts').expect(200);
 
       expect(res.body).toHaveLength(2);
       expect(res.body[0].title).toBe('Post A');
@@ -139,9 +135,7 @@ describe('Posts (integration)', () => {
     it('should return posts with correct response shape', async () => {
       await createPost().expect(201);
 
-      const res = await request(app.getHttpServer())
-        .get('/posts')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/posts').expect(200);
 
       const post = res.body[0];
       expect(post).toHaveProperty('id');
@@ -203,6 +197,166 @@ describe('Posts (integration)', () => {
 
     it('should return 400 for non-numeric id', () => {
       return request(app.getHttpServer()).get('/posts/abc').expect(400);
+    });
+  });
+
+  // ============================================================
+  // PATCH /posts/:id
+  // ============================================================
+  describe('PATCH /posts/:id', () => {
+    it('should update title', async () => {
+      const createRes = await createPost({ title: 'Original' }).expect(201);
+      const id = createRes.body.id as number;
+
+      await request(app.getHttpServer())
+        .patch(`/posts/${id}`)
+        .send({ title: 'Updated Title' })
+        .expect(200);
+
+      const getRes = await request(app.getHttpServer())
+        .get(`/posts/${id}`)
+        .expect(200);
+
+      expect(getRes.body.title).toBe('Updated Title');
+    });
+
+    it('should update content', async () => {
+      const createRes = await createPost({ content: 'Original' }).expect(201);
+      const id = createRes.body.id as number;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/posts/${id}`)
+        .send({ content: 'Updated Content' })
+        .expect(200);
+
+      expect(res.body.content).toBe('Updated Content');
+    });
+
+    it('should update isPublished', async () => {
+      const createRes = await createPost({ isPublished: false }).expect(201);
+      const id = createRes.body.id as number;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/posts/${id}`)
+        .send({ isPublished: true })
+        .expect(200);
+
+      expect(res.body.isPublished).toBe(true);
+    });
+
+    it('should update multiple fields at once', async () => {
+      const createRes = await createPost().expect(201);
+      const id = createRes.body.id as number;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/posts/${id}`)
+        .send({ title: 'New Title', content: 'New Content' })
+        .expect(200);
+
+      expect(res.body.title).toBe('New Title');
+      expect(res.body.content).toBe('New Content');
+    });
+
+    it('should not change fields not included in body', async () => {
+      const createRes = await createPost({
+        title: 'Keep This',
+        content: 'Keep This Too',
+      }).expect(201);
+      const id = createRes.body.id as number;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/posts/${id}`)
+        .send({ title: 'Changed' })
+        .expect(200);
+
+      expect(res.body.title).toBe('Changed');
+      expect(res.body.content).toBe('Keep This Too');
+    });
+
+    it('should update updatedAt after modification', async () => {
+      const createRes = await createPost().expect(201);
+      const id = createRes.body.id as number;
+      const createdAt = createRes.body.createdAt as string;
+      const originalUpdatedAt = createRes.body.updatedAt as string;
+
+      // Small delay to ensure timestamp difference
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const res = await request(app.getHttpServer())
+        .patch(`/posts/${id}`)
+        .send({ title: 'Trigger Update' })
+        .expect(200);
+
+      expect(res.body.createdAt).toBe(createdAt);
+      expect(
+        new Date(res.body.updatedAt as string).getTime(),
+      ).toBeGreaterThanOrEqual(new Date(originalUpdatedAt).getTime());
+    });
+
+    it('should return 404 when post not found', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/99999')
+        .send({ title: 'No Post' })
+        .expect(404)
+        .expect((res) => {
+          expect(res.body.message).toBe('Post with ID 99999 not found');
+        });
+    });
+
+    it('should return 400 for non-numeric id', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/abc')
+        .send({ title: 'X' })
+        .expect(400);
+    });
+
+    it('should return 400 for invalid body (forbidNonWhitelisted)', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: 'X', hacked: true })
+        .expect(400);
+    });
+  });
+
+  // ============================================================
+  // DELETE /posts/:id
+  // ============================================================
+  describe('DELETE /posts/:id', () => {
+    it('should delete a post and return 204', async () => {
+      const createRes = await createPost().expect(201);
+      const id = createRes.body.id as number;
+
+      await request(app.getHttpServer()).delete(`/posts/${id}`).expect(204);
+
+      await request(app.getHttpServer()).get(`/posts/${id}`).expect(404);
+    });
+
+    it('should return 404 when post not found', () => {
+      return request(app.getHttpServer())
+        .delete('/posts/99999')
+        .expect(404)
+        .expect((res) => {
+          expect(res.body.message).toBe('Post with ID 99999 not found');
+        });
+    });
+
+    it('should return 400 for non-numeric id', () => {
+      return request(app.getHttpServer()).delete('/posts/abc').expect(400);
+    });
+
+    it('should not affect other posts', async () => {
+      const res1 = await createPost({ title: 'Keep' }).expect(201);
+      const res2 = await createPost({ title: 'Delete Me' }).expect(201);
+
+      await request(app.getHttpServer())
+        .delete(`/posts/${res2.body.id as number}`)
+        .expect(204);
+
+      const getRes = await request(app.getHttpServer())
+        .get(`/posts/${res1.body.id as number}`)
+        .expect(200);
+
+      expect(getRes.body.title).toBe('Keep');
     });
   });
 });
