@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { IPostReadRepository } from './post-read-repository.interface';
-import { IPostWriteRepository } from './post-write-repository.interface';
-import { Post } from './entities/post.entity';
-import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
-import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
+import { IPostReadRepository } from '../interface/post-read-repository.interface';
+import { IPostWriteRepository } from '../interface/post-write-repository.interface';
+import { Post } from '../entities/post.entity';
+import { CreatePostRequestDto } from '../dto/request/create-post.request.dto';
+import { UpdatePostRequestDto } from '../dto/request/update-post.request.dto';
 
 @Injectable()
 export class PostsService {

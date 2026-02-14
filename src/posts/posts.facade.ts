@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PostsService } from './posts.service';
-import { PostsValidationService } from './posts-validation.service';
+import { PostsService } from './service/posts.service';
+import { PostsValidationService } from './service/posts-validation.service';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
 import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
 import { PostResponseDto } from './dto/response/post.response.dto';

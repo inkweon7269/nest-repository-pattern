@@ -3,8 +3,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { PostsModule } from '../src/posts/posts.module';
-import { IPostReadRepository } from '../src/posts/post-read-repository.interface';
-import { IPostWriteRepository } from '../src/posts/post-write-repository.interface';
+import { IPostReadRepository } from '../src/posts/interface/post-read-repository.interface';
+import { IPostWriteRepository } from '../src/posts/interface/post-write-repository.interface';
 import { PostRepository } from '../src/posts/post.repository';
 import { Post } from '../src/posts/entities/post.entity';
 

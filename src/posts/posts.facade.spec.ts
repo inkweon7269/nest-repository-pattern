@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PostsFacade } from './posts.facade';
-import { PostsService } from './posts.service';
-import { PostsValidationService } from './posts-validation.service';
+import { PostsService } from './service/posts.service';
+import { PostsValidationService } from './service/posts-validation.service';
 import { PostResponseDto } from './dto/response/post.response.dto';
 import { Post } from './entities/post.entity';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { IPostReadRepository } from './post-read-repository.interface';
-import { Post } from './entities/post.entity';
+import { IPostReadRepository } from '../interface/post-read-repository.interface';
+import { Post } from '../entities/post.entity';
 
 @Injectable()
 export class PostsValidationService {
