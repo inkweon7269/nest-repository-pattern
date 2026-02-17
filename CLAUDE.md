@@ -88,3 +88,12 @@ Controller → Facade → PostsValidationService (존재 검증) + PostsService 
   - `PostsValidationService`는 pass-through 성격이므로 단위 테스트 대상이 아님 (e2e/통합 테스트에서 커버)
 - **e2e 테스트** (`test/**/*.e2e-spec.ts`) — `PostsModule`을 import 후 `overrideProvider`로 DB 의존 제거. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드) 검증. Docker 불필요. **주의:** `useExisting` 패턴 때문에 `PostRepository` 자체도 override 해야 `DataSource` 해결 오류가 발생하지 않음.
 - **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+
+### Skills
+
+커스텀 검증 및 유지보수 스킬은 `.claude/skills/`에 정의되어 있습니다.
+
+| Skill                   | Purpose                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `verify-implementation` | 프로젝트의 모든 verify 스킬을 순차 실행하여 통합 검증 보고서를 생성합니다       |
+| `manage-skills`         | 세션 변경사항을 분석하고, 검증 스킬을 생성/업데이트하며, CLAUDE.md를 관리합니다 |
