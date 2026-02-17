@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Post } from '../../entities/post.entity';
+import { Post } from '@src/posts/entities/post.entity';
 
 export class PostResponseDto {
   @ApiProperty({ description: '게시글 ID', example: 1 })

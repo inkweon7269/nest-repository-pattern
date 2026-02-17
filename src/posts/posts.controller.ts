@@ -12,12 +12,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { PostsFacade } from './posts.facade';
-import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
-import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
-import { PostResponseDto } from './dto/response/post.response.dto';
-import { PaginationRequestDto } from '../common/dto/request/pagination.request.dto';
-import { PaginatedResponseDto } from '../common/dto/response/paginated.response.dto';
+import { PostsFacade } from '@src/posts/posts.facade';
+import { CreatePostRequestDto } from '@src/posts/dto/request/create-post.request.dto';
+import { UpdatePostRequestDto } from '@src/posts/dto/request/update-post.request.dto';
+import { PostResponseDto } from '@src/posts/dto/response/post.response.dto';
+import { PaginationRequestDto } from '@src/common/dto/request/pagination.request.dto';
+import { PaginatedResponseDto } from '@src/common/dto/response/paginated.response.dto';
 
 @ApiTags('Posts')
 @Controller('posts')

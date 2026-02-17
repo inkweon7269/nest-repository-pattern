@@ -1,4 +1,4 @@
-import { PaginatedResponseDto } from './paginated.response.dto';
+import { PaginatedResponseDto } from '@src/common/dto/response/paginated.response.dto';
 
 describe('PaginatedResponseDto', () => {
   describe('of', () => {

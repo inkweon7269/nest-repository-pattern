@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PostsFacade } from './posts.facade';
-import { PostsService } from './service/posts.service';
-import { PostsValidationService } from './service/posts-validation.service';
-import { PostResponseDto } from './dto/response/post.response.dto';
-import { Post } from './entities/post.entity';
-import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
-import { PaginationRequestDto } from '../common/dto/request/pagination.request.dto';
-import { PaginatedResponseDto } from '../common/dto/response/paginated.response.dto';
+import { PostsFacade } from '@src/posts/posts.facade';
+import { PostsService } from '@src/posts/service/posts.service';
+import { PostsValidationService } from '@src/posts/service/posts-validation.service';
+import { PostResponseDto } from '@src/posts/dto/response/post.response.dto';
+import { Post } from '@src/posts/entities/post.entity';
+import { CreatePostRequestDto } from '@src/posts/dto/request/create-post.request.dto';
+import { PaginationRequestDto } from '@src/common/dto/request/pagination.request.dto';
+import { PaginatedResponseDto } from '@src/common/dto/response/paginated.response.dto';
 
 describe('PostsFacade', () => {
   let facade: PostsFacade;

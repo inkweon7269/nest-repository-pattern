@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { BaseRepository } from '../common/base.repository';
-import { IPostReadRepository } from './interface/post-read-repository.interface';
-import { IPostWriteRepository } from './interface/post-write-repository.interface';
-import { Post } from './entities/post.entity';
-import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
-import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
+import { BaseRepository } from '@src/common/base.repository';
+import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
+import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
+import { Post } from '@src/posts/entities/post.entity';
+import { CreatePostRequestDto } from '@src/posts/dto/request/create-post.request.dto';
+import { UpdatePostRequestDto } from '@src/posts/dto/request/update-post.request.dto';
 
 @Injectable()
 export class PostRepository

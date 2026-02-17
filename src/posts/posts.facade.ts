@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { PostsService } from './service/posts.service';
-import { PostsValidationService } from './service/posts-validation.service';
-import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
-import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
-import { PostResponseDto } from './dto/response/post.response.dto';
-import { PaginationRequestDto } from '../common/dto/request/pagination.request.dto';
-import { PaginatedResponseDto } from '../common/dto/response/paginated.response.dto';
+import { PostsService } from '@src/posts/service/posts.service';
+import { PostsValidationService } from '@src/posts/service/posts-validation.service';
+import { CreatePostRequestDto } from '@src/posts/dto/request/create-post.request.dto';
+import { UpdatePostRequestDto } from '@src/posts/dto/request/update-post.request.dto';
+import { PostResponseDto } from '@src/posts/dto/response/post.response.dto';
+import { PaginationRequestDto } from '@src/common/dto/request/pagination.request.dto';
+import { PaginatedResponseDto } from '@src/common/dto/response/paginated.response.dto';
 
 @Injectable()
 export class PostsFacade {

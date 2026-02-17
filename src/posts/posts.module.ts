@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { PostsController } from './posts.controller';
-import { PostsFacade } from './posts.facade';
-import { PostsService } from './service/posts.service';
-import { PostsValidationService } from './service/posts-validation.service';
-import { postRepositoryProviders } from './post-repository.provider';
+import { PostsController } from '@src/posts/posts.controller';
+import { PostsFacade } from '@src/posts/posts.facade';
+import { PostsService } from '@src/posts/service/posts.service';
+import { PostsValidationService } from '@src/posts/service/posts-validation.service';
+import { postRepositoryProviders } from '@src/posts/post-repository.provider';
 
 @Module({
   controllers: [PostsController],

@@ -1,5 +1,5 @@
-import { PostResponseDto } from './post.response.dto';
-import { Post } from '../../entities/post.entity';
+import { PostResponseDto } from '@src/posts/dto/response/post.response.dto';
+import { Post } from '@src/posts/entities/post.entity';
 
 describe('PostResponseDto', () => {
   const now = new Date();

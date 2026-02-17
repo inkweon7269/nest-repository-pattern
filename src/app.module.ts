@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { createDataSourceOptions } from './database/typeorm.config';
-import { PostsModule } from './posts/posts.module';
+import { createDataSourceOptions } from '@src/database/typeorm.config';
+import { PostsModule } from '@src/posts/posts.module';
 
 const nodeEnv = process.env.NODE_ENV || 'local';
 

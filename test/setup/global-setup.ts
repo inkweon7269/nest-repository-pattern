@@ -2,7 +2,7 @@ import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
-import { createDataSourceOptions } from '../../src/database/typeorm.config';
+import { createDataSourceOptions } from '@src/database/typeorm.config';
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 

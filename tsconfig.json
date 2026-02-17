@@ -16,6 +16,9 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    "paths": {
+      "@src/*": ["src/*"]
+    },
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,

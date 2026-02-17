@@ -4,7 +4,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types';
 import { DataSource, EntityManager, QueryRunner } from 'typeorm';
-import { AppModule } from '../../src/app.module';
+import { AppModule } from '@src/app.module';
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
