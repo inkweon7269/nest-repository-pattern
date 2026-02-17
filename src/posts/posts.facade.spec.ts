@@ -5,6 +5,8 @@ import { PostsValidationService } from './service/posts-validation.service';
 import { PostResponseDto } from './dto/response/post.response.dto';
 import { Post } from './entities/post.entity';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
+import { PaginationRequestDto } from '../common/dto/request/pagination.request.dto';
+import { PaginatedResponseDto } from '../common/dto/response/paginated.response.dto';
 
 describe('PostsFacade', () => {
   let facade: PostsFacade;
@@ -25,7 +27,7 @@ describe('PostsFacade', () => {
   beforeEach(async () => {
     mockService = {
       findById: jest.fn(),
-      findAll: jest.fn(),
+      findAllPaginated: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -59,25 +61,70 @@ describe('PostsFacade', () => {
     });
   });
 
-  describe('getAllPosts', () => {
-    it('should return an array of PostResponseDto', async () => {
-      mockService.findAll.mockResolvedValue([mockPost]);
+  describe('findAllPaginated', () => {
+    it('should return PaginatedResponseDto with PostResponseDto items', async () => {
+      const mockPost2: Post = {
+        ...mockPost,
+        id: 2,
+        title: 'Second Post',
+      };
+      mockService.findAllPaginated.mockResolvedValue([
+        [mockPost, mockPost2],
+        2,
+      ]);
 
-      const result = await facade.getAllPosts();
+      const paginationDto = new PaginationRequestDto();
+      paginationDto.page = 1;
+      paginationDto.limit = 10;
 
-      expect(mockService.findAll).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
-      expect(result[0]).toBeInstanceOf(PostResponseDto);
-      expect(result[0].id).toBe(mockPost.id);
+      const result = await facade.findAllPaginated(paginationDto);
+
+      expect(mockService.findAllPaginated).toHaveBeenCalledWith(0, 10);
+      expect(result).toBeInstanceOf(PaginatedResponseDto);
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0]).toBeInstanceOf(PostResponseDto);
+      expect(result.items[0].id).toBe(mockPost.id);
+      expect(result.items[1].id).toBe(mockPost2.id);
     });
 
-    it('should return an empty array when no posts exist', async () => {
-      mockService.findAll.mockResolvedValue([]);
+    it('should pass correct skip and take values', async () => {
+      mockService.findAllPaginated.mockResolvedValue([[], 0]);
 
-      const result = await facade.getAllPosts();
+      const paginationDto = new PaginationRequestDto();
+      paginationDto.page = 3;
+      paginationDto.limit = 5;
 
-      expect(mockService.findAll).toHaveBeenCalled();
-      expect(result).toEqual([]);
+      await facade.findAllPaginated(paginationDto);
+
+      expect(mockService.findAllPaginated).toHaveBeenCalledWith(10, 5);
+    });
+
+    it('should return correct meta information', async () => {
+      mockService.findAllPaginated.mockResolvedValue([[mockPost], 15]);
+
+      const paginationDto = new PaginationRequestDto();
+      paginationDto.page = 2;
+      paginationDto.limit = 5;
+
+      const result = await facade.findAllPaginated(paginationDto);
+
+      expect(result.meta.page).toBe(2);
+      expect(result.meta.limit).toBe(5);
+      expect(result.meta.totalElements).toBe(15);
+      expect(result.meta.totalPages).toBe(3);
+      expect(result.meta.isFirst).toBe(false);
+      expect(result.meta.isLast).toBe(false);
+    });
+
+    it('should return empty items when no posts exist', async () => {
+      mockService.findAllPaginated.mockResolvedValue([[], 0]);
+
+      const paginationDto = new PaginationRequestDto();
+
+      const result = await facade.findAllPaginated(paginationDto);
+
+      expect(result.items).toEqual([]);
+      expect(result.meta.totalElements).toBe(0);
     });
   });
 

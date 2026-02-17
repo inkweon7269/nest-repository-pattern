@@ -9,12 +9,15 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PostsFacade } from './posts.facade';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
 import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
 import { PostResponseDto } from './dto/response/post.response.dto';
+import { PaginationRequestDto } from '../common/dto/request/pagination.request.dto';
+import { PaginatedResponseDto } from '../common/dto/response/paginated.response.dto';
 
 @ApiTags('Posts')
 @Controller('posts')
@@ -22,9 +25,11 @@ export class PostsController {
   constructor(private readonly postsFacade: PostsFacade) {}
 
   @Get()
-  @ApiOperation({ summary: '전체 게시글 조회' })
-  async getAllPosts(): Promise<PostResponseDto[]> {
-    return this.postsFacade.getAllPosts();
+  @ApiOperation({ summary: '게시글 페이지네이션 조회' })
+  async findAllPaginated(
+    @Query() paginationDto: PaginationRequestDto,
+  ): Promise<PaginatedResponseDto<PostResponseDto>> {
+    return this.postsFacade.findAllPaginated(paginationDto);
   }
 
   @Get(':id')

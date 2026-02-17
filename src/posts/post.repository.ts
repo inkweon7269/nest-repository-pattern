@@ -24,8 +24,15 @@ export class PostRepository
     return this.postRepository.findOneBy({ id });
   }
 
-  async findAll(): Promise<Post[]> {
-    return this.postRepository.find();
+  async findAllPaginated(
+    skip: number,
+    take: number,
+  ): Promise<[Post[], number]> {
+    return this.postRepository.findAndCount({
+      skip,
+      take,
+      order: { id: 'DESC' },
+    });
   }
 
   async create(dto: CreatePostRequestDto): Promise<Post> {

@@ -4,6 +4,8 @@ import { PostsValidationService } from './service/posts-validation.service';
 import { CreatePostRequestDto } from './dto/request/create-post.request.dto';
 import { UpdatePostRequestDto } from './dto/request/update-post.request.dto';
 import { PostResponseDto } from './dto/response/post.response.dto';
+import { PaginationRequestDto } from '../common/dto/request/pagination.request.dto';
+import { PaginatedResponseDto } from '../common/dto/response/paginated.response.dto';
 
 @Injectable()
 export class PostsFacade {
@@ -17,9 +19,20 @@ export class PostsFacade {
     return PostResponseDto.of(post);
   }
 
-  async getAllPosts(): Promise<PostResponseDto[]> {
-    const posts = await this.postsService.findAll();
-    return posts.map(PostResponseDto.of);
+  async findAllPaginated(
+    paginationDto: PaginationRequestDto,
+  ): Promise<PaginatedResponseDto<PostResponseDto>> {
+    const [posts, totalElements] = await this.postsService.findAllPaginated(
+      paginationDto.skip,
+      paginationDto.take,
+    );
+    const items = posts.map(PostResponseDto.of);
+    return PaginatedResponseDto.of(
+      items,
+      totalElements,
+      paginationDto.page,
+      paginationDto.limit,
+    );
   }
 
   async createPost(dto: CreatePostRequestDto): Promise<PostResponseDto> {

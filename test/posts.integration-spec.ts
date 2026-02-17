@@ -112,38 +112,103 @@ describe('Posts (integration)', () => {
   });
 
   // ============================================================
-  // GET /posts
+  // GET /posts (pagination)
   // ============================================================
   describe('GET /posts', () => {
-    it('should return empty array when no posts exist', async () => {
-      const res = await request(app.getHttpServer()).get('/posts').expect(200);
-
-      expect(res.body).toEqual([]);
-    });
-
-    it('should return all persisted posts', async () => {
-      await createPost({ title: 'Post A', content: 'Content A' }).expect(201);
-      await createPost({ title: 'Post B', content: 'Content B' }).expect(201);
+    it('should return paginated response with default page=1, limit=10', async () => {
+      await createPost({ title: 'Post A' }).expect(201);
 
       const res = await request(app.getHttpServer()).get('/posts').expect(200);
 
-      expect(res.body).toHaveLength(2);
-      expect(res.body[0].title).toBe('Post A');
-      expect(res.body[1].title).toBe('Post B');
+      expect(res.body).toHaveProperty('items');
+      expect(res.body).toHaveProperty('meta');
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.meta.page).toBe(1);
+      expect(res.body.meta.limit).toBe(10);
+      expect(res.body.meta.totalElements).toBe(1);
+      expect(res.body.meta.totalPages).toBe(1);
+      expect(res.body.meta.isFirst).toBe(true);
+      expect(res.body.meta.isLast).toBe(true);
     });
 
-    it('should return posts with correct response shape', async () => {
+    it('should return empty items when no posts exist', async () => {
+      const res = await request(app.getHttpServer()).get('/posts').expect(200);
+
+      expect(res.body.items).toEqual([]);
+      expect(res.body.meta.totalElements).toBe(0);
+      expect(res.body.meta.totalPages).toBe(0);
+    });
+
+    it('should paginate with custom page and limit', async () => {
+      for (let i = 0; i < 5; i++) {
+        await createPost({ title: `Post ${i + 1}` }).expect(201);
+      }
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?page=2&limit=2')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(2);
+      expect(res.body.meta.page).toBe(2);
+      expect(res.body.meta.limit).toBe(2);
+      expect(res.body.meta.totalElements).toBe(5);
+      expect(res.body.meta.totalPages).toBe(3);
+      expect(res.body.meta.isFirst).toBe(false);
+      expect(res.body.meta.isLast).toBe(false);
+    });
+
+    it('should return items in id DESC order (newest first)', async () => {
+      await createPost({ title: 'First' }).expect(201);
+      await createPost({ title: 'Second' }).expect(201);
+      await createPost({ title: 'Third' }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?limit=3')
+        .expect(200);
+
+      expect(res.body.items[0].title).toBe('Third');
+      expect(res.body.items[1].title).toBe('Second');
+      expect(res.body.items[2].title).toBe('First');
+    });
+
+    it('should mark last page correctly', async () => {
+      for (let i = 0; i < 3; i++) {
+        await createPost({ title: `Post ${i + 1}` }).expect(201);
+      }
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?page=2&limit=2')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.meta.isLast).toBe(true);
+      expect(res.body.meta.isFirst).toBe(false);
+    });
+
+    it('should return correct response shape for items', async () => {
       await createPost().expect(201);
 
       const res = await request(app.getHttpServer()).get('/posts').expect(200);
 
-      const post = res.body[0];
+      const post = res.body.items[0];
       expect(post).toHaveProperty('id');
       expect(post).toHaveProperty('title');
       expect(post).toHaveProperty('content');
       expect(post).toHaveProperty('isPublished');
       expect(post).toHaveProperty('createdAt');
       expect(post).toHaveProperty('updatedAt');
+    });
+
+    it('should return 400 when page is 0', () => {
+      return request(app.getHttpServer()).get('/posts?page=0').expect(400);
+    });
+
+    it('should return 400 when limit exceeds 100', () => {
+      return request(app.getHttpServer()).get('/posts?limit=101').expect(400);
+    });
+
+    it('should return 400 when page is not a number', () => {
+      return request(app.getHttpServer()).get('/posts?page=abc').expect(400);
     });
   });
 

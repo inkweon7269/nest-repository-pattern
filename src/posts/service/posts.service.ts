@@ -16,8 +16,11 @@ export class PostsService {
     return this.postReadRepository.findById(id);
   }
 
-  async findAll(): Promise<Post[]> {
-    return this.postReadRepository.findAll();
+  async findAllPaginated(
+    skip: number,
+    take: number,
+  ): Promise<[Post[], number]> {
+    return this.postReadRepository.findAllPaginated(skip, take);
   }
 
   async create(dto: CreatePostRequestDto): Promise<Post> {
