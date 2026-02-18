@@ -20,11 +20,11 @@ pnpm start:debug        # development + debug + watch mode
 pnpm test               # unit tests (src/**/*.spec.ts)
 pnpm test:watch         # watch mode
 pnpm test:cov           # coverage
-pnpm test:e2e           # e2e + integration tests (test/**/*.(e2e|integration)-spec.ts)
+pnpm test:e2e           # integration tests (test/**/*.integration-spec.ts)
 
 # Run a single test file
 npx jest src/posts/posts.facade.spec.ts
-npx jest --config ./test/jest-e2e.json test/posts.e2e-spec.ts
+npx jest --config ./test/jest-e2e.json test/posts.integration-spec.ts
 
 # Lint & Format
 pnpm lint
@@ -85,9 +85,20 @@ Controller → Facade → PostsValidationService (존재 검증) + PostsService 
 - **단위 테스트** (`src/**/*.spec.ts`) — 실제 조건 분기/변환 로직이 있는 레이어만 테스트
   - Facade: `{ provide: PostsService, useValue: mockService }` + `{ provide: PostsValidationService, useValue: mockValidationService }` — DTO 변환 검증
   - DTO: `PostResponseDto.of()` — 순수 팩토리 함수
-  - `PostsValidationService`는 pass-through 성격이므로 단위 테스트 대상이 아님 (e2e/통합 테스트에서 커버)
-- **e2e 테스트** (`test/**/*.e2e-spec.ts`) — `PostsModule`을 import 후 `overrideProvider`로 DB 의존 제거. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드) 검증. Docker 불필요. **주의:** `useExisting` 패턴 때문에 `PostRepository` 자체도 override 해야 `DataSource` 해결 오류가 발생하지 않음.
-- **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+  - `PostsValidationService`는 pass-through 성격이므로 단위 테스트 대상이 아님 (통합 테스트에서 커버)
+- **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+- ~~**e2e 테스트**~~ — 제거됨. 통합 테스트가 HTTP 레이어를 포함한 전체 플로우를 검증하므로 별도 e2e 테스트를 유지하지 않음.
+
+### 작업 완료 후 검증
+
+모든 작업이 완료되면 아래 명령을 순서대로 실행하여 문제가 없는지 확인한다.
+
+```bash
+pnpm build:local        # 빌드 확인
+pnpm start:local        # 서버 기동 확인 (정상 기동 후 종료)
+pnpm test               # 단위 테스트 통과 확인
+pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
+```
 
 ### Skills
 
