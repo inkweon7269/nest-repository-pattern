@@ -23,7 +23,7 @@ pnpm test:cov           # coverage
 pnpm test:e2e           # integration tests (test/**/*.integration-spec.ts)
 
 # Run a single test file
-npx jest src/posts/posts.facade.spec.ts
+npx jest src/posts/command/update-post.handler.spec.ts
 npx jest --config ./test/jest-e2e.json test/posts.integration-spec.ts
 
 # Lint & Format
@@ -41,25 +41,37 @@ pnpm migration:create -- src/migrations/AddCategoryToPost      # 빈 migration �
 
 ## Architecture
 
-NestJS 프로젝트에 **Repository Pattern**을 적용한 CRUD API. TypeORM + PostgreSQL 사용.
+NestJS 프로젝트에 **Repository Pattern** + **CQRS Pattern**을 적용한 CRUD API. TypeORM + PostgreSQL 사용.
 
-### Request Flow (Facade Pattern)
+### CQRS 설계 원칙
+
+- **Command는 상태만 변경**한다. 반환 타입은 `void` 또는 최소 식별자(`number` 등). DTO를 반환하지 않는다.
+- **Query는 상태만 조회**한다. DTO 변환은 Query Handler에서 수행한다.
+- **Controller가 Command → Query를 조합**하여 응답을 구성한다. (예: `createPost`는 Command로 ID를 받고, Query로 응답 DTO를 조회)
+- **Repository는 순수 데이터 접근**만 담당한다. 예외 던지기, null 체크 등 비즈니스 로직을 포함하지 않는다.
+- **검증(존재 확인)은 Handler**에서 수행한다. (`findById` → null 체크 → `NotFoundException`)
+- **Repository 인터페이스는 도메인 입력 타입**(`CreatePostInput`/`UpdatePostInput`)을 사용한다. HTTP Request DTO에 의존하지 않는다.
+- **Query 객체에 파생 값을 포함하지 않는다.** 계산은 Handler에서 수행한다.
+
+### Request Flow
 
 ```
-Controller → Facade → PostsValidationService (존재 검증) + PostsService (비즈니스 로직) → IPostReadRepository / IPostWriteRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
+Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostReadRepository / IPostWriteRepository → PostRepository → BaseRepository → TypeORM → PostgreSQL
 ```
 
-- **Controller** — 라우팅(HTTP 데코레이터)만 담당
-- **Facade** — DTO 변환(`ResponseDto.of`), 오케스트레이션
-- **PostsValidationService** — 엔티티 존재 여부 검증(`findById → null 체크 → NotFoundException`). `IPostReadRepository` 직접 주입
-- **Service** — 순수 비즈니스 로직, 엔티티 반환
+- **Controller** — 라우팅 + Command/Query 객체 생성. Command 실행 후 필요시 Query로 응답 DTO 조회
+- **Command** — 상태 변경 의도를 표현하는 순수 값 객체
+- **Query** — 상태 조회 의도를 표현하는 순수 값 객체
+- **Command Handler** — 존재 검증, 쓰기 로직 수행. `void` 또는 ID 반환
+- **Query Handler** — 읽기 로직 + `PostResponseDto.of()` 변환 수행
 
 ### Repository Pattern DI 구조 (ISP 적용)
 
 1. **`IPostReadRepository`** / **`IPostWriteRepository`** (abstract class) — 읽기/쓰기 분리된 DI 토큰 겸 인터페이스
-2. **`PostRepository`** — 두 인터페이스를 모두 구현, `BaseRepository` 상속
-3. **`postRepositoryProviders`** — `PostRepository`를 등록 후 `useExisting`으로 두 추상 클래스 토큰에 동일 인스턴스를 매핑
-4. 모듈에서 `TypeOrmModule.forFeature()`를 사용하지 않음. `BaseRepository`가 `DataSource`를 직접 주입받아 `getRepository<T>()`로 접근
+2. **`IPostWriteRepository`** — `CreatePostInput`/`UpdatePostInput` 도메인 타입을 같은 파일에 정의
+3. **`PostRepository`** — 두 인터페이스를 모두 구현, `BaseRepository` 상속
+4. **`postRepositoryProviders`** — `PostRepository`를 등록 후 `useExisting`으로 두 추상 클래스 토큰에 동일 인스턴스를 매핑
+5. 모듈에서 `TypeOrmModule.forFeature()`를 사용하지 않음. `BaseRepository`가 `DataSource`를 직접 주입받아 `getRepository<T>()`로 접근
 
 ### DTO 구조
 
@@ -80,13 +92,12 @@ Controller → Facade → PostsValidationService (존재 검증) + PostsService 
 
 ### 테스트 구조 (Classical School)
 
-원칙: **로직은 단위 테스트, 연결(wiring)은 통합 테스트.** pass-through 레이어(Controller, Service, Repository)의 단위 테스트는 작성하지 않는다.
+원칙: **로직은 단위 테스트, 연결(wiring)은 통합 테스트.** pass-through 레이어(Controller, Repository)의 단위 테스트는 작성하지 않는다.
 
 - **단위 테스트** (`src/**/*.spec.ts`) — 실제 조건 분기/변환 로직이 있는 레이어만 테스트
-  - Facade: `{ provide: PostsService, useValue: mockService }` + `{ provide: PostsValidationService, useValue: mockValidationService }` — DTO 변환 검증
-  - DTO: `PostResponseDto.of()` — 순수 팩토리 함수
-  - `PostsValidationService`는 pass-through 성격이므로 단위 테스트 대상이 아님 (통합 테스트에서 커버)
-- **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → … → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+  - Handler: DTO 변환 또는 NotFoundException 분기가 있는 Handler만 테스트 (`UpdatePostHandler`, `DeletePostHandler`, `GetPostByIdHandler`, `FindAllPostsPaginatedHandler`). pass-through 성격의 `CreatePostHandler`는 통합 테스트로 커버
+  - DTO: `PostResponseDto.of()`, `PaginatedResponseDto.of()` — 순수 팩토리 함수
+- **통합 테스트** (`test/**/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp()`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
 - ~~**e2e 테스트**~~ — 제거됨. 통합 테스트가 HTTP 레이어를 포함한 전체 플로우를 검증하므로 별도 e2e 테스트를 유지하지 않음.
 
 ### 작업 완료 후 검증
@@ -95,7 +106,6 @@ Controller → Facade → PostsValidationService (존재 검증) + PostsService 
 
 ```bash
 pnpm build:local        # 빌드 확인
-pnpm start:local        # 서버 기동 확인 (정상 기동 후 종료)
 pnpm test               # 단위 테스트 통과 확인
 pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 ```

@@ -11,8 +11,13 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { PostsFacade } from '@src/posts/posts.facade';
+import { CreatePostCommand } from '@src/posts/command/create-post.command';
+import { UpdatePostCommand } from '@src/posts/command/update-post.command';
+import { DeletePostCommand } from '@src/posts/command/delete-post.command';
+import { GetPostByIdQuery } from '@src/posts/query/get-post-by-id.query';
+import { FindAllPostsPaginatedQuery } from '@src/posts/query/find-all-posts-paginated.query';
 import { CreatePostRequestDto } from '@src/posts/dto/request/create-post.request.dto';
 import { UpdatePostRequestDto } from '@src/posts/dto/request/update-post.request.dto';
 import { PostResponseDto } from '@src/posts/dto/response/post.response.dto';
@@ -22,14 +27,19 @@ import { PaginatedResponseDto } from '@src/common/dto/response/paginated.respons
 @ApiTags('Posts')
 @Controller('posts')
 export class PostsController {
-  constructor(private readonly postsFacade: PostsFacade) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: '게시글 페이지네이션 조회' })
   async findAllPaginated(
     @Query() paginationDto: PaginationRequestDto,
   ): Promise<PaginatedResponseDto<PostResponseDto>> {
-    return this.postsFacade.findAllPaginated(paginationDto);
+    return this.queryBus.execute(
+      new FindAllPostsPaginatedQuery(paginationDto.page, paginationDto.limit),
+    );
   }
 
   @Get(':id')
@@ -37,7 +47,7 @@ export class PostsController {
   async getPostById(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<PostResponseDto> {
-    return this.postsFacade.getPostById(id);
+    return this.queryBus.execute(new GetPostByIdQuery(id));
   }
 
   @Post()
@@ -45,7 +55,10 @@ export class PostsController {
   async createPost(
     @Body() dto: CreatePostRequestDto,
   ): Promise<PostResponseDto> {
-    return this.postsFacade.createPost(dto);
+    const id = await this.commandBus.execute<CreatePostCommand, number>(
+      new CreatePostCommand(dto.title, dto.content, dto.isPublished),
+    );
+    return this.queryBus.execute(new GetPostByIdQuery(id));
   }
 
   @Patch(':id')
@@ -54,13 +67,16 @@ export class PostsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePostRequestDto,
   ): Promise<PostResponseDto> {
-    return this.postsFacade.updatePost(id, dto);
+    await this.commandBus.execute(
+      new UpdatePostCommand(id, dto.title, dto.content, dto.isPublished),
+    );
+    return this.queryBus.execute(new GetPostByIdQuery(id));
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '게시글 삭제' })
   async deletePost(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.postsFacade.deletePost(id);
+    return this.commandBus.execute(new DeletePostCommand(id));
   }
 }

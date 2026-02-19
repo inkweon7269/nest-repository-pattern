@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { BaseRepository } from '@src/common/base.repository';
 import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
-import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
+import {
+  CreatePostInput,
+  IPostWriteRepository,
+  UpdatePostInput,
+} from '@src/posts/interface/post-write-repository.interface';
 import { Post } from '@src/posts/entities/post.entity';
-import { CreatePostRequestDto } from '@src/posts/dto/request/create-post.request.dto';
-import { UpdatePostRequestDto } from '@src/posts/dto/request/update-post.request.dto';
 
 @Injectable()
 export class PostRepository
@@ -35,14 +37,13 @@ export class PostRepository
     });
   }
 
-  async create(dto: CreatePostRequestDto): Promise<Post> {
-    const post = this.postRepository.create(dto);
+  async create(input: CreatePostInput): Promise<Post> {
+    const post = this.postRepository.create(input);
     return this.postRepository.save(post);
   }
 
-  async update(id: number, dto: UpdatePostRequestDto): Promise<Post | null> {
-    await this.postRepository.update(id, dto);
-    return this.findById(id);
+  async update(id: number, input: UpdatePostInput): Promise<void> {
+    await this.postRepository.update(id, input);
   }
 
   async delete(id: number): Promise<void> {

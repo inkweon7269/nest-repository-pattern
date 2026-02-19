@@ -1,17 +1,24 @@
 import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
 import { PostsController } from '@src/posts/posts.controller';
-import { PostsFacade } from '@src/posts/posts.facade';
-import { PostsService } from '@src/posts/service/posts.service';
-import { PostsValidationService } from '@src/posts/service/posts-validation.service';
+import { CreatePostHandler } from '@src/posts/command/create-post.handler';
+import { UpdatePostHandler } from '@src/posts/command/update-post.handler';
+import { DeletePostHandler } from '@src/posts/command/delete-post.handler';
+import { GetPostByIdHandler } from '@src/posts/query/get-post-by-id.handler';
+import { FindAllPostsPaginatedHandler } from '@src/posts/query/find-all-posts-paginated.handler';
 import { postRepositoryProviders } from '@src/posts/post-repository.provider';
 
+const commandHandlers = [
+  CreatePostHandler,
+  UpdatePostHandler,
+  DeletePostHandler,
+];
+
+const queryHandlers = [GetPostByIdHandler, FindAllPostsPaginatedHandler];
+
 @Module({
+  imports: [CqrsModule],
   controllers: [PostsController],
-  providers: [
-    PostsFacade,
-    PostsService,
-    PostsValidationService,
-    ...postRepositoryProviders,
-  ],
+  providers: [...commandHandlers, ...queryHandlers, ...postRepositoryProviders],
 })
 export class PostsModule {}
