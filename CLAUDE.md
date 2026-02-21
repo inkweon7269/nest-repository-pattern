@@ -53,8 +53,9 @@ NestJS 프로젝트에 **Repository Pattern** + **CQRS Pattern**을 적용한 CR
 - **Command와 Query를 분리**한다. 하나의 플로우에서 Command와 Query를 혼합하지 않는다. (예: `createPost`는 Command로 ID를 받아 `{ id }`를 반환, `updatePost`는 Command만 실행하여 204 반환)
 - **Repository는 순수 데이터 접근**만 담당한다. 예외 던지기, null 체크 등 비즈니스 로직을 포함하지 않는다.
 - **검증(존재 확인)은 Handler**에서 수행한다. (affected count가 0이면 `NotFoundException`)
-- **Repository 인터페이스는 도메인 입력 타입**(`CreatePostInput`/`UpdatePostInput`)을 사용한다. HTTP Request DTO에 의존하지 않는다.
+- **Repository 인터페이스는 도메인 타입**을 사용한다. 입력(`CreatePostInput`/`UpdatePostInput`)과 필터(`PostFilter`)를 각각 `IPostWriteRepository`/`IPostReadRepository`와 같은 파일에 정의. HTTP Request DTO에 의존하지 않는다.
 - **Query 객체에 파생 값을 포함하지 않는다.** `skip` 계산은 Repository에서 수행한다.
+- **페이지네이션 Query는 `PaginatedQuery`를 상속**한다. `src/common/query/paginated.query.ts`에 정의된 추상 클래스로, 도메인별 필터를 `filter` 필드로 추가한다.
 
 ### Request Flow
 
@@ -71,7 +72,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 ### Repository Pattern DI 구조 (ISP 적용)
 
 1. **`IPostReadRepository`** / **`IPostWriteRepository`** (abstract class) — 읽기/쓰기 분리된 DI 토큰 겸 인터페이스
-2. **`IPostWriteRepository`** — `CreatePostInput`/`UpdatePostInput` 도메인 타입을 같은 파일에 정의
+2. 도메인 타입은 해당 인터페이스 파일에 co-locate: `IPostWriteRepository` → `CreatePostInput`/`UpdatePostInput`, `IPostReadRepository` → `PostFilter`
 3. **`PostRepository`** — 두 인터페이스를 모두 구현, `BaseRepository` 상속
 4. **`postRepositoryProviders`** — `PostRepository`를 등록 후 `useExisting`으로 두 추상 클래스 토큰에 동일 인스턴스를 매핑
 5. 모듈에서 `TypeOrmModule.forFeature()`를 사용하지 않음. `BaseRepository`가 `DataSource`를 직접 주입받아 `getRepository<T>()`로 접근
@@ -83,7 +84,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 ### DTO 구조
 
-- `dto/request/` — 요청 DTO (`class-validator` 데코레이터로 유효성 검증)
+- `dto/request/` — 요청 DTO (`class-validator` 데코레이터로 유효성 검증). 페이지네이션+필터 DTO는 `PaginationRequestDto`를 상속하여 도메인별 필터 필드를 추가한다.
 - `dto/response/` — 응답 DTO (static `of(entity)` 팩토리 메서드로 엔티티 → DTO 변환)
 
 ### 환경 설정
