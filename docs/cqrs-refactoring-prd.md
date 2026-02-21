@@ -336,9 +336,10 @@ constructor(
 
 @Post()
 async createPost(@Body() dto: CreatePostRequestDto) {
-  return this.commandBus.execute(
+  const id = await this.commandBus.execute(
     new CreatePostCommand(dto.title, dto.content, dto.isPublished),
   );
+  return CreatePostResponseDto.of(id);
 }
 ```
 
@@ -393,8 +394,8 @@ async createPost(@Body() dto: CreatePostRequestDto) {
 
 | Handler | DTO 변환 | 검증 분기 | 단위 테스트 대상 |
 |---------|----------|-----------|------------------|
-| `CreatePostHandler` | O | X | X (pass-through) |
-| `UpdatePostHandler` | O | O (NotFoundException) | **O** |
+| `CreatePostHandler` | X | X | X (pass-through) |
+| `UpdatePostHandler` | X | O (NotFoundException) | **O** |
 | `DeletePostHandler` | X | O (NotFoundException) | **O** |
 | `GetPostByIdHandler` | O | O (NotFoundException) | **O** |
 | `FindAllPostsPaginatedHandler` | O | X | **O** (PaginatedResponseDto 변환) |

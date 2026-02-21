@@ -338,7 +338,7 @@ describe('Posts (integration)', () => {
       expect(getRes.body.createdAt).toBe(createdAt);
       expect(
         new Date(getRes.body.updatedAt as string).getTime(),
-      ).toBeGreaterThanOrEqual(new Date(originalUpdatedAt).getTime());
+      ).toBeGreaterThan(new Date(originalUpdatedAt).getTime());
     });
 
     it('should return 404 when post not found', () => {

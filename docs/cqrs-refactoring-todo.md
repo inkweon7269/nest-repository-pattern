@@ -7,7 +7,7 @@
 
 ## Phase 1: 환경 준비
 
-- [ ] `@nestjs/cqrs` 패키지 설치
+- [x] `@nestjs/cqrs` 패키지 설치
   ```bash
   pnpm add @nestjs/cqrs
   ```
@@ -18,11 +18,11 @@
 
 시스템 상태를 **변경**하는 의도를 표현하는 순수 값 객체.
 
-- [ ] `src/posts/command/create-post.command.ts` 생성
+- [x] `src/posts/command/create-post.command.ts` 생성
   - 필드: `title: string`, `content: string`, `isPublished?: boolean`
-- [ ] `src/posts/command/update-post.command.ts` 생성
+- [x] `src/posts/command/update-post.command.ts` 생성
   - 필드: `id: number`, `title: string`, `content: string`, `isPublished: boolean`
-- [ ] `src/posts/command/delete-post.command.ts` 생성
+- [x] `src/posts/command/delete-post.command.ts` 생성
   - 필드: `id: number`
 
 ---
@@ -31,9 +31,9 @@
 
 시스템 상태를 **조회**하는 의도를 표현하는 순수 값 객체.
 
-- [ ] `src/posts/query/get-post-by-id.query.ts` 생성
+- [x] `src/posts/query/get-post-by-id.query.ts` 생성
   - 필드: `id: number`
-- [ ] `src/posts/query/find-all-posts-paginated.query.ts` 생성
+- [x] `src/posts/query/find-all-posts-paginated.query.ts` 생성
   - 필드: `page: number`, `limit: number`
 
 ---
@@ -42,13 +42,13 @@
 
 각 Handler는 `@CommandHandler` 데코레이터로 장식하고 `ICommandHandler<T>` 인터페이스를 구현한다.
 
-- [ ] `src/posts/command/create-post.handler.ts` 구현
+- [x] `src/posts/command/create-post.handler.ts` 구현
   - 주입: `IPostWriteRepository`
   - 로직: `create(input)` → `post.id` 반환
-- [ ] `src/posts/command/update-post.handler.ts` 구현
+- [x] `src/posts/command/update-post.handler.ts` 구현
   - 주입: `IPostWriteRepository`
   - 로직: `update(id, input)` → affected가 0이면 `NotFoundException`
-- [ ] `src/posts/command/delete-post.handler.ts` 구현
+- [x] `src/posts/command/delete-post.handler.ts` 구현
   - 주입: `IPostWriteRepository`
   - 로직: `delete(id)` → affected가 0이면 `NotFoundException`
 
@@ -58,10 +58,10 @@
 
 각 Handler는 `@QueryHandler` 데코레이터로 장식하고 `IQueryHandler<T, R>` 인터페이스를 구현한다.
 
-- [ ] `src/posts/query/get-post-by-id.handler.ts` 구현
+- [x] `src/posts/query/get-post-by-id.handler.ts` 구현
   - 주입: `IPostReadRepository`
   - 로직: `findById(id)` → null이면 `NotFoundException` → `PostResponseDto.of(post)` 반환
-- [ ] `src/posts/query/find-all-posts-paginated.handler.ts` 구현
+- [x] `src/posts/query/find-all-posts-paginated.handler.ts` 구현
   - 주입: `IPostReadRepository`
   - 로직: `findAllPaginated(page, limit)` → `map PostResponseDto.of` → `PaginatedResponseDto.of(items, totalElements, page, limit)` 반환
 
@@ -69,7 +69,7 @@
 
 ## Phase 6: Controller 수정
 
-- [ ] `src/posts/posts.controller.ts` 수정
+- [x] `src/posts/posts.controller.ts` 수정
   - `PostsFacade` 의존성 제거
   - `CommandBus`, `QueryBus` 주입 (`@nestjs/cqrs`)
   - 각 엔드포인트에서 Command/Query 객체 생성 후 `bus.execute()` 호출
@@ -80,7 +80,7 @@
 
 ## Phase 7: Module 수정
 
-- [ ] `src/posts/posts.module.ts` 수정
+- [x] `src/posts/posts.module.ts` 수정
   - `CqrsModule` import 추가
   - `commandHandlers` 배열 등록: `[CreatePostHandler, UpdatePostHandler, DeletePostHandler]`
   - `queryHandlers` 배열 등록: `[GetPostByIdHandler, FindAllPostsPaginatedHandler]`
@@ -91,11 +91,11 @@
 
 ## Phase 8: 레거시 파일 삭제
 
-- [ ] `src/posts/posts.facade.ts` 삭제
-- [ ] `src/posts/posts.facade.spec.ts` 삭제
-- [ ] `src/posts/service/posts.service.ts` 삭제
-- [ ] `src/posts/service/posts-validation.service.ts` 삭제
-- [ ] `src/posts/service/` 디렉토리 삭제 (비어 있으면)
+- [x] `src/posts/posts.facade.ts` 삭제
+- [x] `src/posts/posts.facade.spec.ts` 삭제
+- [x] `src/posts/service/posts.service.ts` 삭제
+- [x] `src/posts/service/posts-validation.service.ts` 삭제
+- [x] `src/posts/service/` 디렉토리 삭제 (비어 있으면)
 
 ---
 
@@ -103,19 +103,19 @@
 
 Classical School 원칙에 따라, DTO 변환 또는 NotFoundException 분기가 있는 Handler만 단위 테스트.
 
-- [ ] `src/posts/command/update-post.handler.spec.ts` 작성
+- [x] `src/posts/command/update-post.handler.spec.ts` 작성
   - mock: `IPostWriteRepository`
   - 케이스 1: affected=1 → void 반환 검증
   - 케이스 2: affected=0 → `NotFoundException` 발생 검증
-- [ ] `src/posts/command/delete-post.handler.spec.ts` 작성
+- [x] `src/posts/command/delete-post.handler.spec.ts` 작성
   - mock: `IPostWriteRepository`
   - 케이스 1: affected=1 → void 반환 검증
   - 케이스 2: affected=0 → `NotFoundException` 발생 검증
-- [ ] `src/posts/query/get-post-by-id.handler.spec.ts` 작성
+- [x] `src/posts/query/get-post-by-id.handler.spec.ts` 작성
   - mock: `IPostReadRepository`
   - 케이스 1: 존재하는 post → `PostResponseDto` 변환 검증
   - 케이스 2: 존재하지 않는 post → `NotFoundException` 발생 검증
-- [ ] `src/posts/query/find-all-posts-paginated.handler.spec.ts` 작성
+- [x] `src/posts/query/find-all-posts-paginated.handler.spec.ts` 작성
   - mock: `IPostReadRepository`
   - 케이스: DTO 변환 + `PaginatedResponseDto` 메타 정보(page, limit, totalPages, isFirst, isLast) 검증
 
@@ -127,7 +127,7 @@ Classical School 원칙에 따라, DTO 변환 또는 NotFoundException 분기가
 
 ### 10.1 단위 테스트
 
-- [ ] `pnpm test` 실행 — 모든 단위 테스트 통과 확인
+- [x] `pnpm test` 실행 — 모든 단위 테스트 통과 확인
   - Handler 단위 테스트 (4개 파일)
   - 기존 DTO 단위 테스트 (2개 파일, 변경 없음)
 
@@ -138,11 +138,11 @@ Classical School 원칙에 따라, DTO 변환 또는 NotFoundException 분기가
 
 ### 10.3 빌드
 
-- [ ] `pnpm build:local` 실행 — 빌드 성공 확인
+- [x] `pnpm build:local` 실행 — 빌드 성공 확인
 
 ### 10.4 린트
 
-- [ ] `pnpm lint` 실행 — 린트 통과 확인
+- [x] `pnpm lint` 실행 — 린트 통과 확인
 
 ### 10.5 수동 검증 (선택)
 
@@ -158,7 +158,7 @@ Classical School 원칙에 따라, DTO 변환 또는 NotFoundException 분기가
 
 ## Phase 11: 문서 업데이트
 
-- [ ] `CLAUDE.md` 업데이트
+- [x] `CLAUDE.md` 업데이트
   - Architecture 섹션의 Request Flow를 CQRS 구조로 변경
   - Facade/Service/ValidationService 관련 설명 제거
   - Command/Query/Handler 구조 설명 추가
