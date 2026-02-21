@@ -8,7 +8,7 @@ GitHub 이슈 #1에서 RolandSall이 현재 아키텍처의 구조적 한계를 
 
 **현재 요청 흐름:**
 
-```
+```text
 HTTP Request
     ↓
 PostsController (라우팅)
@@ -49,7 +49,7 @@ PostRepository → BaseRepository → TypeORM → PostgreSQL
 
 전통적인 CRUD 아키텍처에서는 하나의 Service가 읽기와 쓰기를 모두 처리한다:
 
-```
+```text
 // 전통적 CRUD
 PostsService {
   findById(id)        ← 읽기
@@ -62,7 +62,7 @@ PostsService {
 
 CQRS는 이것을 **명시적으로 분리**한다:
 
-```
+```text
 // CQRS
 Command (쓰기 의도)          Query (읽기 의도)
 ─────────────────           ─────────────────
@@ -155,7 +155,7 @@ Controller → Bus → Handler → Repository. 중간의 불필요한 레이어�
 
 NestJS는 `@nestjs/cqrs` 공식 패키지를 제공한다:
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                    CqrsModule                        │
 │                                                      │
@@ -220,7 +220,7 @@ class UpdateSearchIndexHandler {
 
 ### 3.2 변경 후 요청 흐름
 
-```
+```text
 HTTP Request
     ↓
 PostsController (라우팅 + Command/Query 생성)
@@ -250,7 +250,7 @@ PostRepository → BaseRepository → TypeORM → PostgreSQL
 
 ### 4.1 디렉토리 구조
 
-```
+```text
 src/posts/
 ├── command/
 │   ├── create-post.command.ts          # Command 객체
@@ -413,7 +413,7 @@ async createPost(@Body() dto: CreatePostRequestDto) {
 
 ### Before
 
-```
+```text
 ┌──────────────┐
 │  Controller  │ ── 라우팅만 담당
 └──────┬───────┘
@@ -433,7 +433,7 @@ async createPost(@Body() dto: CreatePostRequestDto) {
 
 ### After
 
-```
+```text
 ┌──────────────┐
 │  Controller  │ ── 라우팅 + Command/Query 생성
 └──────┬───────┘

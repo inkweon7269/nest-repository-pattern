@@ -64,7 +64,7 @@ export class PostsController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '게시글 수정' })
+  @ApiOperation({ summary: '게시글 수정 (전체 업데이트)' })
   async updatePost(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePostRequestDto,

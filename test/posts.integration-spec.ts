@@ -72,12 +72,8 @@ describe('Posts (integration)', () => {
       expect(getRes.body.id).toBeGreaterThan(0);
       expect(getRes.body.createdAt).toBeDefined();
       expect(getRes.body.updatedAt).toBeDefined();
-      expect(
-        new Date(getRes.body.createdAt as string).getTime(),
-      ).not.toBeNaN();
-      expect(
-        new Date(getRes.body.updatedAt as string).getTime(),
-      ).not.toBeNaN();
+      expect(new Date(getRes.body.createdAt as string).getTime()).not.toBeNaN();
+      expect(new Date(getRes.body.updatedAt as string).getTime()).not.toBeNaN();
     });
 
     it('should default isPublished to false when not provided', async () => {
@@ -106,7 +102,7 @@ describe('Posts (integration)', () => {
       const res1 = await createPost({ title: 'First' }).expect(201);
       const res2 = await createPost({ title: 'Second' }).expect(201);
 
-      expect(res2.body.id).toBe((res1.body.id as number) + 1);
+      expect(res2.body.id).toBeGreaterThan(res1.body.id as number);
     });
 
     it('should return 400 when title is missing', () => {

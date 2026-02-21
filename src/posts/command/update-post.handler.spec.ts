@@ -37,7 +37,12 @@ describe('UpdatePostHandler', () => {
   it('존재하지 않는 게시글을 수정하면 NotFoundException을 발생시킨다', async () => {
     mockWriteRepository.update.mockResolvedValue(0);
 
-    const command = new UpdatePostCommand(999, 'Updated Title', 'Content', false);
+    const command = new UpdatePostCommand(
+      999,
+      'Updated Title',
+      'Content',
+      false,
+    );
 
     await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
   });

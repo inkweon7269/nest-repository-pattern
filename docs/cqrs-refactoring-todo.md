@@ -202,15 +202,20 @@ Classical School 원칙에 따라, DTO 변환 또는 NotFoundException 분기가
 | `src/posts/service/posts.service.ts` | Handler가 Repository 직접 호출 |
 | `src/posts/service/posts-validation.service.ts` | 검증 로직이 Handler 내부로 이동 |
 
+### 수정됨 (리팩토링 과정에서 변경 발생)
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `src/posts/interface/post-read-repository.interface.ts` | `findAllPaginated(skip, take)` → `(page, limit)` 시그니처 변경 |
+| `src/posts/interface/post-write-repository.interface.ts` | `CreatePostInput`/`UpdatePostInput` 도메인 타입 추가, 반환 `Promise<number>` |
+| `src/posts/post.repository.ts` | skip 계산 내부화, affected count 반환 |
+| `src/posts/dto/**` | `CreatePostResponseDto` 신규, `UpdatePostRequestDto` 필드 필수화 |
+| `test/posts.integration-spec.ts` | Command/Query 분리, 204 응답 등 반영 |
+
 ### 변경 없음
 
 | 파일 | 이유 |
 |------|------|
-| `src/posts/interface/post-read-repository.interface.ts` | Repository 패턴 유지 |
-| `src/posts/interface/post-write-repository.interface.ts` | Repository 패턴 유지 |
-| `src/posts/post.repository.ts` | 데이터 접근 레이어 유지 |
 | `src/posts/post-repository.provider.ts` | DI 패턴 유지 |
 | `src/posts/entities/post.entity.ts` | 엔티티 변경 없음 |
-| `src/posts/dto/**` | DTO 구조 유지 |
 | `src/common/**` | 공통 유틸 유지 |
-| `test/posts.integration-spec.ts` | HTTP 레벨 검증으로 내부 구조에 무관 |
