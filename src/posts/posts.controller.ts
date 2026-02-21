@@ -22,7 +22,7 @@ import { CreatePostRequestDto } from '@src/posts/dto/request/create-post.request
 import { UpdatePostRequestDto } from '@src/posts/dto/request/update-post.request.dto';
 import { PostResponseDto } from '@src/posts/dto/response/post.response.dto';
 import { CreatePostResponseDto } from '@src/posts/dto/response/create-post.response.dto';
-import { PaginationRequestDto } from '@src/common/dto/request/pagination.request.dto';
+import { PostsPaginationRequestDto } from '@src/posts/dto/request/find-posts.request.dto';
 import { PaginatedResponseDto } from '@src/common/dto/response/paginated.response.dto';
 
 @ApiTags('Posts')
@@ -36,10 +36,12 @@ export class PostsController {
   @Get()
   @ApiOperation({ summary: '게시글 페이지네이션 조회' })
   async findAllPaginated(
-    @Query() paginationDto: PaginationRequestDto,
+    @Query() dto: PostsPaginationRequestDto,
   ): Promise<PaginatedResponseDto<PostResponseDto>> {
     return this.queryBus.execute(
-      new FindAllPostsPaginatedQuery(paginationDto.page, paginationDto.limit),
+      new FindAllPostsPaginatedQuery(dto.page, dto.limit, {
+        isPublished: dto.isPublished,
+      }),
     );
   }
 

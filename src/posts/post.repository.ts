@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, FindOptionsWhere } from 'typeorm';
 import { BaseRepository } from '@src/common/base.repository';
-import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
+import {
+  IPostReadRepository,
+  PostFilter,
+} from '@src/posts/interface/post-read-repository.interface';
 import {
   CreatePostInput,
   IPostWriteRepository,
@@ -29,8 +32,16 @@ export class PostRepository
   async findAllPaginated(
     page: number,
     limit: number,
+    filter: PostFilter = {},
   ): Promise<[Post[], number]> {
+    const where: FindOptionsWhere<Post> = {};
+
+    if (filter.isPublished !== undefined) {
+      where.isPublished = filter.isPublished;
+    }
+
     return this.postRepository.findAndCount({
+      where,
       skip: (page - 1) * limit,
       take: limit,
       order: { id: 'DESC' },

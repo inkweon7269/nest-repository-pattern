@@ -51,6 +51,7 @@ describe('FindAllPostsPaginatedHandler', () => {
     const query = new FindAllPostsPaginatedQuery(1, 2);
     const result = await handler.execute(query);
 
+    expect(mockReadRepository.findAllPaginated).toHaveBeenCalledWith(1, 2, {});
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(PostResponseDto);
     expect(result.items[0].id).toBe(2);

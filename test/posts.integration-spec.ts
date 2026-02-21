@@ -230,6 +230,56 @@ describe('Posts (integration)', () => {
     it('should return 400 when page is not a number', () => {
       return request(app.getHttpServer()).get('/posts?page=abc').expect(400);
     });
+
+    it('should filter by isPublished=true', async () => {
+      await createPost({ title: 'Published', isPublished: true }).expect(201);
+      await createPost({ title: 'Draft', isPublished: false }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?isPublished=true')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe('Published');
+      expect(res.body.meta.totalElements).toBe(1);
+    });
+
+    it('should filter by isPublished=false', async () => {
+      await createPost({ title: 'Published', isPublished: true }).expect(201);
+      await createPost({ title: 'Draft' }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?isPublished=false')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe('Draft');
+      expect(res.body.meta.totalElements).toBe(1);
+    });
+
+    it('should combine isPublished filter with pagination', async () => {
+      for (let i = 0; i < 5; i++) {
+        await createPost({
+          title: `Published ${i}`,
+          isPublished: true,
+        }).expect(201);
+      }
+      await createPost({ title: 'Draft' }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?isPublished=true&limit=2&page=1')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(2);
+      expect(res.body.meta.totalElements).toBe(5);
+      expect(res.body.meta.totalPages).toBe(3);
+    });
+
+    it('should return 400 for invalid isPublished value', () => {
+      return request(app.getHttpServer())
+        .get('/posts?isPublished=notabool')
+        .expect(400);
+    });
   });
 
   // ============================================================

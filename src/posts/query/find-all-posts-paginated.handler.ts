@@ -12,7 +12,11 @@ export class FindAllPostsPaginatedHandler implements IQueryHandler<FindAllPostsP
     query: FindAllPostsPaginatedQuery,
   ): Promise<PaginatedResponseDto<PostResponseDto>> {
     const [posts, totalElements] =
-      await this.postReadRepository.findAllPaginated(query.page, query.limit);
+      await this.postReadRepository.findAllPaginated(
+        query.page,
+        query.limit,
+        query.filter,
+      );
 
     const items = posts.map((post) => PostResponseDto.of(post));
 
