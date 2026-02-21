@@ -11,7 +11,7 @@ export class Post {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 200 })
+  @Column({ length: 200, unique: true })
   title: string;
 
   @Column({ type: 'text' })

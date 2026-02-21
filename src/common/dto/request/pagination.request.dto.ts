@@ -19,12 +19,4 @@ export class PaginationRequestDto {
   @Min(1)
   @Max(100)
   limit: number = 10;
-
-  get skip(): number {
-    return (this.page - 1) * this.limit;
-  }
-
-  get take(): number {
-    return this.limit;
-  }
 }
