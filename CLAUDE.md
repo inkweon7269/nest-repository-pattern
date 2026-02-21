@@ -39,27 +39,30 @@ pnpm migration:revert:local                                    # 마지막 migra
 pnpm migration:create -- src/migrations/AddCategoryToPost      # 빈 migration 템플릿 생성
 ```
 
-## Architecture
+## Architecture & Patterns
 
 NestJS 프로젝트에 **Repository Pattern** + **CQRS Pattern**을 적용한 CRUD API. TypeORM + PostgreSQL 사용.
+
+- 새 코드 생성 시 기존 handler/repository 패턴을 따른다.
+- TypeORM 설정에는 항상 `forRootAsync`를 사용한다 (`forRoot`의 eager evaluation 금지).
 
 ### CQRS 설계 원칙
 
 - **Command는 상태만 변경**한다. 반환 타입은 `void` 또는 최소 식별자(`number` 등). DTO를 반환하지 않는다.
 - **Query는 상태만 조회**한다. DTO 변환은 Query Handler에서 수행한다.
-- **Controller가 Command → Query를 조합**하여 응답을 구성한다. (예: `createPost`는 Command로 ID를 받고, Query로 응답 DTO를 조회)
+- **Command와 Query를 분리**한다. 하나의 플로우에서 Command와 Query를 혼합하지 않는다. (예: `createPost`는 Command로 ID를 받아 `{ id }`를 반환, `updatePost`는 Command만 실행하여 204 반환)
 - **Repository는 순수 데이터 접근**만 담당한다. 예외 던지기, null 체크 등 비즈니스 로직을 포함하지 않는다.
-- **검증(존재 확인)은 Handler**에서 수행한다. (`findById` → null 체크 → `NotFoundException`)
+- **검증(존재 확인)은 Handler**에서 수행한다. (affected count가 0이면 `NotFoundException`)
 - **Repository 인터페이스는 도메인 입력 타입**(`CreatePostInput`/`UpdatePostInput`)을 사용한다. HTTP Request DTO에 의존하지 않는다.
-- **Query 객체에 파생 값을 포함하지 않는다.** 계산은 Handler에서 수행한다.
+- **Query 객체에 파생 값을 포함하지 않는다.** `skip` 계산은 Repository에서 수행한다.
 
 ### Request Flow
 
-```
+```text
 Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostReadRepository / IPostWriteRepository → PostRepository → BaseRepository → TypeORM → PostgreSQL
 ```
 
-- **Controller** — 라우팅 + Command/Query 객체 생성. Command 실행 후 필요시 Query로 응답 DTO 조회
+- **Controller** — 라우팅 + Command/Query 객체 생성. Command와 Query를 분리하여 실행
 - **Command** — 상태 변경 의도를 표현하는 순수 값 객체
 - **Query** — 상태 조회 의도를 표현하는 순수 값 객체
 - **Command Handler** — 존재 검증, 쓰기 로직 수행. `void` 또는 ID 반환
@@ -72,6 +75,11 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 3. **`PostRepository`** — 두 인터페이스를 모두 구현, `BaseRepository` 상속
 4. **`postRepositoryProviders`** — `PostRepository`를 등록 후 `useExisting`으로 두 추상 클래스 토큰에 동일 인스턴스를 매핑
 5. 모듈에서 `TypeOrmModule.forFeature()`를 사용하지 않음. `BaseRepository`가 `DataSource`를 직접 주입받아 `getRepository<T>()`로 접근
+
+### NestJS Conventions
+
+- 모듈 파일(`*.module.ts`) 수정 후 모든 providers, exports, imports가 올바르게 등록되었는지 확인한다. 흔한 실수: Guard/Service를 export하면서 providers에 추가하지 않는 것.
+- 모든 DTO에 `class-validator`와 `class-transformer` 데코레이터를 사용한다.
 
 ### DTO 구조
 
@@ -89,6 +97,12 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 ### Swagger
 
 `/api` 경로에서 Swagger UI 확인 가능. DTO에 `@ApiProperty`/`@ApiPropertyOptional` 적용.
+
+### Testing
+
+- 코드 변경 후 항상 `pnpm build:local`과 `pnpm test`를 실행한다.
+- auth 관련 파일 변경 시 `pnpm test:e2e`도 실행한다.
+- Jest `globalSetup`/`globalTeardown` 파일은 반드시 상대 경로 import를 사용한다 (path alias 금지).
 
 ### 테스트 구조 (Classical School)
 
@@ -109,6 +123,15 @@ pnpm build:local        # 빌드 확인
 pnpm test               # 단위 테스트 통과 확인
 pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 ```
+
+### Git Workflow
+
+- 사용자가 커밋과 푸시를 요청하면, 변경 사항을 재분석하거나 재계획하지 않고 즉시 수행한다. 사용자가 이미 작업을 검토했다고 가정한다.
+
+### Planning
+
+- 작업 계획 시 사용자가 명시적으로 요청한 범위만으로 제한한다. 요청하지 않은 추가 작업이나 단계를 포함하지 않는다.
+- 범위가 불확실하면 확장하기 전에 먼저 질문한다.
 
 ### Skills
 

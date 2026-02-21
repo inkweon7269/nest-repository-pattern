@@ -286,7 +286,7 @@ Command와 Query는 **의도를 표현하는 순수 값 객체**다. 로직이 �
 | 클래스 | 필드 |
 |--------|------|
 | `CreatePostCommand` | `title: string`, `content: string`, `isPublished?: boolean` |
-| `UpdatePostCommand` | `id: number`, `title?: string`, `content?: string`, `isPublished?: boolean` |
+| `UpdatePostCommand` | `id: number`, `title: string`, `content: string`, `isPublished: boolean` |
 | `DeletePostCommand` | `id: number` |
 
 **Query 클래스 (2개):**
@@ -294,7 +294,7 @@ Command와 Query는 **의도를 표현하는 순수 값 객체**다. 로직이 �
 | 클래스 | 필드 |
 |--------|------|
 | `GetPostByIdQuery` | `id: number` |
-| `FindAllPostsPaginatedQuery` | `page: number`, `limit: number`, `skip: number`, `take: number` |
+| `FindAllPostsPaginatedQuery` | `page: number`, `limit: number` |
 
 ### 4.3 Handler 설계
 
@@ -304,16 +304,16 @@ Command와 Query는 **의도를 표현하는 순수 값 객체**다. 로직이 �
 
 | Handler | 주입 | 로직 |
 |---------|------|------|
-| `CreatePostHandler` | `IPostWriteRepository` | `create(dto)` → `PostResponseDto.of(post)` |
-| `UpdatePostHandler` | `IPostReadRepository` + `IPostWriteRepository` | `findById(id)` → null이면 NotFoundException → `update(id, dto)` → `PostResponseDto.of(post)` |
-| `DeletePostHandler` | `IPostReadRepository` + `IPostWriteRepository` | `findById(id)` → null이면 NotFoundException → `delete(id)` |
+| `CreatePostHandler` | `IPostWriteRepository` | `create(input)` → `post.id` 반환 |
+| `UpdatePostHandler` | `IPostWriteRepository` | `update(id, input)` → affected가 0이면 NotFoundException |
+| `DeletePostHandler` | `IPostWriteRepository` | `delete(id)` → affected가 0이면 NotFoundException |
 
 **Query Handlers:**
 
 | Handler | 주입 | 로직 |
 |---------|------|------|
 | `GetPostByIdHandler` | `IPostReadRepository` | `findById(id)` → null이면 NotFoundException → `PostResponseDto.of(post)` |
-| `FindAllPostsPaginatedHandler` | `IPostReadRepository` | `findAllPaginated(skip, take)` → `map PostResponseDto.of` → `PaginatedResponseDto.of(...)` |
+| `FindAllPostsPaginatedHandler` | `IPostReadRepository` | `findAllPaginated(page, limit)` → `map PostResponseDto.of` → `PaginatedResponseDto.of(...)` |
 
 ### 4.4 Controller 변경
 

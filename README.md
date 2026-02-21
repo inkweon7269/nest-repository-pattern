@@ -29,15 +29,14 @@ NestJS + TypeORM + PostgreSQL 기반 Posts CRUD API.
 HTTP Request
   │
   ▼
-Controller              ← 라우팅, Command/Query 객체 생성, Command → Query 조합
+Controller              ← 라우팅, Command/Query 객체 생성
   │
   ├──→ CommandBus.execute()        ← 상태 변경 (Create, Update, Delete)
   │      │
   │      ▼
-  │    Command Handler             ← 존재 검증, 쓰기 로직. void 또는 ID 반환
+  │    Command Handler             ← 쓰기 로직. void 또는 ID 반환
   │      │
-  │      ├──→ IPostReadRepository  ← 존재 검증용 조회 (findById → null 체크)
-  │      └──→ IPostWriteRepository ← 상태 변경 (create, update, delete)
+  │      └──→ IPostWriteRepository ← 상태 변경 (create, update, delete). affected count로 존재 검증
   │
   └──→ QueryBus.execute()          ← 상태 조회 (GetById, FindAllPaginated)
          │
@@ -56,11 +55,11 @@ Controller              ← 라우팅, Command/Query 객체 생성, Command → 
 |------|------|
 | Command는 상태만 변경 | 반환 타입은 `void` 또는 최소 식별자(`number`). DTO를 반환하지 않음 |
 | Query는 상태만 조회 | DTO 변환은 Query Handler에서 수행 |
-| Controller가 조합 | Command 실행 후 필요시 Query로 응답 DTO 조회 |
+| Command와 Query를 분리 | 하나의 플로우에서 Command와 Query를 혼합하지 않음 |
 | Repository는 순수 데이터 접근 | 예외, 검증 등 비즈니스 로직 없음 |
-| 검증은 Handler에서 수행 | `findById` → null 체크 → `NotFoundException` |
+| 검증은 Handler에서 수행 | affected count가 0이면 `NotFoundException` |
 | Repository는 도메인 타입 사용 | HTTP Request DTO가 아닌 `CreatePostInput`/`UpdatePostInput` |
-| Query에 파생 값 없음 | `page`/`limit`만 보유, `skip` 계산은 Handler |
+| Query에 파생 값 없음 | `page`/`limit`만 보유, `skip` 계산은 Repository |
 
 ### 프로젝트 구조
 
@@ -103,10 +102,11 @@ src/
     │   │   ├── create-post.request.dto.ts
     │   │   └── update-post.request.dto.ts
     │   └── response/
+    │       ├── create-post.response.dto.ts   # 생성 응답 DTO ({ id })
     │       └── post.response.dto.ts          # static of() 팩토리 메서드
     ├── post.repository.ts                    # PostRepository 구현체
     ├── post-repository.provider.ts           # useExisting 기반 커스텀 프로바이더
-    ├── posts.controller.ts                   # HTTP 라우팅 + Command/Query 조합
+    ├── posts.controller.ts                   # HTTP 라우팅 + Command/Query 생성
     └── posts.module.ts                       # Posts 모듈
 
 test/
@@ -138,34 +138,34 @@ CQRS를 적용하면:
 
 - **유스케이스당 하나의 Handler** → 단일 책임 원칙
 - **Command와 Query가 독립적** → 트랜잭션 범위를 쓰기에만 한정 가능
-- **Controller가 Command → Query를 자유롭게 조합** → 유연한 응답 구성
+- **Command와 Query가 완전히 분리** → 하나의 플로우에서 Command와 Query를 혼합하지 않음
 
-#### Controller 조합 패턴
+#### Controller 패턴
 
 ```ts
-// 생성: Command로 ID 반환 → Query로 응답 DTO 조회
+// 생성: Command로 ID 반환 → { id } 응답 (201)
 @Post()
-async createPost(@Body() dto: CreatePostRequestDto): Promise<PostResponseDto> {
+async createPost(@Body() dto: CreatePostRequestDto): Promise<CreatePostResponseDto> {
   const id = await this.commandBus.execute<CreatePostCommand, number>(
     new CreatePostCommand(dto.title, dto.content, dto.isPublished),
   );
-  return this.queryBus.execute(new GetPostByIdQuery(id));
+  return CreatePostResponseDto.of(id);
 }
 
-// 수정: Command(void) → Query로 응답 DTO 조회
+// 수정: Command만 (204 No Content)
 @Patch(':id')
-async updatePost(@Param('id') id: number, @Body() dto: UpdatePostRequestDto): Promise<PostResponseDto> {
+@HttpCode(HttpStatus.NO_CONTENT)
+async updatePost(@Param('id') id: number, @Body() dto: UpdatePostRequestDto): Promise<void> {
   await this.commandBus.execute(
     new UpdatePostCommand(id, dto.title, dto.content, dto.isPublished),
   );
-  return this.queryBus.execute(new GetPostByIdQuery(id));
 }
 
 // 삭제: Command만 (204 No Content)
 @Delete(':id')
 @HttpCode(HttpStatus.NO_CONTENT)
 async deletePost(@Param('id') id: number): Promise<void> {
-  return this.commandBus.execute(new DeletePostCommand(id));
+  await this.commandBus.execute(new DeletePostCommand(id));
 }
 ```
 
@@ -173,10 +173,10 @@ async deletePost(@Param('id') id: number): Promise<void> {
 
 | 레이어 | 책임 | 반환 타입 |
 |--------|------|-----------|
-| **Controller** | HTTP 라우팅, Command/Query 조합 | `Promise<DTO>` |
+| **Controller** | HTTP 라우팅, Command/Query 생성 | `Promise<DTO>` 또는 `void` |
 | **Command Handler** | 존재 검증, 상태 변경 | `void` 또는 `number` |
 | **Query Handler** | 조회 + `PostResponseDto.of()` 변환 | `Promise<DTO>` |
-| **Repository** | 순수 데이터 액세스 (CRUD) | `Promise<Entity>` 또는 `Promise<void>` |
+| **Repository** | 순수 데이터 액세스 (CRUD) | `Promise<Entity>` 또는 `Promise<number>` |
 
 ### Repository Pattern (ISP 적용)
 
@@ -193,13 +193,13 @@ Handler가 TypeORM의 `Repository<Post>`를 직접 사용하면 다음 문제가
 
 Repository Pattern + ISP를 적용하면:
 
-- **Handler는 필요한 인터페이스에만 의존** → Command Handler는 `IPostReadRepository`(검증용) + `IPostWriteRepository`, Query Handler는 `IPostReadRepository`만
+- **Handler는 필요한 인터페이스에만 의존** → Command Handler는 `IPostWriteRepository`만, Query Handler는 `IPostReadRepository`만
 - **구현체 교체가 자유로움** → TypeORM이든, Prisma이든, 인메모리이든 Handler 코드 변경 없음
 - **테스트가 단순** → 인터페이스만 모킹하면 됨
 
 #### 구현 구조
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │ IPostReadRepository (abstract class)                              │
 │ ─ findById(), findAllPaginated()                                 │
@@ -304,12 +304,13 @@ Swagger UI: `http://localhost:3000/api`
 | GET | `/posts` | 게시글 페이지네이션 조회 | 200 |
 | GET | `/posts/:id` | ID로 게시글 조회 | 200 / 404 |
 | POST | `/posts` | 게시글 생성 | 201 |
-| PATCH | `/posts/:id` | 게시글 수정 (부분 업데이트) | 200 / 404 |
+| PATCH | `/posts/:id` | 게시글 수정 (전체 업데이트) | 204 / 400 / 404 |
 | DELETE | `/posts/:id` | 게시글 삭제 | 204 / 404 |
 
 ### 요청/응답 DTO
 
 **CreatePostRequestDto:**
+
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
 | title | string | O | 게시글 제목 |
@@ -317,19 +318,28 @@ Swagger UI: `http://localhost:3000/api`
 | isPublished | boolean | X | 게시 여부 (기본값: false) |
 
 **UpdatePostRequestDto:**
+
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| title | string | X | 게시글 제목 |
-| content | string | X | 게시글 내용 |
-| isPublished | boolean | X | 게시 여부 |
+| title | string | O | 게시글 제목 |
+| content | string | O | 게시글 내용 |
+| isPublished | boolean | O | 게시 여부 |
 
 **PaginationRequestDto:**
+
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
 | page | number | X | 페이지 번호, 1-based (기본값: 1) |
 | limit | number | X | 페이지당 항목 수 (기본값: 10, 최대: 100) |
 
+**CreatePostResponseDto:**
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | number | 생성된 게시글 ID |
+
 **PostResponseDto:**
+
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | id | number | 게시글 ID |

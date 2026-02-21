@@ -22,7 +22,8 @@ You are a senior NestJS framework expert with deep expertise in TypeScript, Node
 This project follows a specific architectural pattern that you MUST adhere to:
 
 ### Request Flow (CQRS Pattern)
-```
+
+```text
 Controller → CommandBus / QueryBus → Handler (검증 + 로직 + DTO 변환) → IPostReadRepository / IPostWriteRepository (abstract class) → PostRepository → BaseRepository → TypeORM → PostgreSQL
 ```
 
@@ -31,7 +32,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직 + DTO 변환) 
 2. **Command**: 시스템 상태를 변경하는 의도를 표현하는 순수 값 객체 (e.g., `CreatePostCommand`, `UpdatePostCommand`, `DeletePostCommand`). `src/{domain}/command/` 디렉토리에 위치.
 3. **Query**: 시스템 상태를 조회하는 의도를 표현하는 순수 값 객체 (e.g., `GetPostByIdQuery`, `FindAllPostsPaginatedQuery`). `src/{domain}/query/` 디렉토리에 위치.
 4. **Handler**: 각 유스케이스의 전담 처리자. 하나의 `execute()` 메서드에서 존재 검증(`findById → null 체크 → NotFoundException`), 비즈니스 로직, DTO 변환을 수행. `@CommandHandler`/`@QueryHandler` 데코레이터로 자동 등록.
-   - **CommandHandler**: `IPostWriteRepository` (+ 검증 필요 시 `IPostReadRepository`)를 주입받아 상태 변경 수행. 반환 타입은 `void` 또는 생성된 엔티티의 ID.
+   - **CommandHandler**: `IPostWriteRepository`를 주입받아 상태 변경 수행. affected count로 존재 검증. 반환 타입은 `void` 또는 생성된 엔티티의 ID.
    - **QueryHandler**: `IPostReadRepository`를 주입받아 조회 수행. 응답 DTO를 직접 반환 (`PostResponseDto.of()` 팩토리 메서드 사용).
 5. **Repository Pattern with ISP**:
    - `IPostReadRepository` / `IPostWriteRepository` as abstract classes (DI tokens + interfaces)
@@ -175,7 +176,7 @@ Examples of what to record:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/inkweon/Desktop/Exercise/56-nest-repository-pattern/.claude/agent-memory/nestjs-expert/`. Its contents persist across conversations.
+You have a persistent Persistent Agent Memory directory at `.claude/agent-memory/nestjs-expert/`. Its contents persist across conversations.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 

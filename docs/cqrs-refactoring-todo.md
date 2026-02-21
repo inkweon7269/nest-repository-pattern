@@ -21,7 +21,7 @@
 - [ ] `src/posts/command/create-post.command.ts` 생성
   - 필드: `title: string`, `content: string`, `isPublished?: boolean`
 - [ ] `src/posts/command/update-post.command.ts` 생성
-  - 필드: `id: number`, `title?: string`, `content?: string`, `isPublished?: boolean`
+  - 필드: `id: number`, `title: string`, `content: string`, `isPublished: boolean`
 - [ ] `src/posts/command/delete-post.command.ts` 생성
   - 필드: `id: number`
 
@@ -34,7 +34,7 @@
 - [ ] `src/posts/query/get-post-by-id.query.ts` 생성
   - 필드: `id: number`
 - [ ] `src/posts/query/find-all-posts-paginated.query.ts` 생성
-  - 필드: `page: number`, `limit: number`, `skip: number`, `take: number`
+  - 필드: `page: number`, `limit: number`
 
 ---
 
@@ -44,13 +44,13 @@
 
 - [ ] `src/posts/command/create-post.handler.ts` 구현
   - 주입: `IPostWriteRepository`
-  - 로직: `create(dto)` → `PostResponseDto.of(post)` 반환
+  - 로직: `create(input)` → `post.id` 반환
 - [ ] `src/posts/command/update-post.handler.ts` 구현
-  - 주입: `IPostReadRepository` + `IPostWriteRepository`
-  - 로직: `findById(id)` → null이면 `NotFoundException` → `update(id, dto)` → `PostResponseDto.of(post)` 반환
+  - 주입: `IPostWriteRepository`
+  - 로직: `update(id, input)` → affected가 0이면 `NotFoundException`
 - [ ] `src/posts/command/delete-post.handler.ts` 구현
-  - 주입: `IPostReadRepository` + `IPostWriteRepository`
-  - 로직: `findById(id)` → null이면 `NotFoundException` → `delete(id)`
+  - 주입: `IPostWriteRepository`
+  - 로직: `delete(id)` → affected가 0이면 `NotFoundException`
 
 ---
 
@@ -63,7 +63,7 @@
   - 로직: `findById(id)` → null이면 `NotFoundException` → `PostResponseDto.of(post)` 반환
 - [ ] `src/posts/query/find-all-posts-paginated.handler.ts` 구현
   - 주입: `IPostReadRepository`
-  - 로직: `findAllPaginated(skip, take)` → `map PostResponseDto.of` → `PaginatedResponseDto.of(items, totalElements, page, limit)` 반환
+  - 로직: `findAllPaginated(page, limit)` → `map PostResponseDto.of` → `PaginatedResponseDto.of(items, totalElements, page, limit)` 반환
 
 ---
 
@@ -104,13 +104,13 @@
 Classical School 원칙에 따라, DTO 변환 또는 NotFoundException 분기가 있는 Handler만 단위 테스트.
 
 - [ ] `src/posts/command/update-post.handler.spec.ts` 작성
-  - mock: `IPostReadRepository`, `IPostWriteRepository`
-  - 케이스 1: 존재하는 post → 업데이트 후 `PostResponseDto` 변환 검증
-  - 케이스 2: 존재하지 않는 post → `NotFoundException` 발생 검증
+  - mock: `IPostWriteRepository`
+  - 케이스 1: affected=1 → void 반환 검증
+  - 케이스 2: affected=0 → `NotFoundException` 발생 검증
 - [ ] `src/posts/command/delete-post.handler.spec.ts` 작성
-  - mock: `IPostReadRepository`, `IPostWriteRepository`
-  - 케이스 1: 존재하는 post → `delete` 호출 검증
-  - 케이스 2: 존재하지 않는 post → `NotFoundException` 발생 검증
+  - mock: `IPostWriteRepository`
+  - 케이스 1: affected=1 → void 반환 검증
+  - 케이스 2: affected=0 → `NotFoundException` 발생 검증
 - [ ] `src/posts/query/get-post-by-id.handler.spec.ts` 작성
   - mock: `IPostReadRepository`
   - 케이스 1: 존재하는 post → `PostResponseDto` 변환 검증
