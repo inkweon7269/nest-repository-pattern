@@ -11,9 +11,8 @@ export class FindAllPostsPaginatedHandler implements IQueryHandler<FindAllPostsP
   async execute(
     query: FindAllPostsPaginatedQuery,
   ): Promise<PaginatedResponseDto<PostResponseDto>> {
-    const skip = (query.page - 1) * query.limit;
     const [posts, totalElements] =
-      await this.postReadRepository.findAllPaginated(skip, query.limit);
+      await this.postReadRepository.findAllPaginated(query.page, query.limit);
 
     const items = posts.map((post) => PostResponseDto.of(post));
 

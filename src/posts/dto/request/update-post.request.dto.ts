@@ -1,22 +1,19 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsString } from 'class-validator';
 
 export class UpdatePostRequestDto {
-  @ApiPropertyOptional({ description: '게시글 제목', example: 'Updated Title' })
+  @ApiProperty({ description: '게시글 제목', example: 'Updated Title' })
   @IsString()
-  @IsOptional()
-  title?: string;
+  title: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: '게시글 내용',
     example: 'Updated Content',
   })
   @IsString()
-  @IsOptional()
-  content?: string;
+  content: string;
 
-  @ApiPropertyOptional({ description: '공개 여부' })
+  @ApiProperty({ description: '공개 여부' })
   @IsBoolean()
-  @IsOptional()
-  isPublished?: boolean;
+  isPublished: boolean;
 }

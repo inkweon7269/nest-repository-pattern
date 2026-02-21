@@ -14,6 +14,6 @@ export interface UpdatePostInput {
 
 export abstract class IPostWriteRepository {
   abstract create(input: CreatePostInput): Promise<Post>;
-  abstract update(id: number, input: UpdatePostInput): Promise<void>;
-  abstract delete(id: number): Promise<void>;
+  abstract update(id: number, input: UpdatePostInput): Promise<number>;
+  abstract delete(id: number): Promise<number>;
 }

@@ -27,12 +27,12 @@ export class PostRepository
   }
 
   async findAllPaginated(
-    skip: number,
-    take: number,
+    page: number,
+    limit: number,
   ): Promise<[Post[], number]> {
     return this.postRepository.findAndCount({
-      skip,
-      take,
+      skip: (page - 1) * limit,
+      take: limit,
       order: { id: 'DESC' },
     });
   }
@@ -42,11 +42,13 @@ export class PostRepository
     return this.postRepository.save(post);
   }
 
-  async update(id: number, input: UpdatePostInput): Promise<void> {
-    await this.postRepository.update(id, input);
+  async update(id: number, input: UpdatePostInput): Promise<number> {
+    const result = await this.postRepository.update(id, input);
+    return result.affected ?? 0;
   }
 
-  async delete(id: number): Promise<void> {
-    await this.postRepository.delete(id);
+  async delete(id: number): Promise<number> {
+    const result = await this.postRepository.delete(id);
+    return result.affected ?? 0;
   }
 }
