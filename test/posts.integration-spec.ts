@@ -129,6 +129,17 @@ describe('Posts (integration)', () => {
         .send({ title: 'Post', content: 'Content', hacked: true })
         .expect(400);
     });
+
+    it('should return 409 when creating a post with duplicate title', async () => {
+      await createPost({ title: 'Unique Title', content: 'First' }).expect(201);
+
+      const res = await createPost({
+        title: 'Unique Title',
+        content: 'Second',
+      }).expect(409);
+
+      expect(res.body.message).toContain('Unique Title');
+    });
   });
 
   // ============================================================
