@@ -5,7 +5,7 @@ import { PaginationRequestDto } from '@src/common/dto/request/pagination.request
 
 export class PostsPaginationRequestDto extends PaginationRequestDto {
   @ApiPropertyOptional({ description: '공개 여부 필터', example: true })
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: string }) => {
     if (value === 'true') return true;
     if (value === 'false') return false;
     return value;

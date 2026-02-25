@@ -1,8 +1,15 @@
 import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
 import { createDataSourceOptions } from '@src/database/typeorm.config';
+
+declare global {
+  var __TEST_CONTAINER__: StartedPostgreSqlContainer | undefined;
+}
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
@@ -28,5 +35,5 @@ export default async function globalSetup() {
   await dataSource.runMigrations();
   await dataSource.destroy();
 
-  (globalThis as any).__TEST_CONTAINER__ = container;
+  globalThis.__TEST_CONTAINER__ = container;
 }

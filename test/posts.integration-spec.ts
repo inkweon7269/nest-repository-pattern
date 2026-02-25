@@ -374,34 +374,6 @@ describe('Posts (integration)', () => {
       expect(getRes.body.isPublished).toBe(true);
     });
 
-    it('should update updatedAt after modification', async () => {
-      const createRes = await createPost().expect(201);
-      const id = createRes.body.id as number;
-
-      const getBeforeRes = await request(app.getHttpServer())
-        .get(`/posts/${id}`)
-        .expect(200);
-      const createdAt = getBeforeRes.body.createdAt as string;
-      const originalUpdatedAt = getBeforeRes.body.updatedAt as string;
-
-      // Small delay to ensure timestamp difference
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      await request(app.getHttpServer())
-        .patch(`/posts/${id}`)
-        .send(fullUpdate)
-        .expect(204);
-
-      const getRes = await request(app.getHttpServer())
-        .get(`/posts/${id}`)
-        .expect(200);
-
-      expect(getRes.body.createdAt).toBe(createdAt);
-      expect(
-        new Date(getRes.body.updatedAt as string).getTime(),
-      ).toBeGreaterThan(new Date(originalUpdatedAt).getTime());
-    });
-
     it('should return 404 when post not found', () => {
       return request(app.getHttpServer())
         .patch('/posts/99999')

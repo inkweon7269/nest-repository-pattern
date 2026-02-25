@@ -1,0 +1,38 @@
+name: Migration Safety Check
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'src/migrations/**'
+      - 'src/**/entities/**'
+      - 'src/database/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration-check:
+    name: Migration Chain Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify migration chain on fresh database
+        run: pnpm test:e2e -- --passWithNoTests --testPathPattern="^$"
