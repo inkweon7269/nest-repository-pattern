@@ -21,6 +21,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
+    "test:migration": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --passWithNoTests --testPathPatterns=^$",
     "migration:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
     "migration:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
     "migration:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/data-source.ts",

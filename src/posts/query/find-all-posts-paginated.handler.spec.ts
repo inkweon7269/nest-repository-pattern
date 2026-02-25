@@ -32,6 +32,7 @@ describe('FindAllPostsPaginatedHandler', () => {
   beforeEach(async () => {
     mockReadRepository = {
       findById: jest.fn(),
+      findByTitle: jest.fn(),
       findAllPaginated: jest.fn(),
     };
 

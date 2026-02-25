@@ -35,4 +35,4 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify migration chain on fresh database
-        run: pnpm test:e2e -- --passWithNoTests --testPathPattern="^$"
+        run: pnpm test:migration
