@@ -18,6 +18,12 @@ NestJS + TypeORM + PostgreSQL 기반 Posts CRUD API.
   - [Migration](#migration)
 - [API](#api)
 - [테스트](#테스트)
+  - [테스트 전략 (Classical School)](#테스트-전략-classical-school)
+  - [테스트 구성](#테스트-구성)
+  - [단위 테스트](#단위-테스트)
+  - [통합 테스트](#통합-테스트)
+  - [커버리지](#커버리지)
+- [CI/CD](#cicd)
 
 ---
 
@@ -387,3 +393,61 @@ Testcontainers + `globalSetup` 패턴:
 3. 각 테스트 파일은 `createIntegrationApp()`으로 앱 생성
 4. `useTransactionRollback()`으로 per-test 트랜잭션 격리 적용
 5. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제
+
+### 커버리지
+
+```bash
+pnpm test:cov        # 로컬 커버리지 리포트 생성 (coverage/ 디렉토리)
+```
+
+#### 측정 범위
+
+커버리지는 **단위 테스트(`pnpm test`)만** 측정한다. 통합 테스트는 포함되지 않는다.
+
+#### 커버리지가 낮은 이유
+
+Classical School 전략에서 단위 테스트 대상은 **로직이 있는 Handler와 DTO 팩토리**뿐이다. 아래 pass-through 레이어는 단위 테스트 대상이 아니므로 커버리지 0%가 정상이다:
+
+| 레이어 | 단위 테스트 | 커버되는 곳 |
+|--------|:-----------:|------------|
+| Handler (로직 분기 있음) | O | `src/**/*.spec.ts` |
+| DTO 팩토리 (`of()`) | O | `src/**/*.spec.ts` |
+| Controller | X | 통합 테스트 |
+| Repository | X | 통합 테스트 |
+| Module, Entity, Migration | X | 통합 테스트 |
+| `main.ts` | X | 통합 테스트 |
+
+실제 테스트 커버리지는 단위 + 통합을 합치면 훨씬 높지만, CI 리포트는 단위 테스트만의 수치를 보여준다.
+
+#### PR 커버리지 리포트
+
+PR을 생성하면 GitHub Actions가 **변경 파일별 커버리지 상세**를 코멘트로 표시한다.
+
+| 지표 | 의미 |
+|------|------|
+| **Lines** | 실행된 코드 줄 비율 |
+| **Statements** | 실행된 문(statement) 비율 (한 줄에 여러 문장 가능) |
+| **Functions** | 호출된 함수/메서드 비율 |
+| **Branches** | 통과된 조건 분기(if/else/삼항) 비율 |
+
+리포트 해석 기준:
+- **Handler/DTO 파일**: 80%+ Lines, 70%+ Branches 권장
+- **Pass-through 파일** (Controller, Repository 등): 0%여도 정상 — 통합 테스트에서 커버
+- 글로벌 threshold는 설정하지 않음 (pass-through 레이어 오탐 방지)
+
+---
+
+## CI/CD
+
+GitHub Actions로 코드 품질을 자동 검증한다. 모든 워크플로우는 `main`, `dev` 브랜치 대상.
+
+| 워크플로우 | 트리거 | 목적 |
+|-----------|--------|------|
+| **CI** | push, PR | lint, build, 단위 테스트, 통합 테스트 (3개 병렬 job) |
+| **Coverage Report** | PR | 변경 파일별 커버리지 리포트를 PR 코멘트로 표시 |
+| **TypeScript Strict Check** | push, PR | `tsc --noEmit` 타입 검사 + `--strict` 참고용 검사 |
+| **Migration Safety Check** | PR (paths 필터) | migration/entity 변경 시 fresh DB에서 migration chain 무결성 검증 |
+| **Dependency Audit** | push, PR, 매주 월요일 | `pnpm audit --prod` 프로덕션 의존성 보안 감사 |
+| **PR Auto-label** | PR | 변경 파일 경로 기반 자동 라벨링 (`database`, `cqrs-command`, `test` 등) |
+
+Dependabot이 의존성 업데이트 PR을 주간 자동 생성한다 (NestJS, TypeORM, Testing, ESLint 그룹).

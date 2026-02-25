@@ -327,12 +327,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests with coverage
-        run: pnpm test -- --coverage --coverageReporters=json-summary --coverageReporters=text
+        run: pnpm test -- --coverage --coverageReporters=json-summary --coverageReporters=json --coverageReporters=text
 
       - name: Coverage Summary
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           json-summary-path: ./coverage/coverage-summary.json
+          json-final-path: ./coverage/coverage-final.json
+          file-coverage-mode: changes
           name: Unit Test Coverage
 ```
 
@@ -340,7 +342,15 @@ jobs:
 
 **`--coverageReporters` 오버라이드**
 
-기본 Jest 설정은 `json`, `lcov`, `clover`, `text` 리포터를 생성한다. 여기서는 `json-summary`(PR 코멘트 액션이 파싱)와 `text`(CI 로그 가독성)만 지정한다.
+기본 Jest 설정은 `json`, `lcov`, `clover`, `text` 리포터를 생성한다. 여기서는 `json-summary`(전체 요약), `json`(파일별 상세 커버리지), `text`(CI 로그 가독성) 3개를 지정한다.
+
+**`json-final-path` + `file-coverage-mode: changes`**
+
+`json` 리포터가 생성하는 `coverage-final.json`을 `json-final-path`로 지정하면, PR에서 변경된 파일별 커버리지 상세(Lines, Branches, Functions, Statements, Uncovered Lines)를 표시한다. `file-coverage-mode: changes`는 변경된 파일만 표시하여 리포트를 간결하게 유지한다.
+
+**글로벌 threshold 미설정**
+
+이 프로젝트는 Classical School 테스팅 전략을 따르므로, pass-through 레이어(Controller, Repository, Module 등)는 단위 테스트 대상이 아니다. 글로벌 threshold를 설정하면 이런 파일 때문에 오탐이 발생하므로, threshold 없이 변경 파일별 가시성만 제공한다. Handler/DTO 변경 시 Lines 80%+, Branches 70%+를 리뷰 기준으로 권장한다.
 
 **`davelosert/vitest-coverage-report-action@v2`**
 
