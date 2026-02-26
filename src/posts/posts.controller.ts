@@ -12,7 +12,16 @@ import {
   Query,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CreatePostCommand } from '@src/posts/command/create-post.command';
 import { UpdatePostCommand } from '@src/posts/command/update-post.command';
 import { DeletePostCommand } from '@src/posts/command/delete-post.command';
@@ -35,6 +44,7 @@ export class PostsController {
 
   @Get()
   @ApiOperation({ summary: '게시글 페이지네이션 조회' })
+  @ApiOkResponse({ type: PaginatedResponseDto })
   async findAllPaginated(
     @Query() dto: PostsPaginationRequestDto,
   ): Promise<PaginatedResponseDto<PostResponseDto>> {
@@ -47,6 +57,8 @@ export class PostsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'ID로 게시글 조회' })
+  @ApiOkResponse({ type: PostResponseDto })
+  @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
   async getPostById(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<PostResponseDto> {
@@ -55,6 +67,9 @@ export class PostsController {
 
   @Post()
   @ApiOperation({ summary: '게시글 생성' })
+  @ApiCreatedResponse({ type: CreatePostResponseDto })
+  @ApiBadRequestResponse({ description: '잘못된 요청' })
+  @ApiConflictResponse({ description: '중복된 제목' })
   async createPost(
     @Body() dto: CreatePostRequestDto,
   ): Promise<CreatePostResponseDto> {
@@ -67,6 +82,9 @@ export class PostsController {
   @Patch(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '게시글 수정 (전체 업데이트)' })
+  @ApiNoContentResponse({ description: '수정 성공' })
+  @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
+  @ApiBadRequestResponse({ description: '잘못된 요청' })
   async updatePost(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePostRequestDto,
@@ -79,6 +97,8 @@ export class PostsController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '게시글 삭제' })
+  @ApiNoContentResponse({ description: '삭제 성공' })
+  @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
   async deletePost(@Param('id', ParseIntPipe) id: number): Promise<void> {
     await this.commandBus.execute(new DeletePostCommand(id));
   }

@@ -1,9 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
 
 export class UpdatePostRequestDto {
   @ApiProperty({ description: '게시글 제목', example: 'Updated Title' })
   @IsString()
+  @IsNotEmpty()
   title: string;
 
   @ApiProperty({
@@ -11,6 +12,7 @@ export class UpdatePostRequestDto {
     example: 'Updated Content',
   })
   @IsString()
+  @IsNotEmpty()
   content: string;
 
   @ApiProperty({ description: '공개 여부' })

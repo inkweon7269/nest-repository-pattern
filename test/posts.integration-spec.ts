@@ -404,6 +404,20 @@ describe('Posts (integration)', () => {
         .send({ title: 'Only Title' })
         .expect(400);
     });
+
+    it('should return 400 when title is empty string', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: '', content: 'Content', isPublished: false })
+        .expect(400);
+    });
+
+    it('should return 400 when content is empty string', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: 'Title', content: '', isPublished: false })
+        .expect(400);
+    });
   });
 
   // ============================================================
