@@ -36,10 +36,7 @@ export class LoginHandler implements ICommandHandler<LoginCommand> {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.configService.get<string>(
-        'JWT_ACCESS_EXPIRATION',
-        '15m',
-      ),
+      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m'),
     } as JwtSignOptions);
 
     const refreshToken = this.jwtService.sign(
@@ -53,9 +50,7 @@ export class LoginHandler implements ICommandHandler<LoginCommand> {
       } as JwtSignOptions,
     );
 
-    const tokenDigest = createHash('sha256')
-      .update(refreshToken)
-      .digest('hex');
+    const tokenDigest = createHash('sha256').update(refreshToken).digest('hex');
     const hashedRefreshToken = await bcrypt.hash(tokenDigest, 10);
     await this.userWriteRepository.update(user.id, { hashedRefreshToken });
 

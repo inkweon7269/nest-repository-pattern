@@ -79,9 +79,7 @@ describe('RegisterHandler', () => {
     mockReadRepository.findByEmail.mockResolvedValue(null);
 
     const dbError = new QueryFailedError('INSERT', [], new Error());
-    (dbError as QueryFailedError & { driverError: { code: string } }).driverError = {
-      code: '23505',
-    };
+    Object.assign(dbError, { driverError: { code: '23505' } });
     mockWriteRepository.create.mockRejectedValue(dbError);
 
     const command = new RegisterCommand(

@@ -120,6 +120,8 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 모든 작업이 완료되면 아래 명령을 순서대로 실행하여 문제가 없는지 확인한다.
 
 ```bash
+pnpm format             # 포맷 자동 수정
+pnpm lint:check         # 린트 검사 (포맷 외 규칙 포함)
 pnpm build:local        # 빌드 확인
 pnpm test               # 단위 테스트 통과 확인
 pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)

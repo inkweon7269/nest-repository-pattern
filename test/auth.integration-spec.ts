@@ -88,7 +88,11 @@ describe('Auth (integration)', () => {
     it('should return 400 when email format is invalid', () => {
       return request(app.getHttpServer())
         .post('/auth/register')
-        .send({ email: 'not-an-email', password: 'password123', name: '테스트' })
+        .send({
+          email: 'not-an-email',
+          password: 'password123',
+          name: '테스트',
+        })
         .expect(400);
     });
 
