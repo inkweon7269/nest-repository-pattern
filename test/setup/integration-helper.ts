@@ -9,7 +9,10 @@ import { AppModule } from '@src/app.module';
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
 export async function createIntegrationApp(): Promise<INestApplication<App>> {
-  const env = JSON.parse(readFileSync(TEST_ENV_PATH, 'utf-8'));
+  const env = JSON.parse(readFileSync(TEST_ENV_PATH, 'utf-8')) as Record<
+    string,
+    string
+  >;
 
   Object.assign(process.env, env);
 

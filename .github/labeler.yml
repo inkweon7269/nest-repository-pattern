@@ -1,0 +1,42 @@
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/migrations/**'
+          - 'src/database/**'
+
+cqrs-command:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/*/command/**'
+
+cqrs-query:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/*/query/**'
+
+dto:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/*/dto/**'
+
+entity:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/*/entities/**'
+
+test:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'test/**'
+          - 'src/**/*.spec.ts'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - 'docs/**'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'

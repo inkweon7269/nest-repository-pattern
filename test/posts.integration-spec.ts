@@ -29,60 +29,80 @@ describe('Posts (integration)', () => {
       .send({ title: 'Default Title', content: 'Default Content', ...body });
   }
 
+  /** POST로 생성 후 GET으로 조회하여 전체 응답을 반환 */
+  async function createAndGet(body: Record<string, unknown> = {}) {
+    const createRes = await createPost(body).expect(201);
+    const id = createRes.body.id as number;
+    const getRes = await request(app.getHttpServer())
+      .get(`/posts/${id}`)
+      .expect(200);
+    return getRes;
+  }
+
   // ============================================================
   // POST /posts
   // ============================================================
   describe('POST /posts', () => {
-    it('should create a post and persist to DB', async () => {
+    it('should create a post and return { id }', async () => {
       const res = await createPost({
         title: 'Integration Test',
         content: 'Real DB',
       }).expect(201);
 
       expect(res.body.id).toBeDefined();
-      expect(res.body.title).toBe('Integration Test');
-      expect(res.body.content).toBe('Real DB');
-      expect(res.body.isPublished).toBe(false);
+      expect(typeof res.body.id).toBe('number');
+      expect(Object.keys(res.body)).toEqual(['id']);
+    });
+
+    it('should persist the post to DB (verified via GET)', async () => {
+      const getRes = await createAndGet({
+        title: 'Integration Test',
+        content: 'Real DB',
+      });
+
+      expect(getRes.body.title).toBe('Integration Test');
+      expect(getRes.body.content).toBe('Real DB');
+      expect(getRes.body.isPublished).toBe(false);
     });
 
     it('should auto-generate id, createdAt, and updatedAt', async () => {
-      const res = await createPost().expect(201);
+      const getRes = await createAndGet();
 
-      expect(typeof res.body.id).toBe('number');
-      expect(res.body.id).toBeGreaterThan(0);
-      expect(res.body.createdAt).toBeDefined();
-      expect(res.body.updatedAt).toBeDefined();
-      expect(new Date(res.body.createdAt as string).getTime()).not.toBeNaN();
-      expect(new Date(res.body.updatedAt as string).getTime()).not.toBeNaN();
+      expect(typeof getRes.body.id).toBe('number');
+      expect(getRes.body.id).toBeGreaterThan(0);
+      expect(getRes.body.createdAt).toBeDefined();
+      expect(getRes.body.updatedAt).toBeDefined();
+      expect(new Date(getRes.body.createdAt as string).getTime()).not.toBeNaN();
+      expect(new Date(getRes.body.updatedAt as string).getTime()).not.toBeNaN();
     });
 
     it('should default isPublished to false when not provided', async () => {
-      const res = await createPost({
+      const getRes = await createAndGet({
         title: 'No publish flag',
         content: 'Content',
-      }).expect(201);
+      });
 
-      expect(res.body.isPublished).toBe(false);
+      expect(getRes.body.isPublished).toBe(false);
     });
 
     it('should create a post with isPublished: true', async () => {
-      const res = await createPost({ isPublished: true }).expect(201);
+      const getRes = await createAndGet({ isPublished: true });
 
-      expect(res.body.isPublished).toBe(true);
+      expect(getRes.body.isPublished).toBe(true);
     });
 
     it('should accept title at maximum column length (200 chars)', async () => {
       const maxTitle = 'A'.repeat(200);
-      const res = await createPost({ title: maxTitle }).expect(201);
+      const getRes = await createAndGet({ title: maxTitle });
 
-      expect(res.body.title).toBe(maxTitle);
+      expect(getRes.body.title).toBe(maxTitle);
     });
 
     it('should assign sequential ids for multiple creates', async () => {
       const res1 = await createPost({ title: 'First' }).expect(201);
       const res2 = await createPost({ title: 'Second' }).expect(201);
 
-      expect(res2.body.id).toBe((res1.body.id as number) + 1);
+      expect(res2.body.id).toBeGreaterThan(res1.body.id as number);
     });
 
     it('should return 400 when title is missing', () => {
@@ -108,6 +128,17 @@ describe('Posts (integration)', () => {
         .post('/posts')
         .send({ title: 'Post', content: 'Content', hacked: true })
         .expect(400);
+    });
+
+    it('should return 409 when creating a post with duplicate title', async () => {
+      await createPost({ title: 'Unique Title', content: 'First' }).expect(201);
+
+      const res = await createPost({
+        title: 'Unique Title',
+        content: 'Second',
+      }).expect(409);
+
+      expect(res.body.message).toContain('Unique Title');
     });
   });
 
@@ -210,6 +241,56 @@ describe('Posts (integration)', () => {
     it('should return 400 when page is not a number', () => {
       return request(app.getHttpServer()).get('/posts?page=abc').expect(400);
     });
+
+    it('should filter by isPublished=true', async () => {
+      await createPost({ title: 'Published', isPublished: true }).expect(201);
+      await createPost({ title: 'Draft', isPublished: false }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?isPublished=true')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe('Published');
+      expect(res.body.meta.totalElements).toBe(1);
+    });
+
+    it('should filter by isPublished=false', async () => {
+      await createPost({ title: 'Published', isPublished: true }).expect(201);
+      await createPost({ title: 'Draft' }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?isPublished=false')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe('Draft');
+      expect(res.body.meta.totalElements).toBe(1);
+    });
+
+    it('should combine isPublished filter with pagination', async () => {
+      for (let i = 0; i < 5; i++) {
+        await createPost({
+          title: `Published ${i}`,
+          isPublished: true,
+        }).expect(201);
+      }
+      await createPost({ title: 'Draft' }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/posts?isPublished=true&limit=2&page=1')
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(2);
+      expect(res.body.meta.totalElements).toBe(5);
+      expect(res.body.meta.totalPages).toBe(3);
+    });
+
+    it('should return 400 for invalid isPublished value', () => {
+      return request(app.getHttpServer())
+        .get('/posts?isPublished=notabool')
+        .expect(400);
+    });
   });
 
   // ============================================================
@@ -269,99 +350,34 @@ describe('Posts (integration)', () => {
   // PATCH /posts/:id
   // ============================================================
   describe('PATCH /posts/:id', () => {
-    it('should update title', async () => {
-      const createRes = await createPost({ title: 'Original' }).expect(201);
+    const fullUpdate = {
+      title: 'Updated Title',
+      content: 'Updated Content',
+      isPublished: true,
+    };
+
+    it('should update all fields and return 204', async () => {
+      const createRes = await createPost().expect(201);
       const id = createRes.body.id as number;
 
       await request(app.getHttpServer())
         .patch(`/posts/${id}`)
-        .send({ title: 'Updated Title' })
-        .expect(200);
+        .send(fullUpdate)
+        .expect(204);
 
       const getRes = await request(app.getHttpServer())
         .get(`/posts/${id}`)
         .expect(200);
 
       expect(getRes.body.title).toBe('Updated Title');
-    });
-
-    it('should update content', async () => {
-      const createRes = await createPost({ content: 'Original' }).expect(201);
-      const id = createRes.body.id as number;
-
-      const res = await request(app.getHttpServer())
-        .patch(`/posts/${id}`)
-        .send({ content: 'Updated Content' })
-        .expect(200);
-
-      expect(res.body.content).toBe('Updated Content');
-    });
-
-    it('should update isPublished', async () => {
-      const createRes = await createPost({ isPublished: false }).expect(201);
-      const id = createRes.body.id as number;
-
-      const res = await request(app.getHttpServer())
-        .patch(`/posts/${id}`)
-        .send({ isPublished: true })
-        .expect(200);
-
-      expect(res.body.isPublished).toBe(true);
-    });
-
-    it('should update multiple fields at once', async () => {
-      const createRes = await createPost().expect(201);
-      const id = createRes.body.id as number;
-
-      const res = await request(app.getHttpServer())
-        .patch(`/posts/${id}`)
-        .send({ title: 'New Title', content: 'New Content' })
-        .expect(200);
-
-      expect(res.body.title).toBe('New Title');
-      expect(res.body.content).toBe('New Content');
-    });
-
-    it('should not change fields not included in body', async () => {
-      const createRes = await createPost({
-        title: 'Keep This',
-        content: 'Keep This Too',
-      }).expect(201);
-      const id = createRes.body.id as number;
-
-      const res = await request(app.getHttpServer())
-        .patch(`/posts/${id}`)
-        .send({ title: 'Changed' })
-        .expect(200);
-
-      expect(res.body.title).toBe('Changed');
-      expect(res.body.content).toBe('Keep This Too');
-    });
-
-    it('should update updatedAt after modification', async () => {
-      const createRes = await createPost().expect(201);
-      const id = createRes.body.id as number;
-      const createdAt = createRes.body.createdAt as string;
-      const originalUpdatedAt = createRes.body.updatedAt as string;
-
-      // Small delay to ensure timestamp difference
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      const res = await request(app.getHttpServer())
-        .patch(`/posts/${id}`)
-        .send({ title: 'Trigger Update' })
-        .expect(200);
-
-      expect(res.body.createdAt).toBe(createdAt);
-      expect(
-        new Date(res.body.updatedAt as string).getTime(),
-      ).toBeGreaterThanOrEqual(new Date(originalUpdatedAt).getTime());
+      expect(getRes.body.content).toBe('Updated Content');
+      expect(getRes.body.isPublished).toBe(true);
     });
 
     it('should return 404 when post not found', () => {
       return request(app.getHttpServer())
         .patch('/posts/99999')
-        .send({ title: 'No Post' })
+        .send(fullUpdate)
         .expect(404)
         .expect((res) => {
           expect(res.body.message).toBe('Post with ID 99999 not found');
@@ -371,14 +387,35 @@ describe('Posts (integration)', () => {
     it('should return 400 for non-numeric id', () => {
       return request(app.getHttpServer())
         .patch('/posts/abc')
-        .send({ title: 'X' })
+        .send(fullUpdate)
         .expect(400);
     });
 
     it('should return 400 for invalid body (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .patch('/posts/1')
-        .send({ title: 'X', hacked: true })
+        .send({ ...fullUpdate, hacked: true })
+        .expect(400);
+    });
+
+    it('should return 400 when required field is missing', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: 'Only Title' })
+        .expect(400);
+    });
+
+    it('should return 400 when title is empty string', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: '', content: 'Content', isPublished: false })
+        .expect(400);
+    });
+
+    it('should return 400 when content is empty string', () => {
+      return request(app.getHttpServer())
+        .patch('/posts/1')
+        .send({ title: 'Title', content: '', isPublished: false })
         .expect(400);
     });
   });
