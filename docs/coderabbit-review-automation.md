@@ -25,7 +25,7 @@ PR을 생성하면 CodeRabbit이 자동으로 코드 리뷰 코멘트를 작성�
 
 ## 2. 전체 흐름
 
-```
+```text
 PR 생성
   ↓
 CodeRabbit이 인라인 리뷰 코멘트 작성
@@ -127,7 +127,7 @@ gh api --paginate "repos/{owner}/{repo}/pulls/{pr_number}/comments" \
 
 분석 결과를 테이블로 표시한다:
 
-```
+```text
 ## CodeRabbit 코멘트 분석 결과
 
 PR: #42 — feat: 인증 모듈 구현
@@ -272,7 +272,7 @@ gh api "repos/{owner}/{repo}/issues/{pr_number}/comments" \
 
 별도 파일이나 DB 없이 GitHub API 데이터만으로 처리 여부를 판별하는 stateless 방식을 사용한다.
 
-```
+```text
 각 CodeRabbit 코멘트 C에 대해:
   replies = in_reply_to_id == C.id인 모든 코멘트
   if replies 중 body에 "<!-- claude-code-response -->" 포함:
@@ -304,7 +304,7 @@ gh api "repos/{owner}/{repo}/issues/{pr_number}/comments" \
 
 ### 반복 실행 시나리오
 
-```
+```text
 1차 실행: 8개 코멘트 중 5개 ACCEPT, 2개 REJECT, 1개 SKIP
   → 5개 파일 수정 → 커밋/푸시 → 8개 코멘트 전부 답글 작성
 

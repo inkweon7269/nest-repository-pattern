@@ -67,7 +67,11 @@ describe('LoginHandler', () => {
     mockJwtService.sign
       .mockReturnValueOnce('access-token')
       .mockReturnValueOnce('refresh-token');
-    mockConfigService.get.mockReturnValue(undefined);
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'JWT_ACCESS_SECRET') return 'test-access-secret';
+      if (key === 'JWT_REFRESH_SECRET') return 'test-refresh-secret';
+      return undefined;
+    });
   });
 
   it('유효한 이메일과 비밀번호로 토큰 쌍을 반환한다', async () => {
@@ -89,7 +93,7 @@ describe('LoginHandler', () => {
     expect(mockJwtService.sign).toHaveBeenNthCalledWith(
       1,
       { sub: 1, email: 'user@example.com' },
-      expect.objectContaining({ secret: undefined }),
+      expect.objectContaining({ secret: 'test-access-secret' }),
     );
     expect(mockJwtService.sign).toHaveBeenNthCalledWith(
       2,
@@ -99,7 +103,7 @@ describe('LoginHandler', () => {
         type: 'refresh',
         jti: expect.any(String),
       }),
-      expect.objectContaining({ secret: undefined }),
+      expect.objectContaining({ secret: 'test-refresh-secret' }),
     );
     const expectedDigest = createHash('sha256')
       .update('refresh-token')
