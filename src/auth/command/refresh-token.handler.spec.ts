@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { RefreshTokenHandler } from '@src/auth/command/refresh-token.handler';
 import { RefreshTokenCommand } from '@src/auth/command/refresh-token.command';
@@ -90,8 +91,11 @@ describe('RefreshTokenHandler', () => {
       expect.objectContaining({ secret: undefined }),
     );
     expect(mockReadRepository.findById).toHaveBeenCalledWith(1);
+    const expectedDigest = createHash('sha256')
+      .update('valid-refresh-token')
+      .digest('hex');
     expect(bcrypt.compare).toHaveBeenCalledWith(
-      'valid-refresh-token',
+      expectedDigest,
       'stored-hashed-refresh-token',
     );
     expect(mockWriteRepository.update).toHaveBeenCalledWith(1, {

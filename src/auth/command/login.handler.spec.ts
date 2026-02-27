@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { LoginHandler } from '@src/auth/command/login.handler';
 import { LoginCommand } from '@src/auth/command/login.command';
@@ -92,9 +93,18 @@ describe('LoginHandler', () => {
     );
     expect(mockJwtService.sign).toHaveBeenNthCalledWith(
       2,
-      { sub: 1, email: 'user@example.com', type: 'refresh' },
+      expect.objectContaining({
+        sub: 1,
+        email: 'user@example.com',
+        type: 'refresh',
+        jti: expect.any(String),
+      }),
       expect.objectContaining({ secret: undefined }),
     );
+    const expectedDigest = createHash('sha256')
+      .update('refresh-token')
+      .digest('hex');
+    expect(bcrypt.hash).toHaveBeenCalledWith(expectedDigest, 10);
     expect(mockWriteRepository.update).toHaveBeenCalledWith(1, {
       hashedRefreshToken: 'hashed-refresh-token',
     });

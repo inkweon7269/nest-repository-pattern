@@ -1,6 +1,7 @@
+import { createHash, randomUUID } from 'crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { LoginCommand } from '@src/auth/command/login.command';
@@ -39,20 +40,23 @@ export class LoginHandler implements ICommandHandler<LoginCommand> {
         'JWT_ACCESS_EXPIRATION',
         '15m',
       ),
-    });
+    } as JwtSignOptions);
 
     const refreshToken = this.jwtService.sign(
-      { ...payload, type: 'refresh' },
+      { ...payload, type: 'refresh', jti: randomUUID() },
       {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.configService.get<string>(
           'JWT_REFRESH_EXPIRATION',
           '7d',
         ),
-      },
+      } as JwtSignOptions,
     );
 
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    const tokenDigest = createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+    const hashedRefreshToken = await bcrypt.hash(tokenDigest, 10);
     await this.userWriteRepository.update(user.id, { hashedRefreshToken });
 
     return { accessToken, refreshToken };

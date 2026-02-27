@@ -1,6 +1,7 @@
+import { createHash, randomUUID } from 'crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { RefreshTokenCommand } from '@src/auth/command/refresh-token.command';
@@ -9,9 +10,7 @@ import { IUserWriteRepository } from '@src/auth/interface/user-write-repository.
 import { AuthTokens } from '@src/auth/auth.types';
 
 @CommandHandler(RefreshTokenCommand)
-export class RefreshTokenHandler
-  implements ICommandHandler<RefreshTokenCommand>
-{
+export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand> {
   constructor(
     private readonly userReadRepository: IUserReadRepository,
     private readonly userWriteRepository: IUserWriteRepository,
@@ -38,8 +37,11 @@ export class RefreshTokenHandler
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
+    const tokenDigest = createHash('sha256')
+      .update(command.refreshToken)
+      .digest('hex');
     const isRefreshTokenValid = await bcrypt.compare(
-      command.refreshToken,
+      tokenDigest,
       user.hashedRefreshToken,
     );
     if (!isRefreshTokenValid) {
@@ -50,24 +52,24 @@ export class RefreshTokenHandler
 
     const accessToken = this.jwtService.sign(newPayload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.configService.get<string>(
-        'JWT_ACCESS_EXPIRATION',
-        '15m',
-      ),
-    });
+      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m'),
+    } as JwtSignOptions);
 
     const refreshToken = this.jwtService.sign(
-      { ...newPayload, type: 'refresh' },
+      { ...newPayload, type: 'refresh', jti: randomUUID() },
       {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.configService.get<string>(
           'JWT_REFRESH_EXPIRATION',
           '7d',
         ),
-      },
+      } as JwtSignOptions,
     );
 
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    const newTokenDigest = createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+    const hashedRefreshToken = await bcrypt.hash(newTokenDigest, 10);
     await this.userWriteRepository.update(user.id, { hashedRefreshToken });
 
     return { accessToken, refreshToken };
