@@ -28,6 +28,11 @@ export class AddDeletedAtToPost1772400000000 implements MigrationInterface {
     // partial unique index 삭제
     await queryRunner.query(`DROP INDEX "UQ_posts_userId_title"`);
 
+    // full unique 복원을 위해 soft-deleted 데이터 정리
+    await queryRunner.query(
+      `DELETE FROM "posts" WHERE "deletedAt" IS NOT NULL`,
+    );
+
     // (userId, title) 복합 unique 제약 복원
     await queryRunner.query(
       `ALTER TABLE "posts" ADD CONSTRAINT "UQ_posts_userId_title" UNIQUE ("userId", "title")`,

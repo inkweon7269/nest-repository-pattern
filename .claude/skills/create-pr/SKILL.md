@@ -1,5 +1,6 @@
 # Create PR Skill
 1. 현재 브랜치명을 확인한다 (`git branch --show-current`)
+   - 현재 브랜치가 `main` 또는 `master`이면 중단하고, 작업 브랜치로 전환 후 다시 진행한다
 2. PR 대상 브랜치를 결정한다:
    - `feature/*` 브랜치 → `dev` (Squash and merge)
    - `dev` 브랜치 → `main` (Create a merge commit)

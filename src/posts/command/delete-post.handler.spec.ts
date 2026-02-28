@@ -58,6 +58,18 @@ describe('DeletePostHandler', () => {
     expect(mockWriteRepository.delete).not.toHaveBeenCalled();
   });
 
+  it('삭제 시 affected가 0이면 NotFoundException을 발생시킨다', async () => {
+    mockReadRepository.findById.mockResolvedValue({
+      id: 1,
+      userId: 1,
+    } as Post);
+    mockWriteRepository.delete.mockResolvedValue(0);
+
+    const command = new DeletePostCommand(1, 1);
+
+    await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
+  });
+
   it('다른 사용자의 게시글을 삭제하면 ForbiddenException을 발생시킨다', async () => {
     mockReadRepository.findById.mockResolvedValue({
       id: 1,

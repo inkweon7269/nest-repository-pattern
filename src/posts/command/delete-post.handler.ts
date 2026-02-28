@@ -22,6 +22,9 @@ export class DeletePostHandler implements ICommandHandler<DeletePostCommand> {
       );
     }
 
-    await this.postWriteRepository.delete(command.id);
+    const affected = await this.postWriteRepository.delete(command.id);
+    if (affected === 0) {
+      throw new NotFoundException(`Post with ID ${command.id} not found`);
+    }
   }
 }

@@ -10,8 +10,15 @@ export class AddUserIdToPost1772300000000 implements MigrationInterface {
   name = 'AddUserIdToPost1772300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 기존 posts 데이터 삭제 (FK 제약 충족을 위해)
-    await queryRunner.query('DELETE FROM "posts"');
+    // 기존 데이터가 있으면 중단 (userId 백필 전략을 별도로 적용해야 함)
+    const rows = (await queryRunner.query(
+      'SELECT COUNT(*) AS count FROM "posts"',
+    )) as { count: string }[];
+    if (Number(rows[0]?.count ?? 0) > 0) {
+      throw new Error(
+        'Migration aborted: existing posts require a userId backfill strategy.',
+      );
+    }
 
     // userId 컬럼 추가
     await queryRunner.addColumn(

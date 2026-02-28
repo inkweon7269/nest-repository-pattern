@@ -75,6 +75,24 @@ describe('UpdatePostHandler', () => {
     expect(mockWriteRepository.update).not.toHaveBeenCalled();
   });
 
+  it('수정 시 affected가 0이면 NotFoundException을 발생시킨다', async () => {
+    mockReadRepository.findById.mockResolvedValue({
+      id: 1,
+      userId: 1,
+    } as Post);
+    mockWriteRepository.update.mockResolvedValue(0);
+
+    const command = new UpdatePostCommand(
+      1,
+      1,
+      'Updated Title',
+      'Content',
+      false,
+    );
+
+    await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
+  });
+
   it('다른 사용자의 게시글을 수정하면 ForbiddenException을 발생시킨다', async () => {
     mockReadRepository.findById.mockResolvedValue({
       id: 1,
