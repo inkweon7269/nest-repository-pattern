@@ -22,11 +22,15 @@ export class UpdatePostHandler implements ICommandHandler<UpdatePostCommand> {
       );
     }
 
-    const affected = await this.postWriteRepository.update(command.id, {
-      title: command.title,
-      content: command.content,
-      isPublished: command.isPublished,
-    });
+    const affected = await this.postWriteRepository.update(
+      command.id,
+      command.userId,
+      {
+        title: command.title,
+        content: command.content,
+        isPublished: command.isPublished,
+      },
+    );
     if (affected === 0) {
       throw new NotFoundException(`Post with ID ${command.id} not found`);
     }

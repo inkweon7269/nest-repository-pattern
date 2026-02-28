@@ -60,13 +60,17 @@ export class PostRepository
     return this.postRepository.save(post);
   }
 
-  async update(id: number, input: UpdatePostInput): Promise<number> {
-    const result = await this.postRepository.update(id, input);
+  async update(
+    id: number,
+    userId: number,
+    input: UpdatePostInput,
+  ): Promise<number> {
+    const result = await this.postRepository.update({ id, userId }, input);
     return result.affected ?? 0;
   }
 
-  async delete(id: number): Promise<number> {
-    const result = await this.postRepository.softDelete(id);
+  async delete(id: number, userId: number): Promise<number> {
+    const result = await this.postRepository.softDelete({ id, userId });
     return result.affected ?? 0;
   }
 }

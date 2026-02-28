@@ -46,7 +46,7 @@ describe('DeletePostHandler', () => {
 
     await expect(handler.execute(command)).resolves.toBeUndefined();
     expect(mockReadRepository.findById).toHaveBeenCalledWith(1);
-    expect(mockWriteRepository.delete).toHaveBeenCalledWith(1);
+    expect(mockWriteRepository.delete).toHaveBeenCalledWith(1, 1);
   });
 
   it('존재하지 않는 게시글을 삭제하면 NotFoundException을 발생시킨다', async () => {

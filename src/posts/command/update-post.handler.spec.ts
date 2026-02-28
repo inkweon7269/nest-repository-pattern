@@ -53,7 +53,7 @@ describe('UpdatePostHandler', () => {
 
     expect(result).toBeUndefined();
     expect(mockReadRepository.findById).toHaveBeenCalledWith(1);
-    expect(mockWriteRepository.update).toHaveBeenCalledWith(1, {
+    expect(mockWriteRepository.update).toHaveBeenCalledWith(1, 1, {
       title: 'Updated Title',
       content: 'Content',
       isPublished: false,
