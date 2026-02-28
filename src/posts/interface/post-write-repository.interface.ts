@@ -1,6 +1,7 @@
 import { Post } from '@src/posts/entities/post.entity';
 
 export interface CreatePostInput {
+  userId: number;
   title: string;
   content: string;
   isPublished?: boolean;

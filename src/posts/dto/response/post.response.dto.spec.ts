@@ -7,6 +7,7 @@ describe('PostResponseDto', () => {
   const createPost = (overrides: Partial<Post> = {}): Post => {
     const post = new Post();
     post.id = 1;
+    post.userId = 1;
     post.title = 'Test Title';
     post.content = 'Test Content';
     post.isPublished = false;
@@ -23,6 +24,7 @@ describe('PostResponseDto', () => {
       const dto = PostResponseDto.of(post);
 
       expect(dto.id).toBe(post.id);
+      expect(dto.userId).toBe(post.userId);
       expect(dto.title).toBe(post.title);
       expect(dto.content).toBe(post.content);
       expect(dto.isPublished).toBe(post.isPublished);
@@ -44,6 +46,14 @@ describe('PostResponseDto', () => {
       const dto = PostResponseDto.of(post);
 
       expect(dto.isPublished).toBe(true);
+    });
+
+    it('should correctly map userId', () => {
+      const post = createPost({ userId: 42 });
+
+      const dto = PostResponseDto.of(post);
+
+      expect(dto.userId).toBe(42);
     });
   });
 });

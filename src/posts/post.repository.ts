@@ -29,8 +29,11 @@ export class PostRepository
     return this.postRepository.findOneBy({ id });
   }
 
-  async findByTitle(title: string): Promise<Post | null> {
-    return this.postRepository.findOneBy({ title });
+  async findByUserIdAndTitle(
+    userId: number,
+    title: string,
+  ): Promise<Post | null> {
+    return this.postRepository.findOneBy({ userId, title });
   }
 
   async findAllPaginated(

@@ -13,17 +13,18 @@ describe('GetPostByIdHandler', () => {
   const now = new Date();
   const mockPost: Post = {
     id: 1,
+    userId: 1,
     title: 'Test Post',
     content: 'Test Content',
     isPublished: false,
     createdAt: now,
     updatedAt: now,
-  };
+  } as Post;
 
   beforeEach(async () => {
     mockReadRepository = {
       findById: jest.fn(),
-      findByTitle: jest.fn(),
+      findByUserIdAndTitle: jest.fn(),
       findAllPaginated: jest.fn(),
     };
 
@@ -45,6 +46,7 @@ describe('GetPostByIdHandler', () => {
 
     expect(result).toBeInstanceOf(PostResponseDto);
     expect(result.id).toBe(1);
+    expect(result.userId).toBe(1);
     expect(result.title).toBe('Test Post');
     expect(result.content).toBe('Test Content');
   });

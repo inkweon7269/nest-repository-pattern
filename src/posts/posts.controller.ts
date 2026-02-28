@@ -10,18 +10,25 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@src/auth/guard/jwt-auth.guard';
+import { CurrentUser } from '@src/common/decorator/current-user.decorator';
+import { AuthUser } from '@src/common/decorator/auth-user.type';
 import { CreatePostCommand } from '@src/posts/command/create-post.command';
 import { UpdatePostCommand } from '@src/posts/command/update-post.command';
 import { DeletePostCommand } from '@src/posts/command/delete-post.command';
@@ -35,6 +42,9 @@ import { PostsPaginationRequestDto } from '@src/posts/dto/request/find-posts.req
 import { PaginatedResponseDto } from '@src/common/dto/response/paginated.response.dto';
 
 @ApiTags('Posts')
+@ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: '인증되지 않은 요청' })
+@UseGuards(JwtAuthGuard)
 @Controller('posts')
 export class PostsController {
   constructor(
@@ -71,10 +81,11 @@ export class PostsController {
   @ApiBadRequestResponse({ description: '잘못된 요청' })
   @ApiConflictResponse({ description: '중복된 제목' })
   async createPost(
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreatePostRequestDto,
   ): Promise<CreatePostResponseDto> {
     const id = await this.commandBus.execute<CreatePostCommand, number>(
-      new CreatePostCommand(dto.title, dto.content, dto.isPublished),
+      new CreatePostCommand(user.id, dto.title, dto.content, dto.isPublished),
     );
     return CreatePostResponseDto.of(id);
   }
@@ -84,13 +95,21 @@ export class PostsController {
   @ApiOperation({ summary: '게시글 수정 (전체 업데이트)' })
   @ApiNoContentResponse({ description: '수정 성공' })
   @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
+  @ApiForbiddenResponse({ description: '본인의 게시글만 수정 가능' })
   @ApiBadRequestResponse({ description: '잘못된 요청' })
   async updatePost(
+    @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePostRequestDto,
   ): Promise<void> {
     await this.commandBus.execute(
-      new UpdatePostCommand(id, dto.title, dto.content, dto.isPublished),
+      new UpdatePostCommand(
+        user.id,
+        id,
+        dto.title,
+        dto.content,
+        dto.isPublished,
+      ),
     );
   }
 
@@ -99,7 +118,11 @@ export class PostsController {
   @ApiOperation({ summary: '게시글 삭제' })
   @ApiNoContentResponse({ description: '삭제 성공' })
   @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
-  async deletePost(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    await this.commandBus.execute(new DeletePostCommand(id));
+  @ApiForbiddenResponse({ description: '본인의 게시글만 삭제 가능' })
+  async deletePost(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<void> {
+    await this.commandBus.execute(new DeletePostCommand(user.id, id));
   }
 }
