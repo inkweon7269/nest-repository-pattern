@@ -1,16 +1,9 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
+import { BaseTimeEntity } from '@src/common/entities/base.entity';
+import { Post } from '@src/posts/entities/post.entity';
 
 @Entity('users')
-export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class User extends BaseTimeEntity {
   @Column({ length: 255, unique: true })
   email: string;
 
@@ -23,9 +16,6 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   hashedRefreshToken: string | null;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @OneToMany(() => Post, (post) => post.user)
+  posts: Post[];
 }

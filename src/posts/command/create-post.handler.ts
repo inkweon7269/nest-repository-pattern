@@ -13,7 +13,10 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
   ) {}
 
   async execute(command: CreatePostCommand): Promise<number> {
-    const existing = await this.postReadRepository.findByTitle(command.title);
+    const existing = await this.postReadRepository.findByUserIdAndTitle(
+      command.userId,
+      command.title,
+    );
     if (existing) {
       throw new ConflictException(
         `Post with title '${command.title}' already exists`,
@@ -22,6 +25,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
 
     try {
       const post = await this.postWriteRepository.create({
+        userId: command.userId,
         title: command.title,
         content: command.content,
         isPublished: command.isPublished,

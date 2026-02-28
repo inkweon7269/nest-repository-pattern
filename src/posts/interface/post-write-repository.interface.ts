@@ -1,6 +1,7 @@
 import { Post } from '@src/posts/entities/post.entity';
 
 export interface CreatePostInput {
+  userId: number;
   title: string;
   content: string;
   isPublished?: boolean;
@@ -14,6 +15,10 @@ export interface UpdatePostInput {
 
 export abstract class IPostWriteRepository {
   abstract create(input: CreatePostInput): Promise<Post>;
-  abstract update(id: number, input: UpdatePostInput): Promise<number>;
-  abstract delete(id: number): Promise<number>;
+  abstract update(
+    id: number,
+    userId: number,
+    input: UpdatePostInput,
+  ): Promise<number>;
+  abstract delete(id: number, userId: number): Promise<number>;
 }
