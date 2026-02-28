@@ -10,6 +10,7 @@
 > "include some filters for fun. and maybe make extend a class that have these generics fields `page` and `limit` eventually you will end up having multiple Pagination on different domain objects"
 
 핵심 요구사항:
+
 1. `page`와 `limit`를 공통으로 갖는 **베이스 클래스**를 추출하여 다른 도메인에서도 재사용
 2. `isPublished` **필터**를 게시글 페이지네이션에 추가
 
@@ -148,24 +149,24 @@ PaginatedResponseDto.of(items, totalElements, page, limit)
 
 ### 신규 생성 (2개)
 
-| 파일 | 유형 |
-|------|------|
-| `src/common/query/paginated.query.ts` | 공통 추상 클래스 |
-| `src/posts/dto/request/find-posts.request.dto.ts` | Request DTO |
+| 파일                                              | 유형             |
+| ------------------------------------------------- | ---------------- |
+| `src/common/query/paginated.query.ts`             | 공통 추상 클래스 |
+| `src/posts/dto/request/find-posts.request.dto.ts` | Request DTO      |
 
 ### 수정 (5개)
 
-| 파일 | 변경 내용 |
-|------|-----------|
+| 파일                                                    | 변경 내용                                                |
+| ------------------------------------------------------- | -------------------------------------------------------- |
 | `src/posts/interface/post-read-repository.interface.ts` | `PostFilter` 타입 추가, `findAllPaginated` 시그니처 변경 |
-| `src/posts/query/find-all-posts-paginated.query.ts` | `PaginatedQuery` 상속, `filter` 필드 추가 |
-| `src/posts/query/find-all-posts-paginated.handler.ts` | `query.filter` 전달 |
-| `src/posts/post.repository.ts` | `FindOptionsWhere`로 `isPublished` 필터 구현 |
-| `src/posts/posts.controller.ts` | `PostsPaginationRequestDto` 적용, 필터 객체 전달 |
+| `src/posts/query/find-all-posts-paginated.query.ts`     | `PaginatedQuery` 상속, `filter` 필드 추가                |
+| `src/posts/query/find-all-posts-paginated.handler.ts`   | `query.filter` 전달                                      |
+| `src/posts/post.repository.ts`                          | `FindOptionsWhere`로 `isPublished` 필터 구현             |
+| `src/posts/posts.controller.ts`                         | `PostsPaginationRequestDto` 적용, 필터 객체 전달         |
 
 ### 테스트 수정 (2개)
 
-| 파일 | 변경 내용 |
-|------|-----------|
-| `src/posts/query/find-all-posts-paginated.handler.spec.ts` | mock 호출 검증에 `filter` 인자 추가 |
-| `test/posts.integration-spec.ts` | `isPublished` 필터 통합 테스트 4개 추가 |
+| 파일                                                       | 변경 내용                               |
+| ---------------------------------------------------------- | --------------------------------------- |
+| `src/posts/query/find-all-posts-paginated.handler.spec.ts` | mock 호출 검증에 `filter` 인자 추가     |
+| `test/posts.integration-spec.ts`                           | `isPublished` 필터 통합 테스트 4개 추가 |

@@ -120,6 +120,8 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 모든 작업이 완료되면 아래 명령을 순서대로 실행하여 문제가 없는지 확인한다.
 
 ```bash
+pnpm format             # 포맷 자동 수정
+pnpm lint:check         # 린트 검사 (포맷 외 규칙 포함)
 pnpm build:local        # 빌드 확인
 pnpm test               # 단위 테스트 통과 확인
 pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
@@ -143,3 +145,4 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 | `verify-implementation` | 프로젝트의 모든 verify 스킬을 순차 실행하여 통합 검증 보고서를 생성합니다       |
 | `manage-skills`         | 세션 변경사항을 분석하고, 검증 스킬을 생성/업데이트하며, CLAUDE.md를 관리합니다 |
 | `verify-restful-api`    | RESTful API 설계 원칙 준수 여부를 검증합니다                                    |
+| `respond-coderabbit`    | CodeRabbit PR 리뷰 코멘트를 자동 분석하고 응답합니다                            |
