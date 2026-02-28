@@ -1,19 +1,15 @@
 import {
   Column,
-  CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '@src/auth/entities/user.entity';
+import { BaseTimeEntity } from '@src/common/entities/base.entity';
 
 @Entity('posts')
-export class Post {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class Post extends BaseTimeEntity {
   @Column()
   userId: number;
 
@@ -30,9 +26,6 @@ export class Post {
   @Column({ default: false })
   isPublished: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @DeleteDateColumn()
+  deletedAt: Date | null;
 }

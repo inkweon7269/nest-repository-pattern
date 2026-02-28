@@ -66,7 +66,7 @@ export class PostRepository
   }
 
   async delete(id: number): Promise<number> {
-    const result = await this.postRepository.delete(id);
+    const result = await this.postRepository.softDelete(id);
     return result.affected ?? 0;
   }
 }

@@ -665,6 +665,34 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
+    it('should allow creating a post with same title after soft-delete', async () => {
+      const createRes = await createPost(token, {
+        title: 'Reusable Title',
+        content: 'Original',
+      }).expect(201);
+      const id = createRes.body.id as number;
+
+      await request(app.getHttpServer())
+        .delete(`/posts/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(204);
+
+      const newRes = await createPost(token, {
+        title: 'Reusable Title',
+        content: 'Recreated',
+      }).expect(201);
+
+      expect(newRes.body.id).not.toBe(id);
+
+      const getRes = await request(app.getHttpServer())
+        .get(`/posts/${newRes.body.id as number}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(getRes.body.title).toBe('Reusable Title');
+      expect(getRes.body.content).toBe('Recreated');
+    });
+
     it('should not affect other posts', async () => {
       const res1 = await createPost(token, { title: 'Keep' }).expect(201);
       const res2 = await createPost(token, { title: 'Delete Me' }).expect(201);
