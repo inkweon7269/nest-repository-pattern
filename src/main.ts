@@ -1,10 +1,17 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from '@src/app.module';
+import { HttpExceptionFilter } from '@src/common/logging/http-exception.filter';
+import { LoggingInterceptor } from '@src/common/logging/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+
+  app.useLogger(app.get(Logger));
+  app.useGlobalFilters(app.get(HttpExceptionFilter));
+  app.useGlobalInterceptors(app.get(LoggingInterceptor));
 
   app.useGlobalPipes(
     new ValidationPipe({
