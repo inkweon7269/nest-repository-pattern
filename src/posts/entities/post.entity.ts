@@ -1,17 +1,23 @@
 import {
   Column,
-  CreateDateColumn,
+  DeleteDateColumn,
   Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  JoinColumn,
+  ManyToOne,
 } from 'typeorm';
+import { User } from '@src/auth/entities/user.entity';
+import { BaseTimeEntity } from '@src/common/entities/base.entity';
 
 @Entity('posts')
-export class Post {
-  @PrimaryGeneratedColumn()
-  id: number;
+export class Post extends BaseTimeEntity {
+  @Column()
+  userId: number;
 
-  @Column({ length: 200, unique: true })
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column({ length: 200 })
   title: string;
 
   @Column({ type: 'text' })
@@ -20,9 +26,6 @@ export class Post {
   @Column({ default: false })
   isPublished: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @DeleteDateColumn()
+  deletedAt: Date | null;
 }

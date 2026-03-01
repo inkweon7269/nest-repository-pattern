@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
+import { AuthModule } from '@src/auth/auth.module';
 import { PostsController } from '@src/posts/posts.controller';
 import { CreatePostHandler } from '@src/posts/command/create-post.handler';
 import { UpdatePostHandler } from '@src/posts/command/update-post.handler';
@@ -17,7 +18,7 @@ const commandHandlers = [
 const queryHandlers = [GetPostByIdHandler, FindAllPostsPaginatedHandler];
 
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, AuthModule],
   controllers: [PostsController],
   providers: [...commandHandlers, ...queryHandlers, ...postRepositoryProviders],
 })

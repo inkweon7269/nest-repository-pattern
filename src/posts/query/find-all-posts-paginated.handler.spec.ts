@@ -13,26 +13,28 @@ describe('FindAllPostsPaginatedHandler', () => {
   const mockPosts: Post[] = [
     {
       id: 2,
+      userId: 1,
       title: 'Second Post',
       content: 'Content 2',
       isPublished: true,
       createdAt: now,
       updatedAt: now,
-    },
+    } as Post,
     {
       id: 1,
+      userId: 1,
       title: 'First Post',
       content: 'Content 1',
       isPublished: false,
       createdAt: now,
       updatedAt: now,
-    },
+    } as Post,
   ];
 
   beforeEach(async () => {
     mockReadRepository = {
       findById: jest.fn(),
-      findByTitle: jest.fn(),
+      findByUserIdAndTitle: jest.fn(),
       findAllPaginated: jest.fn(),
     };
 

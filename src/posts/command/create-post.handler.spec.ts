@@ -14,7 +14,7 @@ describe('CreatePostHandler', () => {
   beforeEach(async () => {
     mockReadRepository = {
       findById: jest.fn(),
-      findByTitle: jest.fn(),
+      findByUserIdAndTitle: jest.fn(),
       findAllPaginated: jest.fn(),
     };
 
@@ -36,15 +36,19 @@ describe('CreatePostHandler', () => {
   });
 
   it('중복되지 않는 제목이면 게시글을 생성하고 id를 반환한다', async () => {
-    mockReadRepository.findByTitle.mockResolvedValue(null);
+    mockReadRepository.findByUserIdAndTitle.mockResolvedValue(null);
     mockWriteRepository.create.mockResolvedValue({ id: 1 } as Post);
 
-    const command = new CreatePostCommand('New Title', 'Content', false);
+    const command = new CreatePostCommand(1, 'New Title', 'Content', false);
     const result = await handler.execute(command);
 
     expect(result).toBe(1);
-    expect(mockReadRepository.findByTitle).toHaveBeenCalledWith('New Title');
+    expect(mockReadRepository.findByUserIdAndTitle).toHaveBeenCalledWith(
+      1,
+      'New Title',
+    );
     expect(mockWriteRepository.create).toHaveBeenCalledWith({
+      userId: 1,
       title: 'New Title',
       content: 'Content',
       isPublished: false,
@@ -52,9 +56,11 @@ describe('CreatePostHandler', () => {
   });
 
   it('동일한 제목이 이미 존재하면 ConflictException을 발생시킨다', async () => {
-    mockReadRepository.findByTitle.mockResolvedValue({ id: 1 } as Post);
+    mockReadRepository.findByUserIdAndTitle.mockResolvedValue({
+      id: 1,
+    } as Post);
 
-    const command = new CreatePostCommand('Duplicate Title', 'Content');
+    const command = new CreatePostCommand(1, 'Duplicate Title', 'Content');
 
     await expect(handler.execute(command)).rejects.toThrow(ConflictException);
     expect(mockWriteRepository.create).not.toHaveBeenCalled();
