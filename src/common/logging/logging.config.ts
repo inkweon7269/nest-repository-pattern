@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { IncomingMessage } from 'http';
+import { IncomingMessage, ServerResponse } from 'http';
 import type { Options } from 'pino-http';
 
 export function createPinoHttpOptions(
@@ -14,6 +14,16 @@ export function createPinoHttpOptions(
 
   return {
     level,
+
+    customLogLevel: (
+      _req: IncomingMessage,
+      res: ServerResponse,
+      err: Error | undefined,
+    ) => {
+      if (res.statusCode >= 500 || err) return 'error';
+      if (res.statusCode >= 400) return 'warn';
+      return 'info';
+    },
 
     genReqId: (req: IncomingMessage) => {
       const existing = req.headers['x-correlation-id'];
