@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { createDataSourceOptions } from '@src/database/typeorm.config';
+import { LoggingModule } from '@src/common/logging/logging.module';
 import { PostsModule } from '@src/posts/posts.module';
 import { AuthModule } from '@src/auth/auth.module';
 
@@ -13,6 +14,7 @@ const nodeEnv = process.env.NODE_ENV || 'local';
       isGlobal: true,
       envFilePath: `.env.${nodeEnv}`,
     }),
+    LoggingModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         ...createDataSourceOptions(process.env),
