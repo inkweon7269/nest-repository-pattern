@@ -255,7 +255,7 @@ genReqId: (req: IncomingMessage) => {
 ```typescript
 redact: {
   paths: ['req.headers.authorization', 'req.headers.cookie'],
-  clobberWith: '[REDACTED]',
+  censor: '[REDACTED]',
 }
 ```
 

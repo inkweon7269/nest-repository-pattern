@@ -26,7 +26,10 @@ export function createPinoHttpOptions(
     },
 
     genReqId: (req: IncomingMessage) => {
-      const existing = req.headers['x-correlation-id'];
+      const headerValue = req.headers['x-correlation-id'];
+      const existing = Array.isArray(headerValue)
+        ? headerValue[0]
+        : headerValue;
       if (typeof existing === 'string' && /^[\w-]{1,128}$/.test(existing)) {
         return existing;
       }
