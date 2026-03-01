@@ -395,7 +395,7 @@ nestjs-pino의 AsyncLocalStorage 통합으로, 요청 컨텍스트 내에서 `Pi
 
 ### 6.2 Local/Development (pino-pretty)
 
-```
+```text
 [14:00:00.000] INFO: request received
     reqId: "abc-123"
     req: {"method":"POST","url":"/posts"}
