@@ -6,16 +6,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { PinoLogger } from 'nestjs-pino';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  constructor(
-    private readonly httpAdapterHost: HttpAdapterHost,
-    private readonly logger: PinoLogger,
-  ) {
-    this.logger.setContext(HttpExceptionFilter.name);
-  }
+  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const { httpAdapter } = this.httpAdapterHost;
@@ -26,27 +20,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ? exception.getStatus()
       : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message = isHttpException
-      ? exception.message
-      : 'Internal server error';
-
-    if (status >= 500) {
-      this.logger.error(
-        { err: exception, statusCode: status },
-        'Unhandled exception: %s',
-        message,
-      );
-    } else if (status >= 400) {
-      this.logger.warn(
-        { statusCode: status, message },
-        'Client error: %s',
-        message,
-      );
-    }
-
     const responseBody = isHttpException
       ? exception.getResponse()
-      : { statusCode: status, message };
+      : { statusCode: status, message: 'Internal server error' };
 
     httpAdapter.reply(ctx.getResponse(), responseBody, status);
   }
