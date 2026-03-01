@@ -21,7 +21,12 @@ const SENSITIVE_FIELDS = new Set([
 function sanitizeBody(
   body: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
-  if (!body || typeof body !== 'object' || Object.keys(body).length === 0) {
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    Array.isArray(body) ||
+    Object.keys(body).length === 0
+  ) {
     return undefined;
   }
 
@@ -41,6 +46,10 @@ export class LoggingInterceptor implements NestInterceptor {
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    if (context.getType() !== 'http') {
+      return next.handle();
+    }
+
     const controller = context.getClass().name;
     const method = context.getHandler().name;
     const req = context.switchToHttp().getRequest<Request>();

@@ -27,7 +27,7 @@ export function createPinoHttpOptions(
 
     genReqId: (req: IncomingMessage) => {
       const existing = req.headers['x-correlation-id'];
-      if (typeof existing === 'string' && existing.length > 0) {
+      if (typeof existing === 'string' && /^[\w-]{1,128}$/.test(existing)) {
         return existing;
       }
       return randomUUID();
