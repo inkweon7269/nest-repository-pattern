@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Guide merge strategy
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const base = context.payload.pull_request.base.ref;
