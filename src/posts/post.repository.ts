@@ -43,6 +43,10 @@ export class PostRepository
   ): Promise<[Post[], number]> {
     const where: FindOptionsWhere<Post> = {};
 
+    if (filter.userId !== undefined) {
+      where.userId = filter.userId;
+    }
+
     if (filter.isPublished !== undefined) {
       where.isPublished = filter.isPublished;
     }

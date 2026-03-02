@@ -10,7 +10,7 @@ export class GetPostByIdHandler implements IQueryHandler<GetPostByIdQuery> {
 
   async execute(query: GetPostByIdQuery): Promise<PostResponseDto> {
     const post = await this.postReadRepository.findById(query.id);
-    if (!post) {
+    if (!post || post.userId !== query.userId) {
       throw new NotFoundException(`Post with ID ${query.id} not found`);
     }
 

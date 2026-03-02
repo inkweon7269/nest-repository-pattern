@@ -1,6 +1,7 @@
 import { Post } from '@src/posts/entities/post.entity';
 
 export type PostFilter = {
+  userId?: number;
   isPublished?: boolean;
 };
 
