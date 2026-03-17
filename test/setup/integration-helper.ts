@@ -4,7 +4,10 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types';
 import { DataSource, EntityManager, QueryRunner } from 'typeorm';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from '@src/app.module';
+import { HttpExceptionFilter } from '@src/common/logging/http-exception.filter';
+import { LoggingInterceptor } from '@src/common/logging/logging.interceptor';
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
@@ -21,6 +24,11 @@ export async function createIntegrationApp(): Promise<INestApplication<App>> {
   }).compile();
 
   const app = module.createNestApplication();
+
+  app.useLogger(app.get(Logger));
+  app.useGlobalFilters(app.get(HttpExceptionFilter));
+  app.useGlobalInterceptors(app.get(LoggingInterceptor));
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

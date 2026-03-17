@@ -10,6 +10,7 @@ import { LogoutHandler } from '@src/auth/command/logout.handler';
 import { userRepositoryProviders } from '@src/auth/user-repository.provider';
 import { JwtStrategy } from '@src/auth/strategy/jwt.strategy';
 import { JwtAuthGuard } from '@src/auth/guard/jwt-auth.guard';
+import { GetProfileHandler } from '@src/auth/query/get-profile.handler';
 
 const commandHandlers = [
   RegisterHandler,
@@ -17,12 +18,14 @@ const commandHandlers = [
   RefreshTokenHandler,
   LogoutHandler,
 ];
+const queryHandlers = [GetProfileHandler];
 
 @Module({
   imports: [CqrsModule, PassportModule, JwtModule.register({})],
   controllers: [AuthController],
   providers: [
     ...commandHandlers,
+    ...queryHandlers,
     ...userRepositoryProviders,
     JwtStrategy,
     JwtAuthGuard,

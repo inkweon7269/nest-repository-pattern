@@ -13,26 +13,28 @@ describe('FindAllPostsPaginatedHandler', () => {
   const mockPosts: Post[] = [
     {
       id: 2,
+      userId: 1,
       title: 'Second Post',
       content: 'Content 2',
       isPublished: true,
       createdAt: now,
       updatedAt: now,
-    },
+    } as Post,
     {
       id: 1,
+      userId: 1,
       title: 'First Post',
       content: 'Content 1',
       isPublished: false,
       createdAt: now,
       updatedAt: now,
-    },
+    } as Post,
   ];
 
   beforeEach(async () => {
     mockReadRepository = {
       findById: jest.fn(),
-      findByTitle: jest.fn(),
+      findByUserIdAndTitle: jest.fn(),
       findAllPaginated: jest.fn(),
     };
 
@@ -49,10 +51,12 @@ describe('FindAllPostsPaginatedHandler', () => {
   it('게시글 목록을 페이지네이션하여 PaginatedResponseDto로 반환한다', async () => {
     mockReadRepository.findAllPaginated.mockResolvedValue([mockPosts, 5]);
 
-    const query = new FindAllPostsPaginatedQuery(1, 2);
+    const query = new FindAllPostsPaginatedQuery(1, 2, { userId: 1 });
     const result = await handler.execute(query);
 
-    expect(mockReadRepository.findAllPaginated).toHaveBeenCalledWith(1, 2, {});
+    expect(mockReadRepository.findAllPaginated).toHaveBeenCalledWith(1, 2, {
+      userId: 1,
+    });
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(PostResponseDto);
     expect(result.items[0].id).toBe(2);
@@ -70,7 +74,7 @@ describe('FindAllPostsPaginatedHandler', () => {
   it('빈 목록이면 빈 items와 올바른 메타 정보를 반환한다', async () => {
     mockReadRepository.findAllPaginated.mockResolvedValue([[], 0]);
 
-    const query = new FindAllPostsPaginatedQuery(1, 10);
+    const query = new FindAllPostsPaginatedQuery(1, 10, { userId: 1 });
     const result = await handler.execute(query);
 
     expect(result.items).toHaveLength(0);

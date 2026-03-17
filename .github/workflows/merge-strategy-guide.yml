@@ -1,0 +1,35 @@
+name: Merge Strategy Guide
+
+on:
+  pull_request:
+    types: [opened]
+    branches: [dev, main]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guide merge strategy
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const base = context.payload.pull_request.base.ref;
+            let message;
+
+            if (base === 'dev') {
+              message = '> **Merge Strategy**: 이 PR은 `dev` 브랜치 대상입니다. **Squash and merge**를 사용해주세요.';
+            } else if (base === 'main') {
+              message = '> **Merge Strategy**: 이 PR은 `main` 브랜치 대상입니다. **Create a merge commit**을 사용해주세요.';
+            }
+
+            if (message) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: message
+              });
+            }

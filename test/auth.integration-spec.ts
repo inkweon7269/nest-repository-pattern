@@ -241,6 +241,57 @@ describe('Auth (integration)', () => {
   });
 
   // ============================================================
+  // GET /auth/profile
+  // ============================================================
+  describe('GET /auth/profile', () => {
+    it('should return profile with { id, email, name, createdAt, updatedAt } and 200', async () => {
+      const tokens = await registerAndLogin();
+
+      const res = await request(app.getHttpServer())
+        .get('/auth/profile')
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .expect(200);
+
+      expect(res.body.id).toBeDefined();
+      expect(typeof res.body.id).toBe('number');
+      expect(res.body.email).toBe(defaultUser.email);
+      expect(res.body.name).toBe(defaultUser.name);
+      expect(res.body.createdAt).toBeDefined();
+      expect(res.body.updatedAt).toBeDefined();
+      expect(Object.keys(res.body).sort()).toEqual([
+        'createdAt',
+        'email',
+        'id',
+        'name',
+        'updatedAt',
+      ]);
+    });
+
+    it('should not include password or hashedRefreshToken in response', async () => {
+      const tokens = await registerAndLogin();
+
+      const res = await request(app.getHttpServer())
+        .get('/auth/profile')
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .expect(200);
+
+      expect(res.body).not.toHaveProperty('password');
+      expect(res.body).not.toHaveProperty('hashedRefreshToken');
+    });
+
+    it('should return 401 without token', () => {
+      return request(app.getHttpServer()).get('/auth/profile').expect(401);
+    });
+
+    it('should return 401 with invalid token', () => {
+      return request(app.getHttpServer())
+        .get('/auth/profile')
+        .set('Authorization', 'Bearer invalid-token')
+        .expect(401);
+    });
+  });
+
+  // ============================================================
   // POST /auth/logout
   // ============================================================
   describe('POST /auth/logout', () => {
