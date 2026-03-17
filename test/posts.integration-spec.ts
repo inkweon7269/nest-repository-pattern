@@ -433,6 +433,44 @@ describe('Posts (integration)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
+
+    it('should only return posts created by the authenticated user', async () => {
+      await createPost(token, { title: 'My Post' }).expect(201);
+
+      const tokens2 = await registerAndLogin({
+        email: 'other@example.com',
+        name: '다른유저',
+      });
+      await createPost(tokens2.accessToken, { title: 'Other Post' }).expect(
+        201,
+      );
+
+      const res = await request(app.getHttpServer())
+        .get('/posts')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe('My Post');
+      expect(res.body.meta.totalElements).toBe(1);
+    });
+
+    it('should return empty when user has no posts even if other users do', async () => {
+      await createPost(token, { title: 'User 1 Post' }).expect(201);
+
+      const tokens2 = await registerAndLogin({
+        email: 'other@example.com',
+        name: '다른유저',
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/posts')
+        .set('Authorization', `Bearer ${tokens2.accessToken}`)
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(0);
+      expect(res.body.meta.totalElements).toBe(0);
+    });
   });
 
   // ============================================================
@@ -492,6 +530,24 @@ describe('Posts (integration)', () => {
         .expect((res) => {
           expect(res.body.message).toBe('Post with ID 99999 not found');
         });
+    });
+
+    it("should return 404 when accessing another user's post", async () => {
+      const createRes = await createPost(token, {
+        title: 'Private Post',
+        content: 'Owner Only',
+      }).expect(201);
+      const id = createRes.body.id as number;
+
+      const tokens2 = await registerAndLogin({
+        email: 'other@example.com',
+        name: '다른유저',
+      });
+
+      await request(app.getHttpServer())
+        .get(`/posts/${id}`)
+        .set('Authorization', `Bearer ${tokens2.accessToken}`)
+        .expect(404);
     });
 
     it('should return 400 for non-numeric id', () => {

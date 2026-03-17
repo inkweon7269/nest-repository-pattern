@@ -1,28 +1,57 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@src/auth/guard/jwt-auth.guard';
+import { CurrentUser } from '@src/common/decorator/current-user.decorator';
+import { AuthUser } from '@src/common/decorator/auth-user.type';
 import { RegisterCommand } from '@src/auth/command/register.command';
 import { LoginCommand } from '@src/auth/command/login.command';
 import { RefreshTokenCommand } from '@src/auth/command/refresh-token.command';
+import { GetProfileQuery } from '@src/auth/query/get-profile.query';
 import { RegisterRequestDto } from '@src/auth/dto/request/register.request.dto';
 import { LoginRequestDto } from '@src/auth/dto/request/login.request.dto';
 import { RefreshTokenRequestDto } from '@src/auth/dto/request/refresh-token.request.dto';
 import { RegisterResponseDto } from '@src/auth/dto/response/register.response.dto';
 import { AuthTokensResponseDto } from '@src/auth/dto/response/auth-tokens.response.dto';
+import { ProfileResponseDto } from '@src/auth/dto/response/profile.response.dto';
 import { AuthTokens } from '@src/auth/auth.types';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '내 프로필 조회' })
+  @ApiOkResponse({ type: ProfileResponseDto })
+  @ApiUnauthorizedResponse({ description: '인증되지 않은 요청' })
+  @ApiNotFoundResponse({ description: '사용자를 찾을 수 없음' })
+  async getProfile(@CurrentUser() user: AuthUser): Promise<ProfileResponseDto> {
+    return this.queryBus.execute(new GetProfileQuery(user.id));
+  }
 
   @Post('register')
   @ApiOperation({ summary: '회원가입' })

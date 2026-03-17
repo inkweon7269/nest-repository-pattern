@@ -56,10 +56,12 @@ export class PostsController {
   @ApiOperation({ summary: '게시글 페이지네이션 조회' })
   @ApiOkResponse({ type: PaginatedResponseDto })
   async findAllPaginated(
+    @CurrentUser() user: AuthUser,
     @Query() dto: PostsPaginationRequestDto,
   ): Promise<PaginatedResponseDto<PostResponseDto>> {
     return this.queryBus.execute(
       new FindAllPostsPaginatedQuery(dto.page, dto.limit, {
+        userId: user.id,
         isPublished: dto.isPublished,
       }),
     );
@@ -70,9 +72,10 @@ export class PostsController {
   @ApiOkResponse({ type: PostResponseDto })
   @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
   async getPostById(
+    @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<PostResponseDto> {
-    return this.queryBus.execute(new GetPostByIdQuery(id));
+    return this.queryBus.execute(new GetPostByIdQuery(user.id, id));
   }
 
   @Post()
