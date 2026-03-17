@@ -13,6 +13,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -25,6 +26,7 @@ import { AuthUser } from '@src/common/decorator/auth-user.type';
 import { RegisterCommand } from '@src/auth/command/register.command';
 import { LoginCommand } from '@src/auth/command/login.command';
 import { RefreshTokenCommand } from '@src/auth/command/refresh-token.command';
+import { LogoutCommand } from '@src/auth/command/logout.command';
 import { GetProfileQuery } from '@src/auth/query/get-profile.query';
 import { RegisterRequestDto } from '@src/auth/dto/request/register.request.dto';
 import { LoginRequestDto } from '@src/auth/dto/request/login.request.dto';
@@ -94,5 +96,16 @@ export class AuthController {
       AuthTokens
     >(new RefreshTokenCommand(dto.refreshToken));
     return AuthTokensResponseDto.of(tokens);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '로그아웃' })
+  @ApiNoContentResponse({ description: '로그아웃 성공' })
+  @ApiUnauthorizedResponse({ description: '인증 실패' })
+  async logout(@CurrentUser() user: AuthUser): Promise<void> {
+    await this.commandBus.execute(new LogoutCommand(user.id));
   }
 }
