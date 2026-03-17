@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, FindOptionsWhere } from 'typeorm';
+import { DataSource, FindOptionsWhere, IsNull } from 'typeorm';
 import { BaseRepository } from '@src/common/base.repository';
 import {
   IPostReadRepository,
@@ -69,12 +69,19 @@ export class PostRepository
     userId: number,
     input: UpdatePostInput,
   ): Promise<number> {
-    const result = await this.postRepository.update({ id, userId }, input);
+    const result = await this.postRepository.update(
+      { id, userId, deletedAt: IsNull() },
+      input,
+    );
     return result.affected ?? 0;
   }
 
   async delete(id: number, userId: number): Promise<number> {
-    const result = await this.postRepository.softDelete({ id, userId });
+    const result = await this.postRepository.softDelete({
+      id,
+      userId,
+      deletedAt: IsNull(),
+    });
     return result.affected ?? 0;
   }
 }

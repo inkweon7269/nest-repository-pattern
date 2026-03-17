@@ -25,13 +25,20 @@ export class AddDeletedAtToPost1772400000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // soft-deleted 행이 존재하면 데이터 손실 방지를 위해 rollback 중단
+    const softDeletedRows = (await queryRunner.query(
+      `SELECT COUNT(*) AS count FROM "posts" WHERE "deletedAt" IS NOT NULL`,
+    )) as { count: string }[];
+    const softDeletedCount = Number(softDeletedRows[0].count);
+    if (softDeletedCount > 0) {
+      throw new Error(
+        `Cannot revert: ${softDeletedCount} soft-deleted posts exist. ` +
+          'Manually archive or remove them before rolling back this migration.',
+      );
+    }
+
     // partial unique index 삭제
     await queryRunner.query(`DROP INDEX "UQ_posts_userId_title"`);
-
-    // full unique 복원을 위해 soft-deleted 데이터 정리
-    await queryRunner.query(
-      `DELETE FROM "posts" WHERE "deletedAt" IS NOT NULL`,
-    );
 
     // (userId, title) 복합 unique 제약 복원
     await queryRunner.query(

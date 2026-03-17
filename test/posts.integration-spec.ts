@@ -606,7 +606,7 @@ describe('Posts (integration)', () => {
         });
     });
 
-    it("should return 403 when updating another user's post", async () => {
+    it("should return 404 when updating another user's post", async () => {
       const createRes = await createPost(token).expect(201);
       const id = createRes.body.id as number;
 
@@ -619,7 +619,7 @@ describe('Posts (integration)', () => {
         .patch(`/posts/${id}`)
         .set('Authorization', `Bearer ${tokens2.accessToken}`)
         .send(fullUpdate)
-        .expect(403);
+        .expect(404);
     });
 
     it('should return 400 for non-numeric id', () => {
@@ -699,7 +699,7 @@ describe('Posts (integration)', () => {
         });
     });
 
-    it("should return 403 when deleting another user's post", async () => {
+    it("should return 404 when deleting another user's post", async () => {
       const createRes = await createPost(token).expect(201);
       const id = createRes.body.id as number;
 
@@ -711,7 +711,7 @@ describe('Posts (integration)', () => {
       return request(app.getHttpServer())
         .delete(`/posts/${id}`)
         .set('Authorization', `Bearer ${tokens2.accessToken}`)
-        .expect(403);
+        .expect(404);
     });
 
     it('should return 400 for non-numeric id', () => {

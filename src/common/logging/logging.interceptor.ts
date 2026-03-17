@@ -18,6 +18,26 @@ const SENSITIVE_FIELDS = new Set([
   'authorization',
 ]);
 
+function sanitizeValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value && typeof value === 'object') {
+    return sanitizeObject(value as Record<string, unknown>);
+  }
+  return value;
+}
+
+function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    sanitized[key] = SENSITIVE_FIELDS.has(key.toLowerCase())
+      ? '[REDACTED]'
+      : sanitizeValue(value);
+  }
+  return sanitized;
+}
+
 function sanitizeBody(
   body: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
@@ -30,13 +50,7 @@ function sanitizeBody(
     return undefined;
   }
 
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(body)) {
-    sanitized[key] = SENSITIVE_FIELDS.has(key.toLowerCase())
-      ? '[REDACTED]'
-      : value;
-  }
-  return sanitized;
+  return sanitizeObject(body);
 }
 
 @Injectable()
