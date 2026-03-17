@@ -239,4 +239,43 @@ describe('Auth (integration)', () => {
         .expect(400);
     });
   });
+
+  // ============================================================
+  // POST /auth/logout
+  // ============================================================
+  describe('POST /auth/logout', () => {
+    it('should return 204 on successful logout', async () => {
+      const { accessToken } = await registerAndLogin();
+
+      await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(204);
+    });
+
+    it('should invalidate refresh token after logout', async () => {
+      const { accessToken, refreshToken } = await registerAndLogin();
+
+      await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
+    });
+
+    it('should return 401 when no Authorization header is provided', async () => {
+      await request(app.getHttpServer()).post('/auth/logout').expect(401);
+    });
+
+    it('should return 401 when an invalid token is provided', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Authorization', 'Bearer invalid-token')
+        .expect(401);
+    });
+  });
 });
