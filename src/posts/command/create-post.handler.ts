@@ -1,7 +1,9 @@
 import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryFailedError } from 'typeorm';
 import { CreatePostCommand } from '@src/posts/command/create-post.command';
+import { PostCreatedEvent } from '@src/posts/event/post-created.event';
 import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
 import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
 
@@ -10,6 +12,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
   constructor(
     private readonly postReadRepository: IPostReadRepository,
     private readonly postWriteRepository: IPostWriteRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(command: CreatePostCommand): Promise<number> {
@@ -30,6 +33,10 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
         content: command.content,
         isPublished: command.isPublished,
       });
+      this.eventEmitter.emit(
+        PostCreatedEvent.event,
+        new PostCreatedEvent(post.id, command.title, command.userId),
+      );
       return post.id;
     } catch (error) {
       if (

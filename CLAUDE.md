@@ -41,7 +41,7 @@ pnpm migration:create -- src/migrations/AddCategoryToPost      # 빈 migration �
 
 ## Architecture & Patterns
 
-NestJS 프로젝트에 **Repository Pattern** + **CQRS Pattern**을 적용한 CRUD API. TypeORM + PostgreSQL 사용.
+NestJS 프로젝트에 **Repository Pattern** + **CQRS Pattern**을 적용한 CRUD API. TypeORM + PostgreSQL 사용. 현재 **Posts**와 **Auth(User)** 두 도메인 모듈이 존재한다.
 
 - 새 코드 생성 시 기존 handler/repository 패턴을 따른다.
 - TypeORM 설정에는 항상 `forRootAsync`를 사용한다 (`forRoot`의 eager evaluation 금지).
@@ -77,6 +77,26 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 4. **`postRepositoryProviders`** — `PostRepository`를 등록 후 `useExisting`으로 두 추상 클래스 토큰에 동일 인스턴스를 매핑
 5. 모듈에서 `TypeOrmModule.forFeature()`를 사용하지 않음. `BaseRepository`가 `DataSource`를 직접 주입받아 `getRepository<T>()`로 접근
 
+### Auth 모듈
+
+- JWT 기반 인증 (`register`, `login`, `logout`, `refresh-token`, `profile`)
+- `JwtAuthGuard`가 PostsController 전체에 적용됨 — 모든 Post 엔드포인트는 Bearer 토큰 필요
+- `@CurrentUser()` 커스텀 데코레이터로 인증된 사용자 정보 주입 (`src/common/decorator/`)
+- User 엔티티와 Post 엔티티는 `userId` FK로 연결 (1:N)
+- Posts와 동일한 Repository Pattern DI 구조 적용 (`IUserReadRepository` / `IUserWriteRepository`)
+
+### Soft Delete
+
+- Post 엔티티에 `@DeleteDateColumn()` 적용 — 삭제 시 `deletedAt` 타임스탬프 기록, 실제 행은 유지
+- TypeORM의 `softDelete()`/`restore()` 메서드 사용
+
+### Logging
+
+- `pino-http` 기반 구조화 로깅 (`src/common/logging/`)
+- `LoggingInterceptor` — HTTP 요청/응답 로깅 (글로벌 적용)
+- `HttpExceptionFilter` — 예외 처리 및 에러 로깅 (글로벌 적용)
+- correlation ID, 민감 정보 redaction 지원
+
 ### NestJS Conventions
 
 - 모듈 파일(`*.module.ts`) 수정 후 모든 providers, exports, imports가 올바르게 등록되었는지 확인한다. 흔한 실수: Guard/Service를 export하면서 providers에 추가하지 않는 것.
@@ -97,7 +117,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 ### Swagger
 
-`/api` 경로에서 Swagger UI 확인 가능. DTO에 `@ApiProperty`/`@ApiPropertyOptional` 적용.
+`/api` 경로에서 Swagger UI 확인 가능. DTO에 `@ApiProperty`/`@ApiPropertyOptional` 적용. Bearer Auth 설정이 포함되어 있으므로 인증이 필요한 엔드포인트에 `@ApiBearerAuth()` 적용.
 
 ### Testing
 

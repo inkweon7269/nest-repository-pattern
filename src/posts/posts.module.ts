@@ -5,9 +5,11 @@ import { PostsController } from '@src/posts/posts.controller';
 import { CreatePostHandler } from '@src/posts/command/create-post.handler';
 import { UpdatePostHandler } from '@src/posts/command/update-post.handler';
 import { DeletePostHandler } from '@src/posts/command/delete-post.handler';
+import { PostCreatedHandler } from '@src/posts/event/post-created.handler';
 import { GetPostByIdHandler } from '@src/posts/query/get-post-by-id.handler';
 import { FindAllPostsPaginatedHandler } from '@src/posts/query/find-all-posts-paginated.handler';
 import { postRepositoryProviders } from '@src/posts/post-repository.provider';
+import { SlackModule } from '@src/slack/slack.module';
 
 const commandHandlers = [
   CreatePostHandler,
@@ -17,9 +19,16 @@ const commandHandlers = [
 
 const queryHandlers = [GetPostByIdHandler, FindAllPostsPaginatedHandler];
 
+const eventHandlers = [PostCreatedHandler];
+
 @Module({
-  imports: [CqrsModule, AuthModule],
+  imports: [CqrsModule, AuthModule, SlackModule],
   controllers: [PostsController],
-  providers: [...commandHandlers, ...queryHandlers, ...postRepositoryProviders],
+  providers: [
+    ...commandHandlers,
+    ...queryHandlers,
+    ...eventHandlers,
+    ...postRepositoryProviders,
+  ],
 })
 export class PostsModule {}
