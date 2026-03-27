@@ -36,8 +36,8 @@ export class SlackService {
       await this.client.chat.postMessage({ channel, text });
     } catch (error) {
       this.logger.error(
-        `Failed to send Slack notification to ${channel}`,
-        error,
+        `Failed to send Slack notification to ${channel}: ${error instanceof Error ? error.message : error}`,
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }
