@@ -18,10 +18,18 @@ export class SlackService {
     title: string,
     userId: number,
   ): Promise<void> {
+    const safeTitle = this.escapeSlackText(title);
     await this.send(
       SLACK_CHANNELS.POST_CREATED,
-      `New post created!\n*Title:* ${title}\n*Post ID:* ${postId}\n*User ID:* ${userId}`,
+      `New post created!\n*Title:* ${safeTitle}\n*Post ID:* ${postId}\n*User ID:* ${userId}`,
     );
+  }
+
+  private escapeSlackText(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   private async send(channel: string, text: string): Promise<void> {
