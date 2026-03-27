@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { createDataSourceOptions } from '@src/database/typeorm.config';
 import { LoggingModule } from '@src/common/logging/logging.module';
@@ -14,6 +15,7 @@ const nodeEnv = process.env.NODE_ENV || 'local';
       isGlobal: true,
       envFilePath: `.env.${nodeEnv}`,
     }),
+    EventEmitterModule.forRoot(),
     LoggingModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ({

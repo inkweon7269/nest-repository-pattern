@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreatePostHandler } from '@src/posts/command/create-post.handler';
 import { CreatePostCommand } from '@src/posts/command/create-post.command';
 import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
@@ -10,6 +11,7 @@ describe('CreatePostHandler', () => {
   let handler: CreatePostHandler;
   let mockReadRepository: jest.Mocked<IPostReadRepository>;
   let mockWriteRepository: jest.Mocked<IPostWriteRepository>;
+  let mockEventEmitter: jest.Mocked<Pick<EventEmitter2, 'emit'>>;
 
   beforeEach(async () => {
     mockReadRepository = {
@@ -24,11 +26,16 @@ describe('CreatePostHandler', () => {
       delete: jest.fn(),
     };
 
+    mockEventEmitter = {
+      emit: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CreatePostHandler,
         { provide: IPostReadRepository, useValue: mockReadRepository },
         { provide: IPostWriteRepository, useValue: mockWriteRepository },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
 
