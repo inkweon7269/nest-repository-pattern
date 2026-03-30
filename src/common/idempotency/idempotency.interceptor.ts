@@ -21,7 +21,7 @@ interface CachedResponse {
 }
 
 const PROCESSING_MARKER = '__PROCESSING__';
-const IDEMPOTENCY_TTL_MS = 1000 * 60 * 60 * 24; // 24시간 (밀리초, cache-manager v5+ 기준)
+const IDEMPOTENCY_TTL_MS = 1000 * 60 * 60 * 24; // 24시간 (밀리초, ioredis PX 옵션 기준)
 const PROCESSING_TTL_SEC = 60; // ioredis SET NX의 EX 옵션은 초 단위
 
 @Injectable()
@@ -84,21 +84,27 @@ export class IdempotencyInterceptor implements NestInterceptor {
         response.status(existing.statusCode);
         return of(existing.body);
       }
+      // SET NX 실패 후 GET이 null (키가 두 명령 사이에 만료됨) → 409로 안전하게 차단
+      throw new ConflictException(
+        'A request with this Idempotency-Key is currently being processed',
+      );
     }
 
-    // 3. Handler 실행 + 응답 저장 (ioredis로 통일 — cache-manager와 키 직렬화 불일치 방지)
+    // 3. Handler 실행 + 응답 저장
     return next.handle().pipe(
       tap((responseBody: unknown) => {
         const cachedValue: CachedResponse = {
           statusCode: response.statusCode,
           body: (responseBody as Record<string, unknown>) ?? null,
         };
-        void this.redis.set(
-          cacheKey,
-          JSON.stringify(cachedValue),
-          'PX',
-          IDEMPOTENCY_TTL_MS,
-        );
+        this.redis
+          .set(cacheKey, JSON.stringify(cachedValue), 'PX', IDEMPOTENCY_TTL_MS)
+          .catch((err: Error) => {
+            this.logger.error(
+              { cacheKey, err },
+              'Failed to cache idempotency response — subsequent retries may create duplicates',
+            );
+          });
         this.logger.info(
           { cacheKey, statusCode: response.statusCode },
           'Idempotency response cached',

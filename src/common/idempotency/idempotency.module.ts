@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
 
@@ -7,11 +8,12 @@ import { IdempotencyInterceptor } from './idempotency.interceptor';
   providers: [
     {
       provide: 'REDIS_CLIENT',
-      useFactory: () =>
+      useFactory: (config: ConfigService) =>
         new Redis({
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT || '6379', 10),
+          host: config.get<string>('REDIS_HOST', 'localhost'),
+          port: config.get<number>('REDIS_PORT', 6379),
         }),
+      inject: [ConfigService],
     },
     IdempotencyInterceptor,
   ],

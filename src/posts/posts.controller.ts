@@ -90,7 +90,9 @@ export class PostsController {
   @ApiOperation({ summary: '게시글 생성' })
   @ApiCreatedResponse({ type: CreatePostResponseDto })
   @ApiBadRequestResponse({ description: '잘못된 요청' })
-  @ApiConflictResponse({ description: '중복된 제목' })
+  @ApiConflictResponse({
+    description: '중복된 제목 또는 동일 Idempotency-Key로 동시 요청 처리 중',
+  })
   async createPost(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreatePostRequestDto,
