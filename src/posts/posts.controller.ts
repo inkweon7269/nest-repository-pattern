@@ -19,6 +19,7 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -26,6 +27,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Idempotent } from '@src/common/idempotency/decorator/idempotent.decorator';
 import { JwtAuthGuard } from '@src/auth/guard/jwt-auth.guard';
 import { CurrentUser } from '@src/common/decorator/current-user.decorator';
 import { AuthUser } from '@src/common/decorator/auth-user.type';
@@ -79,6 +81,12 @@ export class PostsController {
   }
 
   @Post()
+  @Idempotent()
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'UUID v4 형식의 멱등성 키',
+  })
   @ApiOperation({ summary: '게시글 생성' })
   @ApiCreatedResponse({ type: CreatePostResponseDto })
   @ApiBadRequestResponse({ description: '잘못된 요청' })

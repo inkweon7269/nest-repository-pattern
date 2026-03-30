@@ -48,6 +48,7 @@ describe('Posts (integration)', () => {
     return request(app.getHttpServer())
       .post('/posts')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', crypto.randomUUID())
       .send({ title: 'Default Title', content: 'Default Content', ...body });
   }
 
