@@ -331,7 +331,7 @@ AppModule
 │   └── IdempotencyInterceptor      ← 요청 가로채기 + Redis 캐시 확인
 ├── PostsModule
 │   └── PostsController
-│       └── @Idempotent()           ← createPost, updatePost에 적용
+│       └── @Idempotent()           ← createPost에 적용
 └── ...
 ```
 
@@ -602,11 +602,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+import type { Cache } from 'cache-manager';       // type import — emitDecoratorMetadata 호환
+import { Request, Response } from 'express';
 import { from, Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap, tap } from 'rxjs/operators';
 import { isUUID } from 'class-validator';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';                  // type import — emitDecoratorMetadata 호환
 import { PinoLogger } from 'nestjs-pino';
 
 interface CachedResponse {
@@ -633,8 +634,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<unknown>> {
     const httpContext = context.switchToHttp();
-    const request = httpContext.getRequest();
-    const response = httpContext.getResponse();
+    const request = httpContext.getRequest<Request>();
+    const response = httpContext.getResponse<Response>();
     const idempotencyKey = request.headers['idempotency-key'] as string;
 
     // 1. 헤더 검증
@@ -645,7 +646,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
       throw new BadRequestException('Idempotency-Key must be a valid UUID');
     }
 
-    const userId = request.user?.id;
+    const userId = (request as Request & { user?: { id?: number } }).user?.id;
     if (!userId) {
       throw new UnauthorizedException(
         'Idempotent endpoints require authentication',
@@ -653,24 +654,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     }
     const cacheKey = `idempotency:${userId}:${idempotencyKey}`;
 
-    // 2. Redis 캐시 조회 (블로그: cacheManager.get)
-    const cached = await this.cacheManager.get<string | CachedResponse>(cacheKey);
-
-    // 2-a. "처리 중" 마커 → 동시 요청 차단
-    if (cached === PROCESSING_MARKER) {
-      throw new ConflictException(
-        'A request with this Idempotency-Key is currently being processed',
-      );
-    }
-
-    // 2-b. 캐시 히트 → 저장된 응답 반환
-    if (cached && typeof cached === 'object') {
-      this.logger.info({ cacheKey }, 'Idempotency cache hit — returning cached response');
-      response.status(cached.statusCode);
-      return of(cached.body);
-    }
-
-    // 3. 원자적 선점: SET NX (ioredis 직접 사용)
+    // 2. 원자적 선점: SET NX (ioredis 직접 사용)
     const acquired = await this.redis.set(
       cacheKey,
       PROCESSING_MARKER,
@@ -693,19 +677,17 @@ export class IdempotencyInterceptor implements NestInterceptor {
       }
     }
 
-    // 4. Handler 실행 + 응답 저장 (블로그: next.handle().pipe(tap(...)))
+    // 3. Handler 실행 + 응답 저장
     return next.handle().pipe(
-      tap(async (responseBody) => {
+      tap((responseBody: unknown) => {
         const cachedValue: CachedResponse = {
           statusCode: response.statusCode,
-          body: responseBody ?? null,
+          body: (responseBody as Record<string, unknown>) ?? null,
         };
-        await this.cacheManager.set(cacheKey, cachedValue, IDEMPOTENCY_TTL_MS);
+        void this.cacheManager.set(cacheKey, cachedValue, IDEMPOTENCY_TTL_MS);
         this.logger.info({ cacheKey, statusCode: response.statusCode }, 'Idempotency response cached');
       }),
-      catchError((error) => {
-        // 에러 시 마커 제거 → 동일 키로 재시도 가능
-        // from()으로 Promise를 Observable로 변환 후 switchMap으로 에러 재전파
+      catchError((error: Error) => {
         return from(this.cacheManager.del(cacheKey)).pipe(
           switchMap(() => throwError(() => error)),
         );
@@ -731,10 +713,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
 **파일:** `src/common/idempotency/idempotency.module.ts`
 
 ```typescript
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import Redis from 'ioredis';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
 
+@Global()
 @Module({
   providers: [
     {
@@ -747,12 +730,14 @@ import { IdempotencyInterceptor } from './idempotency.interceptor';
     },
     IdempotencyInterceptor,
   ],
-  exports: [IdempotencyInterceptor],
+  exports: ['REDIS_CLIENT', IdempotencyInterceptor],
 })
 export class IdempotencyModule {}
 ```
 
-`REDIS_CLIENT`는 `SET NX` 원자적 선점에 사용하는 `ioredis` 인스턴스다. `CACHE_MANAGER`는 글로벌 `CacheModule`에서 주입되므로 별도 import가 불필요하다.
+- `@Global()` — 다른 모듈에서 별도 import 없이 `REDIS_CLIENT`와 `IdempotencyInterceptor`를 주입받을 수 있다. `@UseInterceptors()`는 Controller가 속한 모듈의 DI 컨텍스트에서 의존성을 해결하므로, 글로벌 등록이 필수다.
+- `exports: ['REDIS_CLIENT', ...]` — `REDIS_CLIENT`를 export해야 `IdempotencyInterceptor`가 다른 모듈에서 인스턴스화될 때 주입받을 수 있다.
+- `CACHE_MANAGER`는 `AppModule`의 글로벌 `CacheModule`에서 주입되므로 별도 import가 불필요하다.
 
 ### Step 7: Controller에 적용
 
@@ -768,14 +753,6 @@ import { ApiHeader } from '@nestjs/swagger';
 @ApiHeader({ name: 'Idempotency-Key', required: true, description: 'UUID v4 형식의 멱등성 키' })
 @ApiOperation({ summary: '게시글 생성' })
 async createPost(...) { ... }
-
-// updatePost에 적용
-@Patch(':id')
-@Idempotent()
-@ApiHeader({ name: 'Idempotency-Key', required: true, description: 'UUID v4 형식의 멱등성 키' })
-@HttpCode(HttpStatus.NO_CONTENT)
-@ApiOperation({ summary: '게시글 수정 (전체 업데이트)' })
-async updatePost(...) { ... }
 ```
 
 **PATCH 적용 판단 기준:**
@@ -906,9 +883,8 @@ pnpm test:e2e
 | 2 | 동일 UUID로 POST /posts 재요청 | 201 Created, 동일 응답, 게시글 여전히 1건 |
 | 3 | Idempotency-Key 헤더 없이 POST /posts | 400 Bad Request |
 | 4 | 잘못된 형식의 키로 POST /posts | 400 Bad Request |
-| 5 | 새 UUID로 PATCH /posts/:id | 204 No Content |
-| 6 | 동일 UUID로 PATCH /posts/:id 재요청 | 204 No Content (Handler 실행 안 함) |
-| 7 | GET /posts (Idempotent 미적용) | Idempotency-Key 헤더 무관하게 정상 동작 |
+| 5 | GET /posts (Idempotent 미적용) | Idempotency-Key 헤더 무관하게 정상 동작 |
+| 6 | PATCH /posts/:id (Idempotent 미적용) | Idempotency-Key 헤더 무관하게 정상 동작 |
 
 ### 13.4 Redis에서 캐시 확인
 
