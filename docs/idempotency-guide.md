@@ -160,7 +160,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
 }
 ```
 
-우리 프로젝트에서는 이 블로그 패턴을 그대로 따르면서 **사용자별 키 격리**와 **상태코드 보존**을 추가한다.
+우리 프로젝트에서는 블로그의 `cache-manager` 대신 **`ioredis`를 직접 사용**하여 `SET NX` 원자적 선점을 구현하고, **사용자별 키 격리**와 **상태코드 보존**을 추가한다.
 
 ---
 
@@ -272,7 +272,7 @@ Redis를 선택한 이유:
 | 동시성 제어 | `get`/`set` 분리 (비원자적) | `ioredis` `SET NX` (원자적 선점) |
 | 적용 방식 | `@UseInterceptors()` 직접 사용 | `@Idempotent()` 커스텀 데코레이터로 래핑 |
 | TTL | 5분 | 24시간 (Stripe 기본값과 동일) |
-| TTL 단위 | 미명시 | 밀리초 명시 (`_MS` 접미사, cache-manager v5+ 기준) |
+| TTL 단위 | 미명시 | 밀리초 명시 (`_MS` 접미사, ioredis `PX` 옵션 기준) |
 
 ---
 
@@ -293,15 +293,15 @@ Redis를 선택한 이유:
 IdempotencyInterceptor
   │  1. 헤더에서 Idempotency-Key 추출
   │  2. UUID 형식 검증
-  │  3. Redis 조회: cacheManager.get("idempotency:1:550e8400-...") → null
-  │  4. "처리 중" 마커 설정 → next.handle() → Handler 실행
+  │  3. Redis SET NX: redis.set("idempotency:1:550e8400-...", "PROCESSING", NX) → 성공
+  │  4. next.handle() → Handler 실행
   ▼
 CreatePostHandler
   │  게시글 생성 로직 실행
   │  return post.id
   ▼
 IdempotencyInterceptor (응답 후처리 — tap)
-  │  5. Redis 저장: cacheManager.set("idempotency:1:550e8400-...", { statusCode: 201, body: {id: 1} }, TTL)
+  │  5. Redis 저장: redis.set("idempotency:1:550e8400-...", JSON.stringify({statusCode:201, body:{id:1}}), PX, TTL)
   ▼
 클라이언트 ← 201 Created { id: 1 }
 ```
@@ -316,7 +316,7 @@ IdempotencyInterceptor (응답 후처리 — tap)
 IdempotencyInterceptor
   │  1. 헤더에서 Idempotency-Key 추출
   │  2. UUID 형식 검증
-  │  3. Redis 조회: cacheManager.get("idempotency:1:550e8400-...") → { statusCode: 201, body: {id: 1} }
+  │  3. Redis SET NX: redis.set(... NX) → 실패 → redis.get → JSON 파싱 → 캐시 히트
   │  4. 저장된 응답 그대로 반환 (Handler 실행 안 함)
   ▼
 클라이언트 ← 201 Created { id: 1 }  ← 동일한 응답
@@ -326,16 +326,14 @@ IdempotencyInterceptor
 
 ```text
 AppModule
-├── CacheModule (Redis)             ← 신규 — 글로벌 캐시
-├── IdempotencyModule               ← 신규
-│   └── IdempotencyInterceptor      ← 요청 가로채기 + Redis 캐시 확인
+├── IdempotencyModule (@Global)     ← 신규 — REDIS_CLIENT + IdempotencyInterceptor 제공
 ├── PostsModule
 │   └── PostsController
 │       └── @Idempotent()           ← createPost에 적용
 └── ...
 ```
 
-PostgreSQL 방식 대비 구조가 훨씬 간결하다. Entity, Repository, Provider, Cleanup Service가 모두 불필요하다.
+`IdempotencyModule`이 `@Global()`로 등록되어 `REDIS_CLIENT`와 `IdempotencyInterceptor`를 모든 모듈에서 사용할 수 있다. `cache-manager`/`CacheModule`은 사용하지 않는다.
 
 ---
 
@@ -346,9 +344,8 @@ PostgreSQL 방식 대비 구조가 훨씬 간결하다. Entity, Repository, Prov
 | 용어 | 설명 |
 |------|------|
 | **Redis** | 인메모리 데이터 저장소. 키-값 쌍을 매우 빠르게 읽고 쓸 수 있다. TTL(Time-To-Live)을 지원하여 설정한 시간이 지나면 자동으로 데이터가 삭제된다. |
-| **cache-manager** | Node.js의 캐시 추상화 라이브러리. Redis, Memcached, 인메모리 등 다양한 백엔드를 동일한 `get`/`set` API로 사용할 수 있게 해준다. |
-| **CACHE_MANAGER** | NestJS가 `CacheModule`을 통해 제공하는 DI 토큰. `@Inject(CACHE_MANAGER)`로 주입받아 `cache.get(key)`, `cache.set(key, value, ttl)` 메서드를 사용한다. |
-| **cache-manager-redis-store** | `cache-manager`의 Redis 어댑터. `cache-manager`의 `get`/`set` 호출을 Redis 명령어로 변환한다. |
+| **ioredis** | Node.js에서 가장 널리 사용되는 Redis 클라이언트. `SET`, `GET`, `DEL` 등 Redis 명령을 직접 실행할 수 있으며, `SET NX` 같은 원자적 연산도 지원한다. 이 프로젝트에서 Redis와의 모든 통신에 사용한다. |
+| **SET NX** | Redis의 `SET key value NX EX ttl` 명령. `NX` = "Not eXists" — 키가 없을 때만 설정하는 것을 하나의 원자적 연산으로 보장한다. 동시 요청에서 하나만 선점하도록 할 때 사용한다. |
 | **NestJS Interceptor** | Controller 메서드 실행 전후를 감싸는 미들웨어. `intercept(context, next)` 메서드에서 요청을 가로채고, `next.handle()`로 Controller를 실행하며, `pipe(tap(...))`으로 응답을 후처리한다. |
 | **TTL (Time-To-Live)** | 캐시 항목의 유효 시간. TTL이 지나면 Redis가 자동으로 해당 키를 삭제한다. 별도 cleanup 로직이 불필요하다. |
 
@@ -436,7 +433,7 @@ Redis는 단일 스레드로 **개별 명령**을 순서대로 처리하지만, 
                   ↑ 이 시점에 A의 SET이 아직 완료되지 않음
 ```
 
-`cache-manager`의 `get`/`set`은 별도의 Redis 명령이므로 원자적이지 않다. 블로그 원본의 댓글에서도 정확히 이 문제가 지적되었다.
+블로그에서 사용하는 `cache-manager`의 `get`/`set`은 별도의 Redis 명령이므로 원자적이지 않다. 블로그 원본의 댓글에서도 정확히 이 문제가 지적되었다. 이 프로젝트에서는 `ioredis`의 `SET NX`로 해결한다.
 
 ### 8.2 해결: Redis `SET NX` 원자적 선점
 
@@ -448,10 +445,10 @@ Redis의 `SET key value NX EX ttl` 명령은 **키가 없을 때만 설정**하�
 요청 B: SET NX(실패) → GET → 마커 발견 → 409 반환
 ```
 
-`cache-manager`의 `set` 메서드는 `NX` 옵션을 지원하지 않으므로, `ioredis` 클라이언트를 직접 사용한다:
+`ioredis` 클라이언트를 직접 사용한다:
 
 ```typescript
-// ioredis를 직접 사용하여 원자적 선점
+// ioredis의 SET NX로 원자적 선점
 const acquired = await this.redis.set(
   cacheKey,
   PROCESSING_MARKER,
@@ -461,13 +458,14 @@ const acquired = await this.redis.set(
 
 if (!acquired) {
   // 이미 키가 존재 → 캐시 히트이거나 다른 요청이 처리 중
-  const existing = await this.cacheManager.get<string | CachedResponse>(cacheKey);
-  if (existing === PROCESSING_MARKER) {
+  const raw = await this.redis.get(cacheKey);
+  if (raw === PROCESSING_MARKER) {
     throw new ConflictException(
       'A request with this Idempotency-Key is currently being processed',
     );
   }
-  if (existing && typeof existing === 'object') {
+  if (raw) {
+    const existing = JSON.parse(raw) as CachedResponse;
     response.status(existing.statusCode);
     return of(existing.body);
   }
@@ -494,15 +492,15 @@ src/common/idempotency/
 └── idempotency.module.ts              # NestJS 모듈
 ```
 
-PostgreSQL 방식과 비교하면 **Entity, Repository, Provider, Cleanup Service, Migration이 모두 불필요**하다. Redis의 TTL이 만료 처리를 대신하고, `cache-manager`가 데이터 접근을 대신한다.
+PostgreSQL 방식과 비교하면 **Entity, Repository, Provider, Cleanup Service, Migration이 모두 불필요**하다. `ioredis`로 Redis에 직접 접근하며, Redis의 TTL이 만료 처리를 자동으로 수행한다.
 
 ### 9.2 수정 파일
 
 | 파일 | 변경 내용 |
 |------|-----------|
-| `package.json` | `cache-manager`, `@nestjs/cache-manager`, `cache-manager-redis-store` 의존성 추가 |
-| `src/app.module.ts` | `CacheModule.registerAsync()` + `IdempotencyModule` import 추가 |
-| `src/posts/posts.controller.ts` | `createPost`와 `updatePost`에 `@Idempotent()` + `@ApiHeader` 추가 |
+| `package.json` | `ioredis` 의존성 추가 |
+| `src/app.module.ts` | `IdempotencyModule` import 추가 |
+| `src/posts/posts.controller.ts` | `createPost`에 `@Idempotent()` + `@ApiHeader` 추가 |
 | `.env.example` | `REDIS_HOST`, `REDIS_PORT` 추가 |
 
 ---
@@ -512,17 +510,14 @@ PostgreSQL 방식과 비교하면 **Entity, Repository, Provider, Cleanup Servic
 ### Step 1: 의존성 설치
 
 ```bash
-pnpm add cache-manager @nestjs/cache-manager cache-manager-redis-store@^3 ioredis
+pnpm add ioredis
 ```
 
 | 패키지 | 설치 버전 | 역할 |
 |--------|-----------|------|
-| `cache-manager` | `^7.2.8` | 캐시 추상화 라이브러리 — `get`/`set`/`del` API 제공. **v5+는 TTL 단위가 밀리초(ms)** |
-| `@nestjs/cache-manager` | `^3.1.0` | NestJS의 `CacheModule` 제공 — DI를 통해 `CACHE_MANAGER` 토큰 주입. cache-manager v5+와 호환 |
-| `cache-manager-redis-store` | `^3.0.1` | `cache-manager`의 Redis 어댑터 — 실제 Redis와 통신 |
-| `ioredis` | `^5.10.1` | Node.js Redis 클라이언트 — `cache-manager-redis-store`가 내부적으로 사용하며, `SET NX` 원자적 선점에도 직접 사용 |
+| `ioredis` | `^5.10.1` | Node.js Redis 클라이언트. `SET NX` 원자적 선점, `GET`, `DEL` 등 모든 Redis 통신에 직접 사용 |
 
-> **주의:** `cache-manager` v5+는 TTL 단위가 **밀리초(ms)**다. 블로그 원본(v4)의 코드에서 초 단위로 작성된 TTL을 그대로 복사하면 의도보다 1000배 짧게 만료된다. 이 프로젝트에서는 모든 TTL 상수에 `_MS` 접미사를 붙여 혼동을 방지한다.
+> **블로그와의 차이:** 블로그는 `cache-manager` + `@nestjs/cache-manager` + `cache-manager-redis-store`를 사용하지만, 이 프로젝트에서는 `ioredis`만 사용한다. `cache-manager`의 `get`/`set`이 `SET NX` 원자적 선점을 지원하지 않고, `ioredis`와 키 직렬화 방식이 달라 데이터 불일치가 발생할 수 있기 때문이다.
 
 ### Step 2: 환경 변수 추가
 
@@ -536,35 +531,23 @@ REDIS_PORT=6379
 
 `.env.local`, `.env.development`, `.env.production`에도 동일하게 추가한다.
 
-### Step 3: AppModule에 CacheModule 등록
+### Step 3: AppModule에 IdempotencyModule 등록
 
 **파일:** `src/app.module.ts`
 
-블로그에서 제시한 것과 동일한 `CacheModule.registerAsync()` 패턴을 사용한다.
-
 ```typescript
-import { CacheModule } from '@nestjs/cache-manager';
-import * as redisStore from 'cache-manager-redis-store';
+import { IdempotencyModule } from '@src/common/idempotency/idempotency.module';
 
 @Module({
   imports: [
     // ...기존 imports
-    CacheModule.registerAsync({
-      isGlobal: true,
-      useFactory: () => ({
-        store: redisStore,
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-        ttl: 1000 * 60 * 60,  // 기본 TTL 1시간 (밀리초, cache-manager v5+) — 안전망
-      }),
-    }),
     IdempotencyModule,    // ← 추가
   ],
 })
 export class AppModule {}
 ```
 
-**`isGlobal: true`**: `CacheModule`을 글로벌로 등록하면 다른 모듈에서 별도 import 없이 `CACHE_MANAGER`를 주입받을 수 있다.
+`IdempotencyModule`은 `@Global()`로 선언되어 있으므로, `AppModule`에 한 번만 import하면 모든 모듈에서 `@Idempotent()` 데코레이터를 사용할 수 있다. Redis 연결(`REDIS_CLIENT`)은 `IdempotencyModule` 내부에서 관리한다.
 
 ### Step 4: `@Idempotent()` 데코레이터 생성
 
@@ -588,7 +571,7 @@ export function Idempotent(): MethodDecorator {
 
 **파일:** `src/common/idempotency/idempotency.interceptor.ts`
 
-블로그의 `@Inject(CACHE_MANAGER)` 패턴을 그대로 따르되, userId 스코핑과 상태코드 보존을 추가한다.
+`ioredis`를 직접 사용하여 모든 Redis 통신을 통일한다. 블로그의 `cache-manager` 패턴 대신 `ioredis`의 `SET NX`로 원자적 선점을 구현하고, `GET`/`SET`/`DEL`도 모두 `ioredis`로 처리한다.
 
 ```typescript
 import {
@@ -601,8 +584,6 @@ import {
   NestInterceptor,
   UnauthorizedException,
 } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';       // type import — emitDecoratorMetadata 호환
 import { Request, Response } from 'express';
 import { from, Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap, tap } from 'rxjs/operators';
@@ -616,13 +597,12 @@ interface CachedResponse {
 }
 
 const PROCESSING_MARKER = '__PROCESSING__';
-const IDEMPOTENCY_TTL_MS = 1000 * 60 * 60 * 24;  // 24시간 (밀리초, cache-manager v5+ 기준)
+const IDEMPOTENCY_TTL_MS = 1000 * 60 * 60 * 24;  // 24시간 (밀리초, ioredis PX 옵션 기준)
 const PROCESSING_TTL_SEC = 60;                     // ioredis SET NX의 EX 옵션은 초 단위
 
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
     private readonly logger: PinoLogger,
   ) {
@@ -664,31 +644,36 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     if (!acquired) {
       // 이미 키가 존재 → 캐시 히트이거나 다른 요청이 처리 중
-      const existing = await this.cacheManager.get<string | CachedResponse>(cacheKey);
-      if (existing === PROCESSING_MARKER) {
+      const raw = await this.redis.get(cacheKey);
+      if (raw === PROCESSING_MARKER) {
         throw new ConflictException(
           'A request with this Idempotency-Key is currently being processed',
         );
       }
-      if (existing && typeof existing === 'object') {
+      if (raw) {
+        const existing = JSON.parse(raw) as CachedResponse;
         this.logger.info({ cacheKey }, 'Idempotency cache hit — returning cached response');
         response.status(existing.statusCode);
         return of(existing.body);
       }
     }
 
-    // 3. Handler 실행 + 응답 저장
+    // 3. Handler 실행 + 응답 저장 (ioredis로 통일)
     return next.handle().pipe(
       tap((responseBody: unknown) => {
         const cachedValue: CachedResponse = {
           statusCode: response.statusCode,
           body: (responseBody as Record<string, unknown>) ?? null,
         };
-        void this.cacheManager.set(cacheKey, cachedValue, IDEMPOTENCY_TTL_MS);
+        void this.redis.set(
+          cacheKey,
+          JSON.stringify(cachedValue),
+          'PX', IDEMPOTENCY_TTL_MS,
+        );
         this.logger.info({ cacheKey, statusCode: response.statusCode }, 'Idempotency response cached');
       }),
       catchError((error: Error) => {
-        return from(this.cacheManager.del(cacheKey)).pipe(
+        return from(this.redis.del(cacheKey)).pipe(
           switchMap(() => throwError(() => error)),
         );
       }),
@@ -704,6 +689,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
 | 캐시 키 | `idempotencyKey` | `idempotency:${userId}:${idempotencyKey}` | 사용자 A와 B가 같은 UUID를 쓸 경우 충돌 방지 |
 | 캐시 값 | `response` (본문만) | `{ statusCode, body }` (객체) | 201, 204 등 원래 상태코드를 정확히 재현 |
 | TTL | `60 * 5` (5분, 초) | `IDEMPOTENCY_TTL_MS = 86400000` (24시간, 밀리초) | Stripe 기본값과 동일. 상수명에 단위(`_MS`) 명시 |
+| Redis 클라이언트 | `cache-manager` (추상화) | `ioredis` (직접 사용) | `SET NX` 원자적 선점 + 키 직렬화 일관성 |
 | 선점 | `get` → `set` (비원자적) | `ioredis` `SET NX` (원자적) | `get`/`set` 사이 race condition 방지 |
 | 인증 | 없음 | `userId` 누락 시 `401` | 캐시 키에 `undefined` 삽입 방지 |
 | 에러 처리 | 없음 | `catchError` → `from()` + `throwError()` | RxJS에서 올바르게 Observable 반환 |
@@ -737,7 +723,7 @@ export class IdempotencyModule {}
 
 - `@Global()` — 다른 모듈에서 별도 import 없이 `REDIS_CLIENT`와 `IdempotencyInterceptor`를 주입받을 수 있다. `@UseInterceptors()`는 Controller가 속한 모듈의 DI 컨텍스트에서 의존성을 해결하므로, 글로벌 등록이 필수다.
 - `exports: ['REDIS_CLIENT', ...]` — `REDIS_CLIENT`를 export해야 `IdempotencyInterceptor`가 다른 모듈에서 인스턴스화될 때 주입받을 수 있다.
-- `CACHE_MANAGER`는 `AppModule`의 글로벌 `CacheModule`에서 주입되므로 별도 import가 불필요하다.
+- `REDIS_CLIENT`는 `IdempotencyModule` 내부에서 `ioredis` 인스턴스로 생성되며, `@Global()`로 모든 모듈에서 접근 가능하다.
 
 ### Step 7: Controller에 적용
 
