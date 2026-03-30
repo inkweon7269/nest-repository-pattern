@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
-import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import * as redisStore from 'cache-manager-redis-store';
 import { createDataSourceOptions } from '@src/database/typeorm.config';
 import { LoggingModule } from '@src/common/logging/logging.module';
 import { IdempotencyModule } from '@src/common/idempotency/idempotency.module';
@@ -17,15 +15,6 @@ const nodeEnv = process.env.NODE_ENV || 'local';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: `.env.${nodeEnv}`,
-    }),
-    CacheModule.registerAsync({
-      isGlobal: true,
-      useFactory: () => ({
-        store: redisStore,
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-        ttl: 1000 * 60 * 60,
-      }),
     }),
     EventEmitterModule.forRoot(),
     LoggingModule,

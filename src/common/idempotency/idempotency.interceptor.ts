@@ -8,8 +8,6 @@ import {
   NestInterceptor,
   UnauthorizedException,
 } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
 import { Request, Response } from 'express';
 import { from, Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap, tap } from 'rxjs/operators';
@@ -29,7 +27,6 @@ const PROCESSING_TTL_SEC = 60; // ioredis SET NX의 EX 옵션은 초 단위
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
     private readonly logger: PinoLogger,
   ) {
@@ -72,15 +69,14 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     if (!acquired) {
       // 이미 키가 존재 → 캐시 히트이거나 다른 요청이 처리 중
-      const existing = await this.cacheManager.get<string | CachedResponse>(
-        cacheKey,
-      );
-      if (existing === PROCESSING_MARKER) {
+      const raw = await this.redis.get(cacheKey);
+      if (raw === PROCESSING_MARKER) {
         throw new ConflictException(
           'A request with this Idempotency-Key is currently being processed',
         );
       }
-      if (existing && typeof existing === 'object') {
+      if (raw) {
+        const existing = JSON.parse(raw) as CachedResponse;
         this.logger.info(
           { cacheKey },
           'Idempotency cache hit — returning cached response',
@@ -90,21 +86,26 @@ export class IdempotencyInterceptor implements NestInterceptor {
       }
     }
 
-    // 3. Handler 실행 + 응답 저장
+    // 3. Handler 실행 + 응답 저장 (ioredis로 통일 — cache-manager와 키 직렬화 불일치 방지)
     return next.handle().pipe(
       tap((responseBody: unknown) => {
         const cachedValue: CachedResponse = {
           statusCode: response.statusCode,
           body: (responseBody as Record<string, unknown>) ?? null,
         };
-        void this.cacheManager.set(cacheKey, cachedValue, IDEMPOTENCY_TTL_MS);
+        void this.redis.set(
+          cacheKey,
+          JSON.stringify(cachedValue),
+          'PX',
+          IDEMPOTENCY_TTL_MS,
+        );
         this.logger.info(
           { cacheKey, statusCode: response.statusCode },
           'Idempotency response cached',
         );
       }),
       catchError((error: Error) => {
-        return from(this.cacheManager.del(cacheKey)).pipe(
+        return from(this.redis.del(cacheKey)).pipe(
           switchMap(() => throwError(() => error)),
         );
       }),
