@@ -51,7 +51,7 @@
 
 ### 1.2 결제 시나리오에서의 위험
 
-```
+```text
 1. 사용자가 "결제하기" 버튼 클릭
 2. 요청이 서버로 전송됨 (네트워크 느림)
 3. 사용자가 응답이 없다고 생각하여 다시 클릭
@@ -93,7 +93,7 @@ Stripe, PayPal 같은 결제 API에서 널리 사용하는 업계 표준 패턴�
 
 ### 3.1 기본 원리
 
-```
+```text
 [클라이언트]                          [서버]
     |                                  |
     |  POST /posts                     |
@@ -228,7 +228,7 @@ PostgreSQL의 Advisory Lock으로 동일 리소스에 대한 동시 쓰기를 �
 
 ### 5.1 핵심 차별점: "에러 반환" vs "성공 응답 재생"
 
-```
+```text
 [Deduplication Guard]
   첫 번째 요청 → 201 Created {id: 1}
   두 번째 요청 → 409 Conflict ❌  ← 클라이언트는 에러 처리 필요
@@ -383,7 +383,7 @@ GET 요청은 이미 멱등하므로 불필요하다. `@Idempotent()`를 메서�
 
 NestJS의 Interceptor는 Controller 메서드 실행 **전후**를 감싸는 미들웨어다:
 
-```
+```text
 요청 → [Interceptor 전처리] → [Controller] → [Interceptor 후처리] → 응답
 ```
 
@@ -412,7 +412,7 @@ interface CachedResponse {
 Redis 키 형식: `idempotency:{userId}:{uuid}`
 
 예시:
-```
+```text
 키:   "idempotency:1:550e8400-e29b-41d4-a716-446655440000"
 값:   { "statusCode": 201, "body": { "id": 1 } }
 TTL:  86400000ms (24시간)
@@ -426,7 +426,7 @@ TTL:  86400000ms (24시간)
 
 Redis는 단일 스레드로 **개별 명령**을 순서대로 처리하지만, NestJS 서버에서 `GET` → `SET` 두 명령을 **분리하여** 실행하면 그 사이에 다른 요청이 끼어들 수 있다.
 
-```
+```text
 시간 →
 요청 A: GET(없음) ─────────────────── SET("PROCESSING") → Handler 실행
 요청 B:           GET(없음) ────────── SET("PROCESSING") → Handler 실행  ← 중복!
@@ -439,7 +439,7 @@ Redis는 단일 스레드로 **개별 명령**을 순서대로 처리하지만, 
 
 Redis의 `SET key value NX EX ttl` 명령은 **키가 없을 때만 설정**하는 것을 **하나의 원자적 연산**으로 보장한다. `NX` = "Not eXists".
 
-```
+```text
 시간 →
 요청 A: SET NX(성공, "PROCESSING") → Handler 실행 → SET(응답) → 반환
 요청 B: SET NX(실패) → GET → 마커 발견 → 409 반환
@@ -484,7 +484,7 @@ if (!acquired) {
 
 ### 9.1 신규 파일
 
-```
+```text
 src/common/idempotency/
 ├── decorator/
 │   └── idempotent.decorator.ts        # @Idempotent() 메서드 데코레이터

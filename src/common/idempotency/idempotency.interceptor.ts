@@ -40,7 +40,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const httpContext = context.switchToHttp();
     const request = httpContext.getRequest<Request>();
     const response = httpContext.getResponse<Response>();
-    const idempotencyKey = request.headers['idempotency-key'] as string;
+    const rawHeader = request.headers['idempotency-key'];
+    const idempotencyKey = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
 
     // 1. 헤더 검증
     if (!idempotencyKey) {
@@ -76,13 +77,18 @@ export class IdempotencyInterceptor implements NestInterceptor {
         );
       }
       if (raw) {
-        const existing = JSON.parse(raw) as CachedResponse;
-        this.logger.info(
-          { cacheKey },
-          'Idempotency cache hit — returning cached response',
-        );
-        response.status(existing.statusCode);
-        return of(existing.body);
+        try {
+          const existing = JSON.parse(raw) as CachedResponse;
+          this.logger.info(
+            { cacheKey },
+            'Idempotency cache hit — returning cached response',
+          );
+          response.status(existing.statusCode);
+          return of(existing.body);
+        } catch {
+          this.logger.warn({ cacheKey }, 'Corrupted cache entry, reprocessing');
+          await this.redis.del(cacheKey);
+        }
       }
       // SET NX 실패 후 GET이 null (키가 두 명령 사이에 만료됨) → 409로 안전하게 차단
       throw new ConflictException(
