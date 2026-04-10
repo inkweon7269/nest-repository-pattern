@@ -69,6 +69,7 @@ export default async function globalSetup() {
       JWT_REFRESH_SECRET: 'test-refresh-secret',
       JWT_ACCESS_EXPIRATION: '15m',
       JWT_REFRESH_EXPIRATION: '7d',
+      THROTTLE_SKIP: 'true',
     };
 
     writeFileSync(TEST_ENV_PATH, JSON.stringify(env, null, 2));

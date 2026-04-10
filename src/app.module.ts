@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { createDataSourceOptions } from '@src/database/typeorm.config';
 import { LoggingModule } from '@src/common/logging/logging.module';
@@ -17,6 +19,13 @@ const nodeEnv = process.env.NODE_ENV || 'local';
       isGlobal: true,
       envFilePath: `.env.${nodeEnv}`,
     }),
+    ThrottlerModule.forRoot({
+      skipIf: () => process.env.THROTTLE_SKIP === 'true',
+      throttlers: [
+        { name: 'short', ttl: 1000, limit: 3 },
+        { name: 'long', ttl: 60000, limit: 60 },
+      ],
+    }),
     EventEmitterModule.forRoot(),
     LoggingModule,
     IdempotencyModule,
@@ -31,5 +40,6 @@ const nodeEnv = process.env.NODE_ENV || 'local';
     AuthModule,
     HealthModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
