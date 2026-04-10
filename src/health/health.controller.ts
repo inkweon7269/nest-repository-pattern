@@ -30,16 +30,25 @@ export class HealthController {
   }
 
   private async checkRedis(): Promise<HealthIndicatorResult> {
-    const pong = await this.redis.ping();
-    const isHealthy = pong === 'PONG';
-    const indicator: HealthIndicatorResult = {
-      redis: { status: isHealthy ? 'up' : 'down' },
-    };
+    try {
+      const pong = await this.redis.ping();
+      const isHealthy = pong === 'PONG';
+      const indicator: HealthIndicatorResult = {
+        redis: { status: isHealthy ? 'up' : 'down' },
+      };
 
-    if (!isHealthy) {
-      throw new HealthCheckError('Redis health check failed', indicator);
+      if (!isHealthy) {
+        throw new HealthCheckError('Redis health check failed', indicator);
+      }
+
+      return indicator;
+    } catch (error) {
+      if (error instanceof HealthCheckError) {
+        throw error;
+      }
+      throw new HealthCheckError('Redis health check failed', {
+        redis: { status: 'down' },
+      });
     }
-
-    return indicator;
   }
 }
