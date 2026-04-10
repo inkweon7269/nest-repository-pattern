@@ -7,6 +7,7 @@ import { LoggingModule } from '@src/common/logging/logging.module';
 import { IdempotencyModule } from '@src/common/idempotency/idempotency.module';
 import { PostsModule } from '@src/posts/posts.module';
 import { AuthModule } from '@src/auth/auth.module';
+import { HealthModule } from '@src/health/health.module';
 
 const nodeEnv = process.env.NODE_ENV || 'local';
 
@@ -28,6 +29,7 @@ const nodeEnv = process.env.NODE_ENV || 'local';
     }),
     PostsModule,
     AuthModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
