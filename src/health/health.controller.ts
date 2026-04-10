@@ -2,6 +2,7 @@ import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   HealthCheck,
+  HealthCheckError,
   HealthCheckService,
   TypeOrmHealthIndicator,
   HealthCheckResult,
@@ -29,13 +30,16 @@ export class HealthController {
   }
 
   private async checkRedis(): Promise<HealthIndicatorResult> {
-    const result = await this.redis.ping();
-    const isHealthy = result === 'PONG';
+    const pong = await this.redis.ping();
+    const isHealthy = pong === 'PONG';
+    const indicator: HealthIndicatorResult = {
+      redis: { status: isHealthy ? 'up' : 'down' },
+    };
 
     if (!isHealthy) {
-      throw new Error('Redis health check failed');
+      throw new HealthCheckError('Redis health check failed', indicator);
     }
 
-    return { redis: { status: 'up' } };
+    return indicator;
   }
 }
