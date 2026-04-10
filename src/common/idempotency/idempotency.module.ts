@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Inject, Module, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
@@ -19,4 +19,10 @@ import { IdempotencyInterceptor } from './idempotency.interceptor';
   ],
   exports: ['REDIS_CLIENT', IdempotencyInterceptor],
 })
-export class IdempotencyModule {}
+export class IdempotencyModule implements OnModuleDestroy {
+  constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis) {}
+
+  async onModuleDestroy() {
+    await this.redis.quit();
+  }
+}
