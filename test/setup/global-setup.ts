@@ -42,38 +42,47 @@ export default async function globalSetup() {
     ? Promise.resolve(null)
     : new GenericContainer('redis:7-alpine').withExposedPorts(6379).start();
 
-  const [pgContainer, redisContainer] = await Promise.all([
-    new PostgreSqlContainer('postgres:17-alpine').start(),
-    startRedisContainer,
-  ]);
+  let pgContainer: StartedPostgreSqlContainer | undefined;
+  let redisContainer: StartedTestContainer | null = null;
 
-  const env = {
-    DB_HOST: pgContainer.getHost(),
-    DB_PORT: pgContainer.getPort().toString(),
-    DB_USERNAME: pgContainer.getUsername(),
-    DB_PASSWORD: pgContainer.getPassword(),
-    DB_DATABASE: pgContainer.getDatabase(),
-    REDIS_HOST: redisContainer ? redisContainer.getHost() : redisHost,
-    REDIS_PORT: redisContainer
-      ? redisContainer.getMappedPort(6379).toString()
-      : redisPort.toString(),
-    JWT_ACCESS_SECRET: 'test-access-secret',
-    JWT_REFRESH_SECRET: 'test-refresh-secret',
-    JWT_ACCESS_EXPIRATION: '15m',
-    JWT_REFRESH_EXPIRATION: '7d',
-  };
+  try {
+    [pgContainer, redisContainer] = await Promise.all([
+      new PostgreSqlContainer('postgres:17-alpine').start(),
+      startRedisContainer,
+    ]);
 
-  writeFileSync(TEST_ENV_PATH, JSON.stringify(env, null, 2));
+    // 컨테이너 핸들을 즉시 등록 — 이후 실패 시 teardown에서 정리 가능
+    globalThis.__TEST_CONTAINER__ = pgContainer;
+    globalThis.__REDIS_CONTAINER__ = redisContainer ?? undefined;
 
-  const dataSource = new DataSource({
-    ...createDataSourceOptions(env),
-    synchronize: false,
-  });
+    const env = {
+      DB_HOST: pgContainer.getHost(),
+      DB_PORT: pgContainer.getPort().toString(),
+      DB_USERNAME: pgContainer.getUsername(),
+      DB_PASSWORD: pgContainer.getPassword(),
+      DB_DATABASE: pgContainer.getDatabase(),
+      REDIS_HOST: redisContainer ? redisContainer.getHost() : redisHost,
+      REDIS_PORT: redisContainer
+        ? redisContainer.getMappedPort(6379).toString()
+        : redisPort.toString(),
+      JWT_ACCESS_SECRET: 'test-access-secret',
+      JWT_REFRESH_SECRET: 'test-refresh-secret',
+      JWT_ACCESS_EXPIRATION: '15m',
+      JWT_REFRESH_EXPIRATION: '7d',
+    };
 
-  await dataSource.initialize();
-  await dataSource.runMigrations();
-  await dataSource.destroy();
+    writeFileSync(TEST_ENV_PATH, JSON.stringify(env, null, 2));
 
-  globalThis.__TEST_CONTAINER__ = pgContainer;
-  globalThis.__REDIS_CONTAINER__ = redisContainer ?? undefined;
+    const dataSource = new DataSource({
+      ...createDataSourceOptions(env),
+      synchronize: false,
+    });
+
+    await dataSource.initialize();
+    await dataSource.runMigrations();
+    await dataSource.destroy();
+  } catch (error) {
+    await Promise.all([pgContainer?.stop(), redisContainer?.stop()]);
+    throw error;
+  }
 }

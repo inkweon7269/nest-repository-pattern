@@ -12,6 +12,9 @@ import { IdempotencyInterceptor } from './idempotency.interceptor';
         new Redis({
           host: config.get<string>('REDIS_HOST', 'localhost'),
           port: config.get<number>('REDIS_PORT', 6379),
+          enableOfflineQueue: false,
+          maxRetriesPerRequest: 1,
+          connectTimeout: 1000,
         }),
       inject: [ConfigService],
     },
