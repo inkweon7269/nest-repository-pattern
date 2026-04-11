@@ -70,6 +70,7 @@ export default async function globalSetup() {
       JWT_ACCESS_EXPIRATION: '15m',
       JWT_REFRESH_EXPIRATION: '7d',
       THROTTLE_SKIP: 'true',
+      OTEL_ENABLED: 'false',
     };
 
     writeFileSync(TEST_ENV_PATH, JSON.stringify(env, null, 2));

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { IncomingMessage, ServerResponse } from 'http';
 import type { Options } from 'pino-http';
+import { trace, context } from '@opentelemetry/api';
 
 export function createPinoHttpOptions(
   env: Record<string, string | undefined>,
@@ -34,6 +35,13 @@ export function createPinoHttpOptions(
         return existing;
       }
       return randomUUID();
+    },
+
+    mixin: () => {
+      const span = trace.getSpan(context.active());
+      if (!span) return {};
+      const { traceId, spanId } = span.spanContext();
+      return { traceId, spanId };
     },
 
     redact: {
