@@ -104,6 +104,7 @@ export class AdminAuthController {
   @ApiOkResponse({ type: AdminAuthTokensResponseDto })
   @ApiBadRequestResponse({ description: '잘못된 요청' })
   @ApiUnauthorizedResponse({ description: '유효하지 않은 리프레시 토큰' })
+  @ApiTooManyRequestsResponse({ description: '요청 횟수 초과' })
   async refresh(
     @Body() dto: AdminRefreshTokenRequestDto,
   ): Promise<AdminAuthTokensResponseDto> {
