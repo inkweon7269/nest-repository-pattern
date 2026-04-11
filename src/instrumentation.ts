@@ -24,7 +24,9 @@ if (process.env.OTEL_ENABLED !== 'false') {
 
   sdk.start();
 
-  process.on('SIGTERM', () => {
+  const shutdown = () => {
     void sdk.shutdown().finally(() => process.exit(0));
-  });
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 }
