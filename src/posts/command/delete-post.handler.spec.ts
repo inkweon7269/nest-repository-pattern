@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { DeletePostHandler } from '@src/posts/command/delete-post.handler';
 import { DeletePostCommand } from '@src/posts/command/delete-post.command';
 import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
+import { CacheService } from '@src/common/cache/cache.service';
 
 describe('DeletePostHandler', () => {
   let handler: DeletePostHandler;
@@ -19,6 +20,15 @@ describe('DeletePostHandler', () => {
       providers: [
         DeletePostHandler,
         { provide: IPostWriteRepository, useValue: mockWriteRepository },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

@@ -5,6 +5,7 @@ import { CreatePostHandler } from '@src/posts/command/create-post.handler';
 import { CreatePostCommand } from '@src/posts/command/create-post.command';
 import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
 import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
+import { CacheService } from '@src/common/cache/cache.service';
 import { Post } from '@src/posts/entities/post.entity';
 
 describe('CreatePostHandler', () => {
@@ -36,6 +37,15 @@ describe('CreatePostHandler', () => {
         { provide: IPostReadRepository, useValue: mockReadRepository },
         { provide: IPostWriteRepository, useValue: mockWriteRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

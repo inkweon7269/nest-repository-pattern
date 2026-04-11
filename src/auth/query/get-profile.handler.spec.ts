@@ -5,6 +5,7 @@ import { GetProfileQuery } from '@src/auth/query/get-profile.query';
 import { IUserReadRepository } from '@src/auth/interface/user-read-repository.interface';
 import { User } from '@src/auth/entities/user.entity';
 import { ProfileResponseDto } from '@src/auth/dto/response/profile.response.dto';
+import { CacheService } from '@src/common/cache/cache.service';
 
 describe('GetProfileHandler', () => {
   let handler: GetProfileHandler;
@@ -31,6 +32,15 @@ describe('GetProfileHandler', () => {
       providers: [
         GetProfileHandler,
         { provide: IUserReadRepository, useValue: mockReadRepository },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

@@ -4,6 +4,7 @@ import { FindAllPostsPaginatedQuery } from '@src/posts/query/find-all-posts-pagi
 import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
 import { Post } from '@src/posts/entities/post.entity';
 import { PostResponseDto } from '@src/posts/dto/response/post.response.dto';
+import { CacheService } from '@src/common/cache/cache.service';
 
 describe('FindAllPostsPaginatedHandler', () => {
   let handler: FindAllPostsPaginatedHandler;
@@ -42,6 +43,15 @@ describe('FindAllPostsPaginatedHandler', () => {
       providers: [
         FindAllPostsPaginatedHandler,
         { provide: IPostReadRepository, useValue: mockReadRepository },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

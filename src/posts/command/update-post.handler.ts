@@ -2,10 +2,14 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { NotFoundException } from '@nestjs/common';
 import { UpdatePostCommand } from '@src/posts/command/update-post.command';
 import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
+import { CacheService } from '@src/common/cache/cache.service';
 
 @CommandHandler(UpdatePostCommand)
 export class UpdatePostHandler implements ICommandHandler<UpdatePostCommand> {
-  constructor(private readonly postWriteRepository: IPostWriteRepository) {}
+  constructor(
+    private readonly postWriteRepository: IPostWriteRepository,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async execute(command: UpdatePostCommand): Promise<void> {
     const affected = await this.postWriteRepository.update(
@@ -20,5 +24,8 @@ export class UpdatePostHandler implements ICommandHandler<UpdatePostCommand> {
     if (affected === 0) {
       throw new NotFoundException(`Post with ID ${command.id} not found`);
     }
+
+    await this.cacheService.del(`post:${command.userId}:${command.id}`);
+    await this.cacheService.delByPattern(`posts:${command.userId}:*`);
   }
 }
