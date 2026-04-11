@@ -69,6 +69,10 @@ export default async function globalSetup() {
       JWT_REFRESH_SECRET: 'test-refresh-secret',
       JWT_ACCESS_EXPIRATION: '15m',
       JWT_REFRESH_EXPIRATION: '7d',
+      JWT_ADMIN_ACCESS_SECRET: 'test-admin-access-secret',
+      JWT_ADMIN_REFRESH_SECRET: 'test-admin-refresh-secret',
+      JWT_ADMIN_ACCESS_EXPIRATION: '15m',
+      JWT_ADMIN_REFRESH_EXPIRATION: '7d',
       THROTTLE_SKIP: 'true',
       OTEL_ENABLED: 'false',
     };
