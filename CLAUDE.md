@@ -90,6 +90,31 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - Post 엔티티에 `@DeleteDateColumn()` 적용 — 삭제 시 `deletedAt` 타임스탬프 기록, 실제 행은 유지
 - TypeORM의 `softDelete()`/`restore()` 메서드 사용
 
+### Health Check & Graceful Shutdown
+
+- `@nestjs/terminus` 기반 `GET /health` 엔드포인트 — DB(TypeORM) + Redis 연결 상태 확인
+- `RedisHealthIndicator` — `HealthIndicatorService`를 사용한 커스텀 헬스 인디케이터 (`src/health/redis-health.indicator.ts`)
+- `@SkipThrottle({ short: true, long: true })` — Health Check는 Rate Limiting 제외 (K8s probe 보호)
+- `app.enableShutdownHooks()` — SIGTERM/SIGINT 시 `OnModuleDestroy` 훅 트리거 (Redis 연결 정리 등)
+
+### Rate Limiting
+
+- `@nestjs/throttler` 기반 글로벌 Rate Limiting (`APP_GUARD`로 `ThrottlerGuard` 등록)
+- Named Throttlers: `short` (1초 3회), `long` (분당 60회)
+- `@Throttle()` — login/register에 엄격한 제한 (1초 2회, 분당 5회)
+- `@SkipThrottle({ short: true, long: true })` — named throttlers 사용 시 스킵 대상을 명시해야 함
+- `skipIf: () => process.env.THROTTLE_SKIP === 'true'` — 통합 테스트 환경에서 비활성화
+- 429 Too Many Requests 자동 반환. Swagger에 `@ApiTooManyRequestsResponse` 적용
+
+### Cache Layer
+
+- `CacheService` (`src/common/cache/`) — 기존 `REDIS_CLIENT`(ioredis)를 재사용한 캐시 유틸리티. 추가 패키지 없음
+- **CQRS 정합**: Query Handler에서 캐시 읽기/저장, Command Handler에서 캐시 무효화
+- **Fail-Open 패턴**: 모든 Redis 연산을 try/catch로 감싸 Redis 장애 시 DB fallback. 캐시 장애가 서비스 가용성에 영향을 미치지 않음
+- **사용자 격리**: 모든 캐시 키에 `userId` 포함 (예: `post:{userId}:{postId}`)
+- 캐시 히트/미스/SET/DEL을 `debug` 레벨로 로깅, 장애 시 `warn` 레벨 로깅
+- 상세 가이드: `docs/cache-layer-guide.md`
+
 ### Logging
 
 - `pino-http` 기반 구조화 로깅 (`src/common/logging/`)
