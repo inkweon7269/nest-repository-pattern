@@ -45,6 +45,11 @@ export class CacheService {
     }
   }
 
+  /**
+   * 패턴에 매칭되는 모든 캐시 키를 일괄 삭제한다.
+   * 예: `posts:1:*` → userId=1인 사용자의 모든 목록 캐시 삭제.
+   * KEYS 대신 SCAN을 사용하여 Redis 블로킹 없이 점진적으로 처리한다.
+   */
   async delByPattern(pattern: string): Promise<void> {
     try {
       let cursor = '0';
