@@ -10,6 +10,7 @@ import { IdempotencyModule } from '@src/common/idempotency/idempotency.module';
 import { PostsModule } from '@src/posts/posts.module';
 import { AuthModule } from '@src/auth/auth.module';
 import { HealthModule } from '@src/health/health.module';
+import { AdminModule } from '@src/admin/admin.module';
 
 const nodeEnv = process.env.NODE_ENV || 'local';
 
@@ -38,6 +39,7 @@ const nodeEnv = process.env.NODE_ENV || 'local';
     }),
     PostsModule,
     AuthModule,
+    AdminModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
