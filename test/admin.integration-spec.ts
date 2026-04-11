@@ -88,26 +88,7 @@ describe('Admin (integration)', () => {
         .expect(200);
     });
 
-    it('should register with SUPER role', async () => {
-      await registerAdmin({ role: 'SUPER' }).expect(201);
-
-      const loginRes = await request(app.getHttpServer())
-        .post('/v1/admin/auth/login')
-        .send({ email: defaultAdmin.email, password: defaultAdmin.password })
-        .expect(200);
-
-      const profileRes = await request(app.getHttpServer())
-        .get('/v1/admin/auth/profile')
-        .set(
-          'Authorization',
-          `Bearer ${(loginRes.body as { accessToken: string }).accessToken}`,
-        )
-        .expect(200);
-
-      expect(profileRes.body.role).toBe('SUPER');
-    });
-
-    it('should default to MANAGER role when not specified', async () => {
+    it('should always register with MANAGER role', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -147,10 +128,10 @@ describe('Admin (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 for invalid role value', () => {
+    it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .post('/v1/admin/auth/register')
-        .send({ ...defaultAdmin, role: 'INVALID' })
+        .send({ ...defaultAdmin, role: 'SUPER' })
         .expect(400);
     });
   });

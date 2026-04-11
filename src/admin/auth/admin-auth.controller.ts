@@ -75,7 +75,7 @@ export class AdminAuthController {
         dto.email,
         dto.password,
         dto.name,
-        dto.role ?? AdminRole.MANAGER,
+        AdminRole.MANAGER,
       ),
     );
     return AdminRegisterResponseDto.of(id);

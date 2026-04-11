@@ -1,13 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MinLength,
-} from 'class-validator';
-import { AdminRole } from '@src/admin/enum/admin-role.enum';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class AdminRegisterRequestDto {
   @ApiProperty({ description: '이메일', example: 'admin@example.com' })
@@ -25,13 +17,4 @@ export class AdminRegisterRequestDto {
   @IsString()
   @IsNotEmpty()
   name: string;
-
-  @ApiPropertyOptional({
-    description: '관리자 등급',
-    enum: AdminRole,
-    default: AdminRole.MANAGER,
-  })
-  @IsEnum(AdminRole)
-  @IsOptional()
-  role?: AdminRole;
 }
