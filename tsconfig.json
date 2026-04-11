@@ -17,7 +17,12 @@
     "incremental": true,
     "skipLibCheck": true,
     "paths": {
-      "@src/*": ["src/*"]
+      "@app/shared": [
+        "libs/shared/src"
+      ],
+      "@app/shared/*": [
+        "libs/shared/src/*"
+      ]
     },
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,

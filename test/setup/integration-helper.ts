@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
   INestApplication,
+  Type,
   ValidationPipe,
   VersioningType,
 } from '@nestjs/common';
@@ -9,13 +10,13 @@ import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types';
 import { DataSource, EntityManager, QueryRunner } from 'typeorm';
 import { Logger } from 'nestjs-pino';
-import { AppModule } from '@src/app.module';
-import { HttpExceptionFilter } from '@src/common/logging/http-exception.filter';
-import { LoggingInterceptor } from '@src/common/logging/logging.interceptor';
+import { HttpExceptionFilter, LoggingInterceptor } from '@app/shared';
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
-export async function createIntegrationApp(): Promise<INestApplication<App>> {
+export async function createIntegrationApp(
+  appModule: Type,
+): Promise<INestApplication<App>> {
   const env = JSON.parse(readFileSync(TEST_ENV_PATH, 'utf-8')) as Record<
     string,
     string
@@ -24,7 +25,7 @@ export async function createIntegrationApp(): Promise<INestApplication<App>> {
   Object.assign(process.env, env);
 
   const module = await Test.createTestingModule({
-    imports: [AppModule],
+    imports: [appModule],
   }).compile();
 
   const app = module.createNestApplication();

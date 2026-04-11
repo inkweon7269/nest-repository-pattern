@@ -7,7 +7,7 @@ import {
 } from '@testcontainers/postgresql';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
-import { createDataSourceOptions } from '@src/database/typeorm.config';
+import { createDataSourceOptions } from '../../libs/shared/src/database/typeorm.config';
 
 declare global {
   var __TEST_CONTAINER__: StartedPostgreSqlContainer | undefined;

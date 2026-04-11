@@ -6,31 +6,35 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build:local": "cross-env NODE_ENV=local nest build && tsc-alias -p tsconfig.build.json",
-    "build:dev": "cross-env NODE_ENV=development nest build && tsc-alias -p tsconfig.build.json",
-    "build:prod": "cross-env NODE_ENV=production nest build && tsc-alias -p tsconfig.build.json",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start:local": "cross-env NODE_ENV=local nest start --watch",
-    "start:dev": "cross-env NODE_ENV=development nest start --watch",
-    "start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
-    "start:prod": "cross-env NODE_ENV=production node dist/main",
+    "build:service": "nest build service",
+    "build:back-office": "nest build back-office",
+    "build:all": "nest build service && nest build back-office",
+    "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\" \"test/**/*.ts\"",
+    "start:service:local": "cross-env NODE_ENV=local nest start service --watch",
+    "start:back-office:local": "cross-env NODE_ENV=local nest start back-office --watch",
+    "start:service:dev": "cross-env NODE_ENV=development nest start service --watch",
+    "start:back-office:dev": "cross-env NODE_ENV=development nest start back-office --watch",
+    "start:service:prod": "cross-env NODE_ENV=production node dist/apps/service/main",
+    "start:back-office:prod": "cross-env NODE_ENV=production node dist/apps/back-office/main",
+    "start:service:debug": "cross-env NODE_ENV=development nest start service --debug --watch",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
-    "test:migration": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --passWithNoTests --testPathPatterns=^$",
-    "migration:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-    "migration:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-    "migration:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-    "migration:generate:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
-    "migration:generate:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
-    "migration:generate:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
-    "migration:revert:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
-    "migration:revert:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
-    "migration:revert:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
+    "test:e2e": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/service/jest-e2e.json && node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/back-office/jest-e2e.json",
+    "test:e2e:service": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/service/jest-e2e.json",
+    "test:e2e:back-office": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/back-office/jest-e2e.json",
+    "migration:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d libs/shared/src/data-source.ts",
+    "migration:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d libs/shared/src/data-source.ts",
+    "migration:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d libs/shared/src/data-source.ts",
+    "migration:generate:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:generate -d libs/shared/src/data-source.ts",
+    "migration:generate:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:generate -d libs/shared/src/data-source.ts",
+    "migration:generate:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:generate -d libs/shared/src/data-source.ts",
+    "migration:revert:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:revert -d libs/shared/src/data-source.ts",
+    "migration:revert:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:revert -d libs/shared/src/data-source.ts",
+    "migration:revert:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:revert -d libs/shared/src/data-source.ts",
     "migration:create": "typeorm migration:create"
   },
   "dependencies": {
@@ -94,7 +98,6 @@
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
-    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.1"
@@ -105,7 +108,7 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
@@ -113,10 +116,15 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@src/(.*)$": "<rootDir>/$1"
-    }
+      "^@app/shared/(.*)$": "<rootDir>/libs/shared/src/$1",
+      "^@app/shared$": "<rootDir>/libs/shared/src"
+    },
+    "roots": [
+      "<rootDir>/apps/",
+      "<rootDir>/libs/"
+    ]
   }
 }
