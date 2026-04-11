@@ -33,14 +33,14 @@ describe('Auth (integration)', () => {
 
   function registerUser(body: Record<string, unknown> = {}) {
     return request(app.getHttpServer())
-      .post('/auth/register')
+      .post('/v1/auth/register')
       .send({ ...defaultUser, ...body });
   }
 
   async function registerAndLogin(body: Record<string, unknown> = {}) {
     await registerUser(body).expect(201);
     const loginRes = await request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/v1/auth/login')
       .send({
         email: (body.email as string) ?? defaultUser.email,
         password: (body.password as string) ?? defaultUser.password,
@@ -65,7 +65,7 @@ describe('Auth (integration)', () => {
       await registerUser().expect(201);
 
       await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: defaultUser.email, password: defaultUser.password })
         .expect(200);
     });
@@ -80,14 +80,14 @@ describe('Auth (integration)', () => {
 
     it('should return 400 when email is missing', () => {
       return request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({ password: 'password123', name: '테스트' })
         .expect(400);
     });
 
     it('should return 400 when email format is invalid', () => {
       return request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({
           email: 'not-an-email',
           password: 'password123',
@@ -98,28 +98,28 @@ describe('Auth (integration)', () => {
 
     it('should return 400 when password is missing', () => {
       return request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({ email: 'a@b.com', name: '테스트' })
         .expect(400);
     });
 
     it('should return 400 when password is shorter than 8 characters', () => {
       return request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({ email: 'a@b.com', password: 'short', name: '테스트' })
         .expect(400);
     });
 
     it('should return 400 when name is missing', () => {
       return request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({ email: 'a@b.com', password: 'password123' })
         .expect(400);
     });
 
     it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/v1/auth/register')
         .send({ ...defaultUser, hacked: true })
         .expect(400);
     });
@@ -133,7 +133,7 @@ describe('Auth (integration)', () => {
       await registerUser().expect(201);
 
       const res = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: defaultUser.email, password: defaultUser.password })
         .expect(200);
 
@@ -149,7 +149,7 @@ describe('Auth (integration)', () => {
 
     it('should return 401 for non-existent email', () => {
       return request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: 'nobody@example.com', password: 'password123' })
         .expect(401);
     });
@@ -158,28 +158,28 @@ describe('Auth (integration)', () => {
       await registerUser().expect(201);
 
       return request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: defaultUser.email, password: 'wrongpassword' })
         .expect(401);
     });
 
     it('should return 400 when email is missing', () => {
       return request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ password: 'password123' })
         .expect(400);
     });
 
     it('should return 400 when password is missing', () => {
       return request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: 'a@b.com' })
         .expect(400);
     });
 
     it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
-        .post('/auth/login')
+        .post('/v1/auth/login')
         .send({ email: 'a@b.com', password: 'password123', hacked: true })
         .expect(400);
     });
@@ -193,7 +193,7 @@ describe('Auth (integration)', () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
-        .post('/auth/refresh')
+        .post('/v1/auth/refresh')
         .send({ refreshToken: tokens.refreshToken })
         .expect(200);
 
@@ -207,34 +207,34 @@ describe('Auth (integration)', () => {
 
       // 첫 번째 refresh — 성공
       await request(app.getHttpServer())
-        .post('/auth/refresh')
+        .post('/v1/auth/refresh')
         .send({ refreshToken: tokens.refreshToken })
         .expect(200);
 
       // 이전 토큰으로 다시 시도 — 실패 (rotation됨)
       await request(app.getHttpServer())
-        .post('/auth/refresh')
+        .post('/v1/auth/refresh')
         .send({ refreshToken: tokens.refreshToken })
         .expect(401);
     });
 
     it('should return 401 for invalid token', () => {
       return request(app.getHttpServer())
-        .post('/auth/refresh')
+        .post('/v1/auth/refresh')
         .send({ refreshToken: 'invalid-token' })
         .expect(401);
     });
 
     it('should return 400 when refreshToken is missing', () => {
       return request(app.getHttpServer())
-        .post('/auth/refresh')
+        .post('/v1/auth/refresh')
         .send({})
         .expect(400);
     });
 
     it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
-        .post('/auth/refresh')
+        .post('/v1/auth/refresh')
         .send({ refreshToken: 'some-token', hacked: true })
         .expect(400);
     });
@@ -248,7 +248,7 @@ describe('Auth (integration)', () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
-        .get('/auth/profile')
+        .get('/v1/auth/profile')
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .expect(200);
 
@@ -271,7 +271,7 @@ describe('Auth (integration)', () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
-        .get('/auth/profile')
+        .get('/v1/auth/profile')
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .expect(200);
 
@@ -280,12 +280,12 @@ describe('Auth (integration)', () => {
     });
 
     it('should return 401 without token', () => {
-      return request(app.getHttpServer()).get('/auth/profile').expect(401);
+      return request(app.getHttpServer()).get('/v1/auth/profile').expect(401);
     });
 
     it('should return 401 with invalid token', () => {
       return request(app.getHttpServer())
-        .get('/auth/profile')
+        .get('/v1/auth/profile')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
     });
@@ -299,7 +299,7 @@ describe('Auth (integration)', () => {
       const { accessToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
-        .post('/auth/logout')
+        .post('/v1/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(204);
     });
@@ -308,23 +308,23 @@ describe('Auth (integration)', () => {
       const { accessToken, refreshToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
-        .post('/auth/logout')
+        .post('/v1/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(204);
 
       await request(app.getHttpServer())
-        .post('/auth/refresh')
+        .post('/v1/auth/refresh')
         .send({ refreshToken })
         .expect(401);
     });
 
     it('should return 401 when no Authorization header is provided', async () => {
-      await request(app.getHttpServer()).post('/auth/logout').expect(401);
+      await request(app.getHttpServer()).post('/v1/auth/logout').expect(401);
     });
 
     it('should return 401 when an invalid token is provided', async () => {
       await request(app.getHttpServer())
-        .post('/auth/logout')
+        .post('/v1/auth/logout')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
     });
