@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { UpdatePostHandler } from '@src/posts/command/update-post.handler';
 import { UpdatePostCommand } from '@src/posts/command/update-post.command';
 import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
+import { CacheService } from '@src/common/cache/cache.service';
 
 describe('UpdatePostHandler', () => {
   let handler: UpdatePostHandler;
@@ -19,6 +20,15 @@ describe('UpdatePostHandler', () => {
       providers: [
         UpdatePostHandler,
         { provide: IPostWriteRepository, useValue: mockWriteRepository },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

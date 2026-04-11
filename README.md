@@ -3,6 +3,19 @@
 NestJS + TypeORM + PostgreSQL 기반 Posts CRUD API.
 **Repository Pattern**으로 데이터 액세스를 추상화하고, **CQRS Pattern**으로 읽기/쓰기 관심사를 분리한다.
 
+### 주요 기능
+
+| 기능 | 설명 |
+|------|------|
+| **Posts CRUD** | 게시물 생성/조회/수정/삭제 (Soft Delete) |
+| **Auth** | JWT 기반 회원가입, 로그인, 로그아웃, 토큰 갱신, 프로필 조회 |
+| **Health Check** | `GET /health` — DB + Redis 연결 상태 확인 + Graceful Shutdown |
+| **Rate Limiting** | `@nestjs/throttler` 기반 글로벌 Rate Limiting (login/register 엄격 제한) |
+| **Cache Layer** | Redis 기반 Cache-Aside 패턴 (CQRS Handler 레벨, Fail-Open) |
+| **Idempotency** | Redis 기반 POST 요청 멱등성 보장 |
+| **Logging** | pino-http 기반 구조화 로깅 (correlation ID, redaction) |
+| **Slack 알림** | 게시물 생성 시 이벤트 기반 Slack 알림 |
+
 ## 목차
 
 - [아키텍처](#아키텍처)
@@ -12,6 +25,10 @@ NestJS + TypeORM + PostgreSQL 기반 Posts CRUD API.
 - [디자인 패턴](#디자인-패턴)
   - [CQRS Pattern](#cqrs-pattern)
   - [Repository Pattern (ISP 적용)](#repository-pattern-isp-적용)
+- [인프라 기능](#인프라-기능)
+  - [Health Check & Graceful Shutdown](#health-check--graceful-shutdown)
+  - [Rate Limiting](#rate-limiting)
+  - [Cache Layer](#cache-layer)
 - [시작하기](#시작하기)
   - [환경 설정](#환경-설정)
   - [실행](#실행)
@@ -24,6 +41,7 @@ NestJS + TypeORM + PostgreSQL 기반 Posts CRUD API.
   - [통합 테스트](#통합-테스트)
   - [커버리지](#커버리지)
 - [CI/CD](#cicd)
+- [문서](#문서)
 
 ---
 
@@ -42,14 +60,16 @@ Controller              ← 라우팅, Command/Query 객체 생성
   │      ▼
   │    Command Handler             ← 쓰기 로직. void 또는 ID 반환
   │      │
-  │      └──→ IPostWriteRepository ← 상태 변경 (create, update, delete). affected count로 존재 검증
+  │      ├──→ IPostWriteRepository ← 상태 변경 (create, update, delete)
+  │      └──→ CacheService         ← 캐시 무효화 (del, delByPattern)
   │
   └──→ QueryBus.execute()          ← 상태 조회 (GetById, FindAllPaginated)
          │
          ▼
        Query Handler               ← 읽기 로직 + PostResponseDto.of() 변환
          │
-         └──→ IPostReadRepository  ← 데이터 조회
+         ├──→ CacheService.get()   ← 캐시 HIT → 즉시 반환
+         └──→ IPostReadRepository  ← 캐시 MISS → DB 조회 → CacheService.set()
                    │
                    ▼
               PostRepository → BaseRepository → TypeORM → PostgreSQL
@@ -71,57 +91,47 @@ Controller              ← 라우팅, Command/Query 객체 생성
 
 ```
 src/
-├── main.ts                                   # 앱 부트스트랩 (ValidationPipe, Swagger)
-├── app.module.ts                             # 루트 모듈 (ConfigModule, TypeOrmModule)
-├── data-source.ts                            # TypeORM CLI용 DataSource
+├── main.ts                        # 앱 부트스트랩 (ValidationPipe, Swagger, Shutdown Hooks)
+├── app.module.ts                  # 루트 모듈 (Config, TypeORM, Throttler, EventEmitter)
+├── data-source.ts                 # TypeORM CLI용 DataSource
+├── posts/                         # 게시물 도메인 (CQRS + Repository Pattern)
+│   ├── command/                   # Command + Handler (생성/수정/삭제 + 캐시 무효화)
+│   ├── query/                     # Query + Handler (조회/목록 + 캐시 적용)
+│   ├── interface/                 # Repository 인터페이스 (Read/Write 분리)
+│   ├── entities/                  # Post 엔티티 (Soft Delete)
+│   ├── dto/                       # Request/Response DTO
+│   ├── event/                     # PostCreatedEvent + Slack 알림 Handler
+│   ├── post.repository.ts        # PostRepository 구현체
+│   └── post-repository.provider.ts
+├── auth/                          # 인증 도메인 (동일 CQRS 구조)
+│   ├── command/                   # register, login, logout, refresh-token
+│   ├── query/                     # get-profile (캐시 적용)
+│   ├── interface/                 # IUserReadRepository / IUserWriteRepository
+│   ├── guard/                     # JwtAuthGuard
+│   └── strategy/                  # JwtStrategy
+├── health/                        # Health Check (@nestjs/terminus)
+│   ├── health.controller.ts       # GET /health (DB + Redis)
+│   └── redis-health.indicator.ts  # 커스텀 Redis 헬스 인디케이터
+├── slack/                         # Slack 알림 모듈
 ├── common/
-│   ├── base.repository.ts                    # BaseRepository (DataSource 추상화)
-│   └── dto/
-│       ├── request/
-│       │   └── pagination.request.dto.ts     # 페이지네이션 요청 DTO
-│       └── response/
-│           └── paginated.response.dto.ts     # 페이지네이션 응답 DTO (static of)
+│   ├── cache/                     # CacheService (Redis 기반, Fail-Open)
+│   ├── idempotency/               # 멱등성 처리 (Redis)
+│   ├── logging/                   # 구조화 로깅 (pino-http)
+│   ├── decorator/                 # @CurrentUser() 등 커스텀 데코레이터
+│   ├── dto/                       # 공통 DTO (Pagination)
+│   ├── query/                     # PaginatedQuery 추상 클래스
+│   └── base.repository.ts        # BaseRepository (DataSource 추상화)
 ├── database/
-│   └── typeorm.config.ts                     # DataSource 설정 팩토리
-├── migrations/
-│   └── 1770456974651-CreatePostTable.ts      # TypeORM Table API 기반 migration
-└── posts/
-    ├── entities/
-    │   └── post.entity.ts                    # Post 엔티티
-    ├── interface/
-    │   ├── post-read-repository.interface.ts  # IPostReadRepository (읽기 전용)
-    │   └── post-write-repository.interface.ts # IPostWriteRepository (쓰기 전용) + 도메인 입력 타입
-    ├── command/
-    │   ├── create-post.command.ts            # 생성 Command 값 객체
-    │   ├── create-post.handler.ts            # 생성 Handler → number (ID)
-    │   ├── update-post.command.ts            # 수정 Command 값 객체
-    │   ├── update-post.handler.ts            # 수정 Handler → void
-    │   ├── delete-post.command.ts            # 삭제 Command 값 객체
-    │   └── delete-post.handler.ts            # 삭제 Handler → void
-    ├── query/
-    │   ├── get-post-by-id.query.ts           # 단건 조회 Query 값 객체
-    │   ├── get-post-by-id.handler.ts         # 단건 조회 Handler → PostResponseDto
-    │   ├── find-all-posts-paginated.query.ts # 페이지네이션 Query 값 객체
-    │   └── find-all-posts-paginated.handler.ts # 페이지네이션 Handler → PaginatedResponseDto
-    ├── dto/
-    │   ├── request/
-    │   │   ├── create-post.request.dto.ts
-    │   │   └── update-post.request.dto.ts
-    │   └── response/
-    │       ├── create-post.response.dto.ts   # 생성 응답 DTO ({ id })
-    │       └── post.response.dto.ts          # static of() 팩토리 메서드
-    ├── post.repository.ts                    # PostRepository 구현체
-    ├── post-repository.provider.ts           # useExisting 기반 커스텀 프로바이더
-    ├── posts.controller.ts                   # HTTP 라우팅 + Command/Query 생성
-    └── posts.module.ts                       # Posts 모듈
+│   └── typeorm.config.ts          # DataSource 설정 팩토리
+└── migrations/                    # TypeORM 마이그레이션
 
 test/
-├── posts.integration-spec.ts                 # 통합 테스트 (Testcontainers, Docker 필수)
-├── jest-e2e.json                             # 통합 테스트 Jest 설정
+├── posts.integration-spec.ts      # Posts 통합 테스트
+├── auth.integration-spec.ts       # Auth 통합 테스트
 └── setup/
-    ├── global-setup.ts                       # PostgreSQL 컨테이너 기동 + migration
-    ├── global-teardown.ts                    # 컨테이너 종료 + 임시 파일 삭제
-    └── integration-helper.ts                 # 앱 생성 + per-test 트랜잭션 격리
+    ├── global-setup.ts            # PostgreSQL + Redis 컨테이너 기동
+    ├── global-teardown.ts         # 컨테이너 종료
+    └── integration-helper.ts      # 앱 생성 + per-test 트랜잭션 격리
 ```
 
 ---
@@ -247,6 +257,33 @@ export const postRepositoryProviders: Provider[] = [
 
 ---
 
+## 인프라 기능
+
+### Health Check & Graceful Shutdown
+
+- `@nestjs/terminus` 기반 `GET /health` — DB(TypeORM pingCheck) + Redis(커스텀 `RedisHealthIndicator`) 연결 상태 확인
+- `app.enableShutdownHooks()` — SIGTERM/SIGINT 시 `OnModuleDestroy` 훅으로 Redis 연결 등 리소스 정리
+- Rate Limiting에서 제외 (`@SkipThrottle({ short: true, long: true })`)
+
+### Rate Limiting
+
+- `@nestjs/throttler` 기반, `APP_GUARD`로 `ThrottlerGuard` 글로벌 등록
+- Named Throttlers: `short` (1초 3회), `long` (분당 60회)
+- login/register에 엄격한 제한: `@Throttle({ short: { ttl: 1000, limit: 2 }, long: { ttl: 60000, limit: 5 } })`
+- 통합 테스트에서 `THROTTLE_SKIP=true`로 비활성화
+- 429 Too Many Requests 자동 반환
+
+### Cache Layer
+
+- `CacheService` (`src/common/cache/`) — 기존 `REDIS_CLIENT`(ioredis)를 재사용. 추가 패키지 없음
+- **Cache-Aside 패턴**: Query Handler에서 캐시 읽기/저장, Command Handler에서 캐시 무효화
+- **Fail-Open**: 모든 Redis 연산을 try/catch로 감싸 Redis 장애 시 DB fallback
+- 캐시 키에 `userId` 포함하여 사용자 격리 (예: `post:{userId}:{postId}`)
+- TTL: 게시물 5분, 목록 3분, 프로필 10분
+- 상세 가이드: [docs/cache-layer-guide.md](./docs/cache-layer-guide.md)
+
+---
+
 ## 시작하기
 
 ### 환경 설정
@@ -305,13 +342,19 @@ pnpm migration:create -- src/migrations/AddCategoryToPost
 
 Swagger UI: `http://localhost:3000/api`
 
-| Method | Endpoint | 설명 | 상태 코드 |
-|--------|----------|------|-----------|
-| GET | `/posts` | 게시글 페이지네이션 조회 | 200 |
-| GET | `/posts/:id` | ID로 게시글 조회 | 200 / 404 |
-| POST | `/posts` | 게시글 생성 | 201 |
-| PATCH | `/posts/:id` | 게시글 수정 (전체 업데이트) | 204 / 400 / 404 |
-| DELETE | `/posts/:id` | 게시글 삭제 | 204 / 404 |
+| Method | Endpoint | 설명 | 상태 코드 | 인증 |
+|--------|----------|------|-----------|------|
+| GET | `/health` | Health Check (DB + Redis) | 200 / 503 | X |
+| POST | `/auth/register` | 회원가입 | 201 / 409 | X |
+| POST | `/auth/login` | 로그인 | 200 / 401 | X |
+| POST | `/auth/refresh` | 토큰 갱신 | 200 / 401 | X |
+| POST | `/auth/logout` | 로그아웃 | 204 / 401 | O |
+| GET | `/auth/profile` | 내 프로필 조회 | 200 / 404 | O |
+| GET | `/posts` | 게시글 페이지네이션 조회 | 200 | O |
+| GET | `/posts/:id` | ID로 게시글 조회 | 200 / 404 | O |
+| POST | `/posts` | 게시글 생성 | 201 / 409 | O |
+| PATCH | `/posts/:id` | 게시글 수정 | 204 / 400 / 404 | O |
+| DELETE | `/posts/:id` | 게시글 삭제 | 204 / 404 | O |
 
 ### 요청/응답 DTO
 
@@ -451,3 +494,17 @@ GitHub Actions로 코드 품질을 자동 검증한다. 모든 워크플로우�
 | **PR Auto-label** | PR | 변경 파일 경로 기반 자동 라벨링 (`database`, `cqrs-command`, `test` 등) |
 
 Dependabot이 의존성 업데이트 PR을 주간 자동 생성한다 (NestJS, TypeORM, Testing, ESLint 그룹).
+
+---
+
+## 문서
+
+| 문서 | 설명 |
+|------|------|
+| [CLAUDE.md](./CLAUDE.md) | Claude Code 가이드 (아키텍처, 규칙, 명령어) |
+| [Cache Layer 가이드](./docs/cache-layer-guide.md) | 캐시 적용 방법 및 전략 |
+| [CQRS 가이드](./docs/cqrs-guide.md) | CQRS 패턴 적용 가이드 |
+| [테스트 전략](./docs/testing-strategy.md) | Classical School 테스트 구조 |
+| [멱등성 가이드](./docs/idempotency-guide.md) | Redis 기반 멱등성 처리 |
+| [ISP 적용](./docs/interface-segregation-principle.md) | Repository 인터페이스 분리 원칙 |
+| [GitHub Actions 가이드](./docs/github-actions-guide.md) | CI/CD 파이프라인 설정 |

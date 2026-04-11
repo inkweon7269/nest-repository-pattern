@@ -11,6 +11,7 @@ import { userRepositoryProviders } from '@src/auth/user-repository.provider';
 import { JwtStrategy } from '@src/auth/strategy/jwt.strategy';
 import { JwtAuthGuard } from '@src/auth/guard/jwt-auth.guard';
 import { GetProfileHandler } from '@src/auth/query/get-profile.handler';
+import { AppCacheModule } from '@src/common/cache/cache.module';
 
 const commandHandlers = [
   RegisterHandler,
@@ -21,7 +22,7 @@ const commandHandlers = [
 const queryHandlers = [GetProfileHandler];
 
 @Module({
-  imports: [CqrsModule, PassportModule, JwtModule.register({})],
+  imports: [CqrsModule, PassportModule, JwtModule.register({}), AppCacheModule],
   controllers: [AuthController],
   providers: [
     ...commandHandlers,

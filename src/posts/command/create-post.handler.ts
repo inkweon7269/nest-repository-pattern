@@ -6,6 +6,7 @@ import { CreatePostCommand } from '@src/posts/command/create-post.command';
 import { PostCreatedEvent } from '@src/posts/event/post-created.event';
 import { IPostReadRepository } from '@src/posts/interface/post-read-repository.interface';
 import { IPostWriteRepository } from '@src/posts/interface/post-write-repository.interface';
+import { CacheService } from '@src/common/cache/cache.service';
 
 @CommandHandler(CreatePostCommand)
 export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
@@ -13,6 +14,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
     private readonly postReadRepository: IPostReadRepository,
     private readonly postWriteRepository: IPostWriteRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly cacheService: CacheService,
   ) {}
 
   async execute(command: CreatePostCommand): Promise<number> {
@@ -37,6 +39,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
         PostCreatedEvent.event,
         new PostCreatedEvent(post.id, command.title, command.userId),
       );
+      await this.cacheService.delByPattern(`posts:${command.userId}:*`);
       return post.id;
     } catch (error) {
       if (

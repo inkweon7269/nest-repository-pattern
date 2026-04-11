@@ -10,6 +10,7 @@ import { GetPostByIdHandler } from '@src/posts/query/get-post-by-id.handler';
 import { FindAllPostsPaginatedHandler } from '@src/posts/query/find-all-posts-paginated.handler';
 import { postRepositoryProviders } from '@src/posts/post-repository.provider';
 import { SlackModule } from '@src/slack/slack.module';
+import { AppCacheModule } from '@src/common/cache/cache.module';
 
 const commandHandlers = [
   CreatePostHandler,
@@ -22,7 +23,7 @@ const queryHandlers = [GetPostByIdHandler, FindAllPostsPaginatedHandler];
 const eventHandlers = [PostCreatedHandler];
 
 @Module({
-  imports: [CqrsModule, AuthModule, SlackModule],
+  imports: [CqrsModule, AuthModule, SlackModule, AppCacheModule],
   controllers: [PostsController],
   providers: [
     ...commandHandlers,
