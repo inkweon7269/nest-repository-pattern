@@ -18,8 +18,10 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '@src/auth/guard/jwt-auth.guard';
 import { CurrentUser } from '@src/common/decorator/current-user.decorator';
 import { AuthUser } from '@src/common/decorator/auth-user.type';
@@ -56,10 +58,12 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ short: { ttl: 1000, limit: 2 }, long: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: '회원가입' })
   @ApiCreatedResponse({ type: RegisterResponseDto })
   @ApiBadRequestResponse({ description: '잘못된 요청' })
   @ApiConflictResponse({ description: '중복된 이메일' })
+  @ApiTooManyRequestsResponse({ description: '요청 횟수 초과' })
   async register(
     @Body() dto: RegisterRequestDto,
   ): Promise<RegisterResponseDto> {
@@ -70,11 +74,13 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ short: { ttl: 1000, limit: 2 }, long: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '로그인' })
   @ApiOkResponse({ type: AuthTokensResponseDto })
   @ApiBadRequestResponse({ description: '잘못된 요청' })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
+  @ApiTooManyRequestsResponse({ description: '요청 횟수 초과' })
   async login(@Body() dto: LoginRequestDto): Promise<AuthTokensResponseDto> {
     const tokens = await this.commandBus.execute<LoginCommand, AuthTokens>(
       new LoginCommand(dto.email, dto.password),
