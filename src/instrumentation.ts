@@ -23,4 +23,8 @@ if (process.env.OTEL_ENABLED !== 'false') {
   });
 
   sdk.start();
+
+  process.on('SIGTERM', () => {
+    void sdk.shutdown().finally(() => process.exit(0));
+  });
 }
