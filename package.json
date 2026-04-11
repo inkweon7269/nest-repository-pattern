@@ -26,6 +26,7 @@
     "test:e2e": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/service/jest-e2e.json && node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/back-office/jest-e2e.json",
     "test:e2e:service": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/service/jest-e2e.json",
     "test:e2e:back-office": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/back-office/jest-e2e.json",
+    "test:migration": "node -r tsconfig-paths/register node_modules/jest/bin/jest.js --config ./test/service/jest-e2e.json --passWithNoTests --testPathPatterns=^$",
     "migration:local": "cross-env NODE_ENV=local node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d libs/shared/src/data-source.ts",
     "migration:dev": "cross-env NODE_ENV=development node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d libs/shared/src/data-source.ts",
     "migration:prod": "cross-env NODE_ENV=production node -r tsconfig-paths/register -r ts-node/register node_modules/typeorm/cli.js migration:run -d libs/shared/src/data-source.ts",
