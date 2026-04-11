@@ -10,7 +10,7 @@ import {
 import { RedisHealthIndicator } from './redis-health.indicator';
 
 @ApiTags('Health')
-@SkipThrottle()
+@SkipThrottle({ short: true, long: true })
 @Controller('health')
 export class HealthController {
   constructor(
