@@ -5,8 +5,8 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { RefreshTokenCommand } from './refresh-token.command';
-import { IUserReadRepository } from '../interface/user-read-repository.interface';
-import { IUserWriteRepository } from '../interface/user-write-repository.interface';
+import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
+import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
 import { AuthTokens } from '@app/shared';
 
 @CommandHandler(RefreshTokenCommand)

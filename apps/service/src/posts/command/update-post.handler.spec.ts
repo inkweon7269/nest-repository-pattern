@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { UpdatePostHandler } from './update-post.handler';
 import { UpdatePostCommand } from './update-post.command';
-import { IPostWriteRepository } from '../interface/post-write-repository.interface';
+import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { CacheService } from '@app/shared';
 
 describe('UpdatePostHandler', () => {

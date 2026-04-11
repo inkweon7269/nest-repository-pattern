@@ -1,7 +1,7 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { NotFoundException } from '@nestjs/common';
 import { UpdatePostCommand } from './update-post.command';
-import { IPostWriteRepository } from '../interface/post-write-repository.interface';
+import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { CacheService } from '@app/shared';
 
 @CommandHandler(UpdatePostCommand)

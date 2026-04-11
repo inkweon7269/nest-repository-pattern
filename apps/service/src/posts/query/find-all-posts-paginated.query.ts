@@ -1,5 +1,5 @@
 import { PaginatedQuery } from '@app/shared';
-import { PostFilter } from '../interface/post-read-repository.interface';
+import { PostFilter } from '@service/posts/interface/post-read-repository.interface';
 
 export class FindAllPostsPaginatedQuery extends PaginatedQuery {
   constructor(

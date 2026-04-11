@@ -23,10 +23,6 @@ export { PaginationRequestDto } from './common/dto/request/pagination.request.dt
 // Common - Query
 export { PaginatedQuery } from './common/query/paginated.query';
 
-// Common - Decorators
-export { AuthUser } from './common/decorator/auth-user.type';
-export { CurrentUser } from './common/decorator/current-user.decorator';
-
 // Auth Types
 export type { AuthTokens } from './auth.types';
 

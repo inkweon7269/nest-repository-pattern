@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { AdminLogoutHandler } from './admin-logout.handler';
 import { AdminLogoutCommand } from './admin-logout.command';
-import { IAdminWriteRepository } from '../interface/admin-write-repository.interface';
+import { IAdminWriteRepository } from '@back-office/auth/interface/admin-write-repository.interface';
 
 describe('AdminLogoutHandler', () => {
   let handler: AdminLogoutHandler;

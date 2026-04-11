@@ -1,8 +1,8 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { NotFoundException } from '@nestjs/common';
 import { GetAdminProfileQuery } from './get-admin-profile.query';
-import { IAdminReadRepository } from '../interface/admin-read-repository.interface';
-import { AdminProfileResponseDto } from '../dto/response/admin-profile.response.dto';
+import { IAdminReadRepository } from '@back-office/auth/interface/admin-read-repository.interface';
+import { AdminProfileResponseDto } from '@back-office/auth/dto/response/admin-profile.response.dto';
 
 @QueryHandler(GetAdminProfileQuery)
 export class GetAdminProfileHandler implements IQueryHandler<GetAdminProfileQuery> {

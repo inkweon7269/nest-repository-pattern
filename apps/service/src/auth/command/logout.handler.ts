@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { LogoutCommand } from './logout.command';
-import { IUserWriteRepository } from '../interface/user-write-repository.interface';
+import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
 
 @CommandHandler(LogoutCommand)
 export class LogoutHandler implements ICommandHandler<LogoutCommand> {

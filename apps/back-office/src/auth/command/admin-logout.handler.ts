@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { AdminLogoutCommand } from './admin-logout.command';
-import { IAdminWriteRepository } from '../interface/admin-write-repository.interface';
+import { IAdminWriteRepository } from '@back-office/auth/interface/admin-write-repository.interface';
 
 @CommandHandler(AdminLogoutCommand)
 export class AdminLogoutHandler implements ICommandHandler<AdminLogoutCommand> {

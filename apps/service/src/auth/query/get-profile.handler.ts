@@ -1,8 +1,8 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { NotFoundException } from '@nestjs/common';
 import { GetProfileQuery } from './get-profile.query';
-import { IUserReadRepository } from '../interface/user-read-repository.interface';
-import { ProfileResponseDto } from '../dto/response/profile.response.dto';
+import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
+import { ProfileResponseDto } from '@service/auth/dto/response/profile.response.dto';
 import { CacheService } from '@app/shared';
 
 const PROFILE_CACHE_TTL = 600; // 10분

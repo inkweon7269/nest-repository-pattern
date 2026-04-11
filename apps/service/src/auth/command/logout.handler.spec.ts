@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { LogoutHandler } from './logout.handler';
 import { LogoutCommand } from './logout.command';
-import { IUserWriteRepository } from '../interface/user-write-repository.interface';
+import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
 
 describe('LogoutHandler', () => {
   let handler: LogoutHandler;

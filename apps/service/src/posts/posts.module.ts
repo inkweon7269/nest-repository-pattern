@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
-import { AuthModule } from '../auth/auth.module';
+import { AuthModule } from '@service/auth/auth.module';
 import { PostsController } from './posts.controller';
 import { CreatePostHandler } from './command/create-post.handler';
 import { UpdatePostHandler } from './command/update-post.handler';

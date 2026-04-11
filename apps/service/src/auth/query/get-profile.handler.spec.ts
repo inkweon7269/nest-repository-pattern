@@ -2,9 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { GetProfileHandler } from './get-profile.handler';
 import { GetProfileQuery } from './get-profile.query';
-import { IUserReadRepository } from '../interface/user-read-repository.interface';
+import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
 import { User } from '@app/shared';
-import { ProfileResponseDto } from '../dto/response/profile.response.dto';
+import { ProfileResponseDto } from '@service/auth/dto/response/profile.response.dto';
 import { CacheService } from '@app/shared';
 
 describe('GetProfileHandler', () => {

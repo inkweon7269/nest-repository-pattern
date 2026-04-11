@@ -23,8 +23,8 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
-import { CurrentUser } from '@app/shared';
-import { AuthUser } from '@app/shared';
+import { CurrentUser } from '@service/auth/decorator/current-user.decorator';
+import { AuthUser } from '@service/auth/decorator/auth-user.type';
 import { RegisterCommand } from './command/register.command';
 import { LoginCommand } from './command/login.command';
 import { RefreshTokenCommand } from './command/refresh-token.command';

@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FindAllPostsPaginatedHandler } from './find-all-posts-paginated.handler';
 import { FindAllPostsPaginatedQuery } from './find-all-posts-paginated.query';
-import { IPostReadRepository } from '../interface/post-read-repository.interface';
+import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { Post } from '@app/shared';
-import { PostResponseDto } from '../dto/response/post.response.dto';
+import { PostResponseDto } from '@service/posts/dto/response/post.response.dto';
 import { CacheService } from '@app/shared';
 
 describe('FindAllPostsPaginatedHandler', () => {

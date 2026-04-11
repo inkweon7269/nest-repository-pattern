@@ -4,8 +4,8 @@ import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { RegisterHandler } from './register.handler';
 import { RegisterCommand } from './register.command';
-import { IUserReadRepository } from '../interface/user-read-repository.interface';
-import { IUserWriteRepository } from '../interface/user-write-repository.interface';
+import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
+import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
 import { User } from '@app/shared';
 
 jest.mock('bcrypt');

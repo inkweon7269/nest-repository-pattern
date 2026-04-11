@@ -1,8 +1,8 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { NotFoundException } from '@nestjs/common';
 import { GetPostByIdQuery } from './get-post-by-id.query';
-import { IPostReadRepository } from '../interface/post-read-repository.interface';
-import { PostResponseDto } from '../dto/response/post.response.dto';
+import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
+import { PostResponseDto } from '@service/posts/dto/response/post.response.dto';
 import { CacheService } from '@app/shared';
 
 const POST_CACHE_TTL = 300; // 5분

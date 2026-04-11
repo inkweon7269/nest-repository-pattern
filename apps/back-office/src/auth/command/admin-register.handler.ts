@@ -3,8 +3,8 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { AdminRegisterCommand } from './admin-register.command';
-import { IAdminReadRepository } from '../interface/admin-read-repository.interface';
-import { IAdminWriteRepository } from '../interface/admin-write-repository.interface';
+import { IAdminReadRepository } from '@back-office/auth/interface/admin-read-repository.interface';
+import { IAdminWriteRepository } from '@back-office/auth/interface/admin-write-repository.interface';
 
 @CommandHandler(AdminRegisterCommand)
 export class AdminRegisterHandler implements ICommandHandler<AdminRegisterCommand> {

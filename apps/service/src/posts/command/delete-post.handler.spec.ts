@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { DeletePostHandler } from './delete-post.handler';
 import { DeletePostCommand } from './delete-post.command';
-import { IPostWriteRepository } from '../interface/post-write-repository.interface';
+import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { CacheService } from '@app/shared';
 
 describe('DeletePostHandler', () => {

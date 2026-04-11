@@ -9,7 +9,9 @@
   },
   "moduleNameMapper": {
     "^@app/shared/(.*)$": "<rootDir>/../../libs/shared/src/$1",
-    "^@app/shared$": "<rootDir>/../../libs/shared/src"
+    "^@app/shared$": "<rootDir>/../../libs/shared/src",
+    "^@service/(.*)$": "<rootDir>/../../apps/service/src/$1",
+    "^@back-office/(.*)$": "<rootDir>/../../apps/back-office/src/$1"
   },
   "globalSetup": "../setup/global-setup.ts",
   "globalTeardown": "../setup/global-teardown.ts",

@@ -3,8 +3,8 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { RegisterCommand } from './register.command';
-import { IUserReadRepository } from '../interface/user-read-repository.interface';
-import { IUserWriteRepository } from '../interface/user-write-repository.interface';
+import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
+import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
 
 @CommandHandler(RegisterCommand)
 export class RegisterHandler implements ICommandHandler<RegisterCommand> {

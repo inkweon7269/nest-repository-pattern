@@ -28,9 +28,9 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Idempotent } from '@app/shared';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
-import { CurrentUser } from '@app/shared';
-import { AuthUser } from '@app/shared';
+import { JwtAuthGuard } from '@service/auth/guard/jwt-auth.guard';
+import { CurrentUser } from '@service/auth/decorator/current-user.decorator';
+import { AuthUser } from '@service/auth/decorator/auth-user.type';
 import { CreatePostCommand } from './command/create-post.command';
 import { UpdatePostCommand } from './command/update-post.command';
 import { DeletePostCommand } from './command/delete-post.command';

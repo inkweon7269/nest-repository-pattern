@@ -1,7 +1,7 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { FindAllPostsPaginatedQuery } from './find-all-posts-paginated.query';
-import { IPostReadRepository } from '../interface/post-read-repository.interface';
-import { PostResponseDto } from '../dto/response/post.response.dto';
+import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
+import { PostResponseDto } from '@service/posts/dto/response/post.response.dto';
 import { PaginatedResponseDto } from '@app/shared';
 import { CacheService } from '@app/shared';
 

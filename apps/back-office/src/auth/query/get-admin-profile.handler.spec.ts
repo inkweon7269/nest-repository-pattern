@@ -2,9 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { GetAdminProfileHandler } from './get-admin-profile.handler';
 import { GetAdminProfileQuery } from './get-admin-profile.query';
-import { IAdminReadRepository } from '../interface/admin-read-repository.interface';
+import { IAdminReadRepository } from '@back-office/auth/interface/admin-read-repository.interface';
 import { Admin, AdminRole } from '@app/shared';
-import { AdminProfileResponseDto } from '../dto/response/admin-profile.response.dto';
+import { AdminProfileResponseDto } from '@back-office/auth/dto/response/admin-profile.response.dto';
 
 describe('GetAdminProfileHandler', () => {
   let handler: GetAdminProfileHandler;

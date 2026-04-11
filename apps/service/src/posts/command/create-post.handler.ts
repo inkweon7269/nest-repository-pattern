@@ -3,9 +3,9 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryFailedError } from 'typeorm';
 import { CreatePostCommand } from './create-post.command';
-import { PostCreatedEvent } from '../event/post-created.event';
-import { IPostReadRepository } from '../interface/post-read-repository.interface';
-import { IPostWriteRepository } from '../interface/post-write-repository.interface';
+import { PostCreatedEvent } from '@service/posts/event/post-created.event';
+import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
+import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { CacheService } from '@app/shared';
 
 @CommandHandler(CreatePostCommand)

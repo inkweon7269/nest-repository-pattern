@@ -3,8 +3,8 @@ import { ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreatePostHandler } from './create-post.handler';
 import { CreatePostCommand } from './create-post.command';
-import { IPostReadRepository } from '../interface/post-read-repository.interface';
-import { IPostWriteRepository } from '../interface/post-write-repository.interface';
+import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
+import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { CacheService } from '@app/shared';
 import { Post } from '@app/shared';
 

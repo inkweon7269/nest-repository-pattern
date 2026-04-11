@@ -5,8 +5,8 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { AdminRefreshTokenCommand } from './admin-refresh-token.command';
-import { IAdminReadRepository } from '../interface/admin-read-repository.interface';
-import { IAdminWriteRepository } from '../interface/admin-write-repository.interface';
+import { IAdminReadRepository } from '@back-office/auth/interface/admin-read-repository.interface';
+import { IAdminWriteRepository } from '@back-office/auth/interface/admin-write-repository.interface';
 import { AdminRole } from '@app/shared';
 import { AuthTokens } from '@app/shared';
 
