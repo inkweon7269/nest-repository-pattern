@@ -28,7 +28,7 @@
 | 용어 | 설명 |
 |------|------|
 | **`nest build <app>`** | 특정 앱만 빌드하는 CLI 명령. `nest build service`는 service 앱과 그 앱이 의존하는 라이브러리(shared)만 컴파일한다. admin 앱은 빌드하지 않는다. |
-| **`dist/apps/<app>/`** | 빌드 결과물이 저장되는 디렉토리. `nest build service` → `dist/apps/service/`, `nest build admin` → `dist/apps/admin/`. |
+| **`dist/apps/<app>/`** | 빌드 결과물이 저장되는 디렉토리. `nest build service` → `dist/apps/service/`, `nest build back-office` → `dist/apps/back-office/`. |
 | **엔트리 포인트 (Entry Point)** | 앱이 실행될 때 가장 먼저 호출되는 파일. `apps/service/src/main.ts`가 service 앱의 엔트리 포인트이다. |
 | **독립 스케일링** | 서비스 서버와 관리자 서버를 별도의 인스턴스로 배포하여, 트래픽에 따라 각각 독립적으로 인스턴스 수를 조절하는 것. 사용자 트래픽이 많으면 service만 증설하고, admin은 최소 인스턴스로 유지할 수 있다. |
 
@@ -183,7 +183,7 @@ project-root/
 └── dist/                            # 빌드 결과물
     └── apps/
         ├── service/                 # nest build service 결과
-        └── admin/                   # nest build admin 결과
+        └── admin/                   # nest build back-office 결과
 ```
 
 ### 3.2 공유 요소 분류
@@ -217,7 +217,7 @@ project-root/
 | 앱 | 포함 내용 |
 |----|----------|
 | `apps/service/` | Auth 컨트롤러/핸들러/DTO, Posts 컨트롤러/핸들러/DTO, User/Post 레포지토리 인터페이스+구현, JWT 전략/가드, 이벤트 핸들러 |
-| `apps/admin/` | auth/ (인증 컨트롤러/핸들러/DTO), 레포지토리 인터페이스+구현, JWT 전략/가드, 데코레이터, 향후 관리자용 User/Post 조회 레포지토리 |
+| `apps/back-office/` | auth/ (인증 컨트롤러/핸들러/DTO), 레포지토리 인터페이스+구현, JWT 전략/가드, 데코레이터, 향후 관리자용 User/Post 조회 레포지토리 |
 
 ### 3.3 핵심 설정 변경
 
@@ -244,13 +244,13 @@ project-root/
         "tsConfigPath": "apps/service/tsconfig.app.json"
       }
     },
-    "admin": {
+    "back-office": {
       "type": "application",
-      "root": "apps/admin",
+      "root": "apps/back-office",
       "entryFile": "main",
-      "sourceRoot": "apps/admin/src",
+      "sourceRoot": "apps/back-office/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/admin/tsconfig.app.json"
+        "tsConfigPath": "apps/back-office/tsconfig.app.json"
       }
     },
     "shared": {
@@ -299,16 +299,16 @@ const entities = [User, Post, Admin];
 ```json
 {
   "build:service": "nest build service",
-  "build:admin": "nest build admin",
-  "build:all": "nest build service && nest build admin",
+  "build:back-office": "nest build back-office",
+  "build:all": "nest build service && nest build back-office",
   "start:service:local": "cross-env NODE_ENV=local nest start service --watch",
-  "start:admin:local": "cross-env NODE_ENV=local nest start admin --watch",
+  "start:back-office:local": "cross-env NODE_ENV=local nest start back-office --watch",
   "start:service:prod": "cross-env NODE_ENV=production node dist/apps/service/main",
-  "start:admin:prod": "cross-env NODE_ENV=production node dist/apps/admin/main",
+  "start:back-office:prod": "cross-env NODE_ENV=production node dist/apps/back-office/main",
   "test": "jest",
   "test:e2e:service": "jest --config test/service/jest-e2e.json",
-  "test:e2e:admin": "jest --config test/admin/jest-e2e.json",
-  "test:e2e": "pnpm test:e2e:service && pnpm test:e2e:admin",
+  "test:e2e:back-office": "jest --config test/back-office/jest-e2e.json",
+  "test:e2e": "pnpm test:e2e:service && pnpm test:e2e:back-office",
   "migration:run:local": "cross-env NODE_ENV=local typeorm migration:run -d libs/shared/src/data-source.ts"
 }
 ```
@@ -323,7 +323,7 @@ ADMIN_PORT=3001
 ```
 
 - `apps/service/src/main.ts` → `app.listen(configService.get('PORT', 3000))`
-- `apps/admin/src/main.ts` → `app.listen(configService.get('ADMIN_PORT', 3001))`
+- `apps/back-office/src/main.ts` → `app.listen(configService.get('ADMIN_PORT', 3001))`
 
 ---
 
@@ -336,7 +336,7 @@ ADMIN_PORT=3001
 | 1 | 모노레포 스캐폴딩 | 디렉토리 구조 생성, nest-cli.json 전환, tsconfig 분리 |
 | 2 | 공유 라이브러리 추출 | 엔티티, 마이그레이션, common, 인프라 모듈 → libs/shared/ |
 | 3 | 서비스 앱 생성 | auth, posts → apps/service/, import 경로 변경 |
-| 4 | 관리자 앱 생성 | admin → apps/admin/, import 경로 변경, 별도 포트 |
+| 4 | 관리자 앱 생성 | admin → apps/back-office/, import 경로 변경, 별도 포트 |
 | 5 | 테스트 재구성 | 통합 테스트 분리, Jest 설정 업데이트 |
 | 6 | 정리 | 기존 src/ 삭제, @src/* 별칭 제거, CI/CD 업데이트 |
 
@@ -349,23 +349,23 @@ ADMIN_PORT=3001
 ### 5.1 단위 테스트
 
 - 소스 코드 옆에 `.spec.ts` 파일 위치 (기존 패턴 유지)
-- `apps/service/src/`, `apps/admin/src/`, `libs/shared/src/` 각각에 존재
+- `apps/service/src/`, `apps/back-office/src/`, `libs/shared/src/` 각각에 존재
 - 루트 `package.json`의 Jest 설정에서 `projects` 배열로 멀티 프로젝트 실행
 
 ### 5.2 통합 테스트
 
 - `test/setup/` — 공유 인프라 (Testcontainers, transaction rollback)
 - `test/service/` — 서비스 앱 통합 테스트 (auth, posts)
-- `test/admin/` — 관리자 앱 통합 테스트 (admin)
+- `test/back-office/` — 관리자 앱 통합 테스트 (admin)
 - `integration-helper.ts`의 `createIntegrationApp()`이 AppModule을 파라미터로 받도록 변경
 
 ### 5.3 마이그레이션 각 Phase에서의 검증
 
 ```bash
-nest build service && nest build admin   # 양쪽 빌드 통과
+nest build service && nest build back-office   # 양쪽 빌드 통과
 pnpm test                                 # 단위 테스트 전체 통과
 pnpm test:e2e:service                     # 서비스 통합 테스트 통과
-pnpm test:e2e:admin                       # 관리자 통합 테스트 통과
+pnpm test:e2e:back-office                       # 관리자 통합 테스트 통과
 pnpm lint:check                           # 린트 통과
 ```
 
@@ -381,7 +381,7 @@ pnpm lint:check                           # 린트 통과
 ```
 docker/
   Dockerfile.service    # dist/apps/service/main.js 실행
-  Dockerfile.admin      # dist/apps/admin/main.js 실행
+  Dockerfile.admin      # dist/apps/back-office/main.js 실행
 ```
 
 **옵션 2 — 단일 이미지 + 환경변수 선택**:
@@ -396,7 +396,7 @@ docker/
 ### 6.3 네트워크 분리
 
 - `apps/service` — 외부 네트워크에 노출 (사용자 접근)
-- `apps/admin` — 내부 네트워크에만 노출 (VPN/내부망)
+- `apps/back-office` — 내부 네트워크에만 노출 (VPN/내부망)
 - 같은 DB, 같은 Redis에 연결 (같은 VPC 내)
 
 ---

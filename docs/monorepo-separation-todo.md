@@ -28,7 +28,7 @@
 - [ ] `nest generate app admin` 실행하여 모노레포 모드 자동 전환
   - 기존 `src/`가 `apps/nest-repository-pattern/src/`로 자동 이동됨
   - `nest-cli.json`이 모노레포 모드로 자동 업데이트됨
-  - `apps/admin/src/`에 새 앱 스캐폴드 생성됨
+  - `apps/back-office/src/`에 새 앱 스캐폴드 생성됨
 - [ ] 기존 앱 디렉토리를 `apps/service/`로 리네임
   - `apps/nest-repository-pattern/` → `apps/service/`
   - `nest-cli.json`의 프로젝트명도 `service`로 변경
@@ -38,7 +38,7 @@
   - `nest-cli.json`에 shared 프로젝트 메타데이터 추가됨
 - [ ] 각 앱/라이브러리의 tsconfig 파일 확인 및 조정
   - `apps/service/tsconfig.app.json`
-  - `apps/admin/tsconfig.app.json`
+  - `apps/back-office/tsconfig.app.json`
   - `libs/shared/tsconfig.lib.json`
 - [ ] **검증:** `nest build service` 성공 확인
 
@@ -144,23 +144,23 @@
 
 ## Phase 4: 관리자 앱 생성
 
-> **이 Phase에서 하는 일:** `apps/admin/`에 관리자 코드를 배치하고, 별도 포트(3001)에서 독립 실행되도록 구성한다.
+> **이 Phase에서 하는 일:** `apps/back-office/`에 관리자 코드를 배치하고, 별도 포트(3001)에서 독립 실행되도록 구성한다.
 
-- [ ] `apps/admin/src/` 하위에 기존 admin 코드를 기능별로 배치 (admin/ 중첩 없이 플랫 구조)
-  - `src/admin/auth/` → `apps/admin/src/auth/` (인증 컨트롤러, command, query, dto)
-  - `src/admin/guard/` → `apps/admin/src/guard/`
-  - `src/admin/strategy/` → `apps/admin/src/strategy/`
-  - `src/admin/decorator/` → `apps/admin/src/decorator/`
-  - `src/admin/interface/` → `apps/admin/src/interface/`
-  - `src/admin/admin.repository.ts` → `apps/admin/src/admin.repository.ts`
-  - `src/admin/admin-repository.provider.ts` → `apps/admin/src/admin-repository.provider.ts`
-  - `src/admin/admin.module.ts` → `apps/admin/src/admin.module.ts`
+- [ ] `apps/back-office/src/` 하위에 기존 admin 코드를 기능별로 배치 (admin/ 중첩 없이 플랫 구조)
+  - `src/admin/auth/` → `apps/back-office/src/auth/` (인증 컨트롤러, command, query, dto)
+  - `src/admin/guard/` → `apps/back-office/src/guard/`
+  - `src/admin/strategy/` → `apps/back-office/src/strategy/`
+  - `src/admin/decorator/` → `apps/back-office/src/decorator/`
+  - `src/admin/interface/` → `apps/back-office/src/interface/`
+  - `src/admin/admin.repository.ts` → `apps/back-office/src/admin.repository.ts`
+  - `src/admin/admin-repository.provider.ts` → `apps/back-office/src/admin-repository.provider.ts`
+  - `src/admin/admin.module.ts` → `apps/back-office/src/admin.module.ts`
   - 엔티티/enum은 이미 `libs/shared/`에 있으므로 이동 불필요
-- [ ] `apps/admin/src/app.module.ts` 생성
+- [ ] `apps/back-office/src/app.module.ts` 생성
   - `AdminModule` + 공유 인프라 모듈(`@app/shared`) import
   - `ConfigModule.forRoot()`, `TypeOrmModule.forRootAsync()`, `ThrottlerModule`, `EventEmitterModule`
   - `LoggingModule`, `IdempotencyModule`, `HealthModule`
-- [ ] `apps/admin/src/main.ts` 생성
+- [ ] `apps/back-office/src/main.ts` 생성
   - `ADMIN_PORT` 환경변수 사용 (기본값 3001)
   - Swagger 설정 (Admin 전용 title, description)
   - URI Versioning 설정
@@ -169,13 +169,13 @@
   - 엔티티, enum, 공통 유틸리티, auth.types 등
 - [ ] `.env.local`, `.env.example`에 `ADMIN_PORT=3001` 추가
 - [ ] **검증:**
-  - [ ] `nest build admin` 빌드 성공
-  - [ ] `nest start admin` 서버 기동 확인 (localhost:3001/health)
+  - [ ] `nest build back-office` 빌드 성공
+  - [ ] `nest start back-office` 서버 기동 확인 (localhost:3001/health)
   - [ ] `pnpm test` 단위 테스트 통과
   - [ ] 두 서버 동시 기동 테스트
     ```bash
     nest start service &   # localhost:3000
-    nest start admin &     # localhost:3001
+    nest start back-office &     # localhost:3001
     curl localhost:3000/health
     curl localhost:3001/health
     ```
@@ -192,9 +192,9 @@
   - `test/auth.integration-spec.ts` → `test/service/auth.integration-spec.ts`
   - `test/posts.integration-spec.ts` → `test/service/posts.integration-spec.ts`
   - `test/service/jest-e2e.json` 생성 (moduleNameMapper에 `@app/shared` 추가)
-- [ ] `test/admin/` 디렉토리 생성
-  - `test/admin.integration-spec.ts` → `test/admin/admin.integration-spec.ts`
-  - `test/admin/jest-e2e.json` 생성
+- [ ] `test/back-office/` 디렉토리 생성
+  - `test/admin.integration-spec.ts` → `test/back-office/admin.integration-spec.ts`
+  - `test/back-office/jest-e2e.json` 생성
 
 ### 5.2 테스트 헬퍼 수정
 
@@ -220,15 +220,15 @@
 - [ ] 스크립트 추가/수정
   ```json
   "test:e2e:service": "jest --config test/service/jest-e2e.json",
-  "test:e2e:admin": "jest --config test/admin/jest-e2e.json",
-  "test:e2e": "pnpm test:e2e:service && pnpm test:e2e:admin"
+  "test:e2e:back-office": "jest --config test/back-office/jest-e2e.json",
+  "test:e2e": "pnpm test:e2e:service && pnpm test:e2e:back-office"
   ```
 
 ### 5.5 검증
 
 - [ ] `pnpm test` 단위 테스트 전체 통과
 - [ ] `pnpm test:e2e:service` 서비스 통합 테스트 통과
-- [ ] `pnpm test:e2e:admin` 관리자 통합 테스트 통과
+- [ ] `pnpm test:e2e:back-office` 관리자 통합 테스트 통과
 
 ---
 
@@ -254,7 +254,7 @@
 
 - [ ] package.json scripts 정리
   - 기존 단일 앱 스크립트 제거 (`build:local`, `start:local` 등)
-  - 모노레포 스크립트로 교체 (`build:service`, `build:admin`, `start:service:local`, `start:admin:local` 등)
+  - 모노레포 스크립트로 교체 (`build:service`, `build:back-office`, `start:service:local`, `start:back-office:local` 등)
   - migration 스크립트 경로 업데이트 (`libs/shared/src/data-source.ts`)
 
 ### 6.4 문서 업데이트
@@ -268,18 +268,18 @@
 ### 6.5 CI/CD 업데이트
 
 - [ ] GitHub Actions 워크플로우 업데이트
-  - 빌드: `pnpm build:all` (또는 `nest build service && nest build admin`)
-  - 테스트: `pnpm test` + `pnpm test:e2e:service` + `pnpm test:e2e:admin`
+  - 빌드: `pnpm build:all` (또는 `nest build service && nest build back-office`)
+  - 테스트: `pnpm test` + `pnpm test:e2e:service` + `pnpm test:e2e:back-office`
   - migration 경로 변경 (`libs/shared/src/migrations/`)
 
 ### 6.6 최종 검증
 
 - [ ] `pnpm format` — 포맷 자동 수정
 - [ ] `pnpm lint:check` — 린트 통과
-- [ ] `nest build service && nest build admin` — 양쪽 빌드 통과
+- [ ] `nest build service && nest build back-office` — 양쪽 빌드 통과
 - [ ] `pnpm test` — 단위 테스트 전체 통과
 - [ ] `pnpm test:e2e:service` — 서비스 통합 테스트 통과
-- [ ] `pnpm test:e2e:admin` — 관리자 통합 테스트 통과
+- [ ] `pnpm test:e2e:back-office` — 관리자 통합 테스트 통과
 - [ ] 두 서버 동시 기동 + API 수동 확인
   ```bash
   # 서비스 서버
