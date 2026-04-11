@@ -1,5 +1,5 @@
 import './instrumentation';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -21,6 +21,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
 
   const config = new DocumentBuilder()
     .setTitle('Posts API')

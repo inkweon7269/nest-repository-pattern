@@ -1,6 +1,10 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types';
 import { DataSource, EntityManager, QueryRunner } from 'typeorm';
@@ -36,6 +40,11 @@ export async function createIntegrationApp(): Promise<INestApplication<App>> {
       transform: true,
     }),
   );
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
+
   await app.init();
 
   return app;

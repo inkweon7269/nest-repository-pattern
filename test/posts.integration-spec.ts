@@ -34,11 +34,11 @@ describe('Posts (integration)', () => {
   async function registerAndLogin(body: Record<string, unknown> = {}) {
     const user = { ...defaultUser, ...body };
     await request(app.getHttpServer())
-      .post('/auth/register')
+      .post('/v1/auth/register')
       .send(user)
       .expect(201);
     const loginRes = await request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/v1/auth/login')
       .send({ email: user.email, password: user.password })
       .expect(200);
     return loginRes.body as { accessToken: string; refreshToken: string };
@@ -46,7 +46,7 @@ describe('Posts (integration)', () => {
 
   function createPost(token: string, body: Record<string, unknown> = {}) {
     return request(app.getHttpServer())
-      .post('/posts')
+      .post('/v1/posts')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', crypto.randomUUID())
       .send({ title: 'Default Title', content: 'Default Content', ...body });
@@ -59,7 +59,7 @@ describe('Posts (integration)', () => {
     const createRes = await createPost(token, body).expect(201);
     const id = createRes.body.id as number;
     const getRes = await request(app.getHttpServer())
-      .get(`/posts/${id}`)
+      .get(`/v1/posts/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
     return getRes;
@@ -70,29 +70,29 @@ describe('Posts (integration)', () => {
   // ============================================================
   describe('Authentication required', () => {
     it('should return 401 for GET /posts without token', () => {
-      return request(app.getHttpServer()).get('/posts').expect(401);
+      return request(app.getHttpServer()).get('/v1/posts').expect(401);
     });
 
     it('should return 401 for GET /posts/:id without token', () => {
-      return request(app.getHttpServer()).get('/posts/1').expect(401);
+      return request(app.getHttpServer()).get('/v1/posts/1').expect(401);
     });
 
     it('should return 401 for POST /posts without token', () => {
       return request(app.getHttpServer())
-        .post('/posts')
+        .post('/v1/posts')
         .send({ title: 'Test', content: 'Content' })
         .expect(401);
     });
 
     it('should return 401 for PATCH /posts/:id without token', () => {
       return request(app.getHttpServer())
-        .patch('/posts/1')
+        .patch('/v1/posts/1')
         .send({ title: 'Test', content: 'Content', isPublished: false })
         .expect(401);
     });
 
     it('should return 401 for DELETE /posts/:id without token', () => {
-      return request(app.getHttpServer()).delete('/posts/1').expect(401);
+      return request(app.getHttpServer()).delete('/v1/posts/1').expect(401);
     });
   });
 
@@ -181,7 +181,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 when title is missing', () => {
       return request(app.getHttpServer())
-        .post('/posts')
+        .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .send({ content: 'No title' })
         .expect(400);
@@ -189,7 +189,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 when content is missing', () => {
       return request(app.getHttpServer())
-        .post('/posts')
+        .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: 'No content' })
         .expect(400);
@@ -197,7 +197,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 when body is empty', () => {
       return request(app.getHttpServer())
-        .post('/posts')
+        .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .send({})
         .expect(400);
@@ -205,7 +205,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
-        .post('/posts')
+        .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: 'Post', content: 'Content', hacked: true })
         .expect(400);
@@ -258,7 +258,7 @@ describe('Posts (integration)', () => {
       await createPost(token, { title: 'Post A' }).expect(201);
 
       const res = await request(app.getHttpServer())
-        .get('/posts')
+        .get('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -275,7 +275,7 @@ describe('Posts (integration)', () => {
 
     it('should return empty items when no posts exist', async () => {
       const res = await request(app.getHttpServer())
-        .get('/posts')
+        .get('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -290,7 +290,7 @@ describe('Posts (integration)', () => {
       }
 
       const res = await request(app.getHttpServer())
-        .get('/posts?page=2&limit=2')
+        .get('/v1/posts?page=2&limit=2')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -309,7 +309,7 @@ describe('Posts (integration)', () => {
       await createPost(token, { title: 'Third' }).expect(201);
 
       const res = await request(app.getHttpServer())
-        .get('/posts?limit=3')
+        .get('/v1/posts?limit=3')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -324,7 +324,7 @@ describe('Posts (integration)', () => {
       }
 
       const res = await request(app.getHttpServer())
-        .get('/posts?page=2&limit=2')
+        .get('/v1/posts?page=2&limit=2')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -337,7 +337,7 @@ describe('Posts (integration)', () => {
       await createPost(token).expect(201);
 
       const res = await request(app.getHttpServer())
-        .get('/posts')
+        .get('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -353,21 +353,21 @@ describe('Posts (integration)', () => {
 
     it('should return 400 when page is 0', () => {
       return request(app.getHttpServer())
-        .get('/posts?page=0')
+        .get('/v1/posts?page=0')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
 
     it('should return 400 when limit exceeds 100', () => {
       return request(app.getHttpServer())
-        .get('/posts?limit=101')
+        .get('/v1/posts?limit=101')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
 
     it('should return 400 when page is not a number', () => {
       return request(app.getHttpServer())
-        .get('/posts?page=abc')
+        .get('/v1/posts?page=abc')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
@@ -383,7 +383,7 @@ describe('Posts (integration)', () => {
       }).expect(201);
 
       const res = await request(app.getHttpServer())
-        .get('/posts?isPublished=true')
+        .get('/v1/posts?isPublished=true')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -400,7 +400,7 @@ describe('Posts (integration)', () => {
       await createPost(token, { title: 'Draft' }).expect(201);
 
       const res = await request(app.getHttpServer())
-        .get('/posts?isPublished=false')
+        .get('/v1/posts?isPublished=false')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -419,7 +419,7 @@ describe('Posts (integration)', () => {
       await createPost(token, { title: 'Draft' }).expect(201);
 
       const res = await request(app.getHttpServer())
-        .get('/posts?isPublished=true&limit=2&page=1')
+        .get('/v1/posts?isPublished=true&limit=2&page=1')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -430,7 +430,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 for invalid isPublished value', () => {
       return request(app.getHttpServer())
-        .get('/posts?isPublished=notabool')
+        .get('/v1/posts?isPublished=notabool')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
@@ -447,7 +447,7 @@ describe('Posts (integration)', () => {
       );
 
       const res = await request(app.getHttpServer())
-        .get('/posts')
+        .get('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -465,7 +465,7 @@ describe('Posts (integration)', () => {
       });
 
       const res = await request(app.getHttpServer())
-        .get('/posts')
+        .get('/v1/posts')
         .set('Authorization', `Bearer ${tokens2.accessToken}`)
         .expect(200);
 
@@ -493,7 +493,7 @@ describe('Posts (integration)', () => {
 
       const id = createRes.body.id as number;
       const res = await request(app.getHttpServer())
-        .get(`/posts/${id}`)
+        .get(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -510,7 +510,7 @@ describe('Posts (integration)', () => {
       }).expect(201);
 
       const res = await request(app.getHttpServer())
-        .get(`/posts/${createRes.body.id as number}`)
+        .get(`/v1/posts/${createRes.body.id as number}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -525,7 +525,7 @@ describe('Posts (integration)', () => {
 
     it('should return 404 when post not found', () => {
       return request(app.getHttpServer())
-        .get('/posts/99999')
+        .get('/v1/posts/99999')
         .set('Authorization', `Bearer ${token}`)
         .expect(404)
         .expect((res) => {
@@ -546,14 +546,14 @@ describe('Posts (integration)', () => {
       });
 
       await request(app.getHttpServer())
-        .get(`/posts/${id}`)
+        .get(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${tokens2.accessToken}`)
         .expect(404);
     });
 
     it('should return 400 for non-numeric id', () => {
       return request(app.getHttpServer())
-        .get('/posts/abc')
+        .get('/v1/posts/abc')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
@@ -581,13 +581,13 @@ describe('Posts (integration)', () => {
       const id = createRes.body.id as number;
 
       await request(app.getHttpServer())
-        .patch(`/posts/${id}`)
+        .patch(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${token}`)
         .send(fullUpdate)
         .expect(204);
 
       const getRes = await request(app.getHttpServer())
-        .get(`/posts/${id}`)
+        .get(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -598,7 +598,7 @@ describe('Posts (integration)', () => {
 
     it('should return 404 when post not found', () => {
       return request(app.getHttpServer())
-        .patch('/posts/99999')
+        .patch('/v1/posts/99999')
         .set('Authorization', `Bearer ${token}`)
         .send(fullUpdate)
         .expect(404)
@@ -617,7 +617,7 @@ describe('Posts (integration)', () => {
       });
 
       return request(app.getHttpServer())
-        .patch(`/posts/${id}`)
+        .patch(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${tokens2.accessToken}`)
         .send(fullUpdate)
         .expect(404);
@@ -625,7 +625,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 for non-numeric id', () => {
       return request(app.getHttpServer())
-        .patch('/posts/abc')
+        .patch('/v1/posts/abc')
         .set('Authorization', `Bearer ${token}`)
         .send(fullUpdate)
         .expect(400);
@@ -633,7 +633,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 for invalid body (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
-        .patch('/posts/1')
+        .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
         .send({ ...fullUpdate, hacked: true })
         .expect(400);
@@ -641,7 +641,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 when required field is missing', () => {
       return request(app.getHttpServer())
-        .patch('/posts/1')
+        .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: 'Only Title' })
         .expect(400);
@@ -649,7 +649,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 when title is empty string', () => {
       return request(app.getHttpServer())
-        .patch('/posts/1')
+        .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: '', content: 'Content', isPublished: false })
         .expect(400);
@@ -657,7 +657,7 @@ describe('Posts (integration)', () => {
 
     it('should return 400 when content is empty string', () => {
       return request(app.getHttpServer())
-        .patch('/posts/1')
+        .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
         .send({ title: 'Title', content: '', isPublished: false })
         .expect(400);
@@ -680,19 +680,19 @@ describe('Posts (integration)', () => {
       const id = createRes.body.id as number;
 
       await request(app.getHttpServer())
-        .delete(`/posts/${id}`)
+        .delete(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(204);
 
       await request(app.getHttpServer())
-        .get(`/posts/${id}`)
+        .get(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(404);
     });
 
     it('should return 404 when post not found', () => {
       return request(app.getHttpServer())
-        .delete('/posts/99999')
+        .delete('/v1/posts/99999')
         .set('Authorization', `Bearer ${token}`)
         .expect(404)
         .expect((res) => {
@@ -710,14 +710,14 @@ describe('Posts (integration)', () => {
       });
 
       return request(app.getHttpServer())
-        .delete(`/posts/${id}`)
+        .delete(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${tokens2.accessToken}`)
         .expect(404);
     });
 
     it('should return 400 for non-numeric id', () => {
       return request(app.getHttpServer())
-        .delete('/posts/abc')
+        .delete('/v1/posts/abc')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
@@ -730,7 +730,7 @@ describe('Posts (integration)', () => {
       const id = createRes.body.id as number;
 
       await request(app.getHttpServer())
-        .delete(`/posts/${id}`)
+        .delete(`/v1/posts/${id}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(204);
 
@@ -742,7 +742,7 @@ describe('Posts (integration)', () => {
       expect(newRes.body.id).not.toBe(id);
 
       const getRes = await request(app.getHttpServer())
-        .get(`/posts/${newRes.body.id as number}`)
+        .get(`/v1/posts/${newRes.body.id as number}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -755,12 +755,12 @@ describe('Posts (integration)', () => {
       const res2 = await createPost(token, { title: 'Delete Me' }).expect(201);
 
       await request(app.getHttpServer())
-        .delete(`/posts/${res2.body.id as number}`)
+        .delete(`/v1/posts/${res2.body.id as number}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(204);
 
       const getRes = await request(app.getHttpServer())
-        .get(`/posts/${res1.body.id as number}`)
+        .get(`/v1/posts/${res1.body.id as number}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 

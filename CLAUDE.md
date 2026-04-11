@@ -85,6 +85,13 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - User 엔티티와 Post 엔티티는 `userId` FK로 연결 (1:N)
 - Posts와 동일한 Repository Pattern DI 구조 적용 (`IUserReadRepository` / `IUserWriteRepository`)
 
+### API Versioning
+
+- URI 기반 버전 관리 (`VersioningType.URI`, `defaultVersion: '1'`) — 모든 API 라우트에 `/v1/` 프리픽스 자동 적용
+- Health 엔드포인트는 `VERSION_NEUTRAL` — `/health`로 버전 프리픽스 없이 접근 (K8s probe 호환)
+- 새 컨트롤러 추가 시 `defaultVersion`에 의해 자동으로 `/v1/` 적용. 별도 `@Version()` 데코레이터 불필요
+- 통합 테스트 URL도 `/v1/` 프리픽스 사용 필수
+
 ### Soft Delete
 
 - Post 엔티티에 `@DeleteDateColumn()` 적용 — 삭제 시 `deletedAt` 타임스탬프 기록, 실제 행은 유지
