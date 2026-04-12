@@ -1,0 +1,19 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".(e2e|integration)-spec.ts$",
+  "testTimeout": 30000,
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@app/shared/(.*)$": "<rootDir>/../../libs/shared/src/$1",
+    "^@app/shared$": "<rootDir>/../../libs/shared/src",
+    "^@service/(.*)$": "<rootDir>/../../apps/service/src/$1",
+    "^@back-office/(.*)$": "<rootDir>/../../apps/back-office/src/$1"
+  },
+  "globalSetup": "../setup/global-setup.ts",
+  "globalTeardown": "../setup/global-teardown.ts",
+  "maxWorkers": 1
+}

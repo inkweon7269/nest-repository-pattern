@@ -4,9 +4,9 @@ on:
   pull_request:
     branches: [main, dev]
     paths:
-      - 'src/migrations/**'
-      - 'src/**/entities/**'
-      - 'src/database/**'
+      - 'libs/shared/src/migrations/**'
+      - 'libs/shared/src/entities/**'
+      - 'libs/shared/src/database/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

@@ -36,7 +36,7 @@ jobs:
         run: pnpm lint:check
 
       - name: Build
-        run: pnpm build:local
+        run: pnpm build:all
 
   unit-test:
     name: Unit Tests

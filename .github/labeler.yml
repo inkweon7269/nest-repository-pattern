@@ -1,34 +1,35 @@
 database:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/migrations/**'
-          - 'src/database/**'
+          - 'libs/shared/src/migrations/**'
+          - 'libs/shared/src/database/**'
 
 cqrs-command:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/*/command/**'
+          - 'apps/*/src/**/command/**'
 
 cqrs-query:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/*/query/**'
+          - 'apps/*/src/**/query/**'
 
 dto:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/*/dto/**'
+          - 'apps/*/src/**/dto/**'
 
 entity:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/*/entities/**'
+          - 'libs/shared/src/entities/**'
 
 test:
   - changed-files:
       - any-glob-to-any-file:
           - 'test/**'
-          - 'src/**/*.spec.ts'
+          - 'apps/**/*.spec.ts'
+          - 'libs/**/*.spec.ts'
 
 documentation:
   - changed-files:
@@ -40,3 +41,18 @@ ci:
   - changed-files:
       - any-glob-to-any-file:
           - '.github/**'
+
+shared-library:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'libs/shared/src/**'
+
+service:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'apps/service/src/**'
+
+back-office:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'apps/back-office/src/**'
