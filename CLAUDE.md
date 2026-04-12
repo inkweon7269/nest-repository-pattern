@@ -10,6 +10,10 @@ pnpm build:service      # service 앱 빌드
 pnpm build:back-office  # back-office 앱 빌드
 pnpm build:all          # 양쪽 앱 빌드
 
+# Start (동시 실행)
+pnpm start:local                # service + back-office 동시 실행 (concurrently, local)
+pnpm start:dev                  # service + back-office 동시 실행 (concurrently, development)
+
 # Start (앱별, environment-specific)
 pnpm start:service:local        # service local + watch mode (PORT=3000)
 pnpm start:back-office:local    # back-office local + watch mode (ADMIN_PORT=3001)
@@ -40,8 +44,10 @@ pnpm migration:local                                                          # 
 pnpm migration:dev                                                            # dev DB에 pending migration 실행
 pnpm migration:prod                                                           # prod DB에 pending migration 실행
 pnpm migration:generate:local -- libs/shared/src/migrations/CreatePostTable   # 엔티티 diff로 migration 자동 생성
-pnpm migration:revert:local                                                   # 마지막 migration 롤백
+pnpm migration:generate:dev -- libs/shared/src/migrations/CreatePostTable     # dev 환경 migration 생성
+pnpm migration:revert:local                                                   # 마지막 migration 롤백 (dev/prod 변형도 존재)
 pnpm migration:create -- libs/shared/src/migrations/AddCategoryToPost         # 빈 migration 템플릿 생성
+pnpm test:migration                                                           # CI용 migration safety check (컨테이너 기동 + migration 실행만 검증)
 ```
 
 ## Architecture & Patterns
@@ -137,6 +143,25 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `LoggingInterceptor` — HTTP 요청/응답 로깅 (글로벌 적용)
 - `HttpExceptionFilter` — 예외 처리 및 에러 로깅 (글로벌 적용)
 - correlation ID, 민감 정보 redaction 지원
+
+### Idempotency
+
+- `@Idempotent()` 데코레이터 (`libs/shared/src/idempotency/`) — POST 엔드포인트에 적용하여 중복 요청 방지
+- Redis 기반 멱등성 키 저장. `IdempotencyInterceptor`가 요청 헤더의 키로 중복 여부 판단
+- `IdempotencyModule`을 import하여 사용
+
+### Event-Driven (EventEmitter + Slack)
+
+- `@nestjs/event-emitter` 기반 도메인 이벤트 발행 — Command Handler에서 상태 변경 후 이벤트 발행
+- `PostCreatedEvent` → `PostCreatedHandler`가 Slack 알림 전송 (`apps/service/src/posts/event/`)
+- `SlackModule` / `SlackService` (`libs/shared/src/slack/`) — Slack Bot Token으로 채널 알림 전송
+- 이벤트 핸들러는 비동기 처리되므로 메인 요청 흐름에 영향 없음
+
+### OpenTelemetry
+
+- `libs/shared/src/instrumentation.ts` — OTEL SDK 자동 계측 초기화 (양쪽 앱의 `main.ts`에서 import)
+- `OTEL_ENABLED` 환경변수로 활성화/비활성화 제어
+- `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`으로 trace 수집 대상 설정
 
 ### NestJS Conventions
 
