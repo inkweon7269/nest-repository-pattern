@@ -16,6 +16,7 @@ NestJS **모노레포** 기반 Posts CRUD API + Admin Back-Office.
 | **Idempotency** | Redis 기반 POST 요청 멱등성 보장 |
 | **Logging** | pino-http 기반 구조화 로깅 (correlation ID, redaction) |
 | **Slack 알림** | 게시물 생성 시 이벤트 기반 Slack 알림 |
+| **OpenTelemetry** | OTEL SDK 자동 계측 (트레이싱, `OTEL_ENABLED`로 제어) |
 
 ## 목차
 
@@ -40,6 +41,28 @@ NestJS **모노레포** 기반 Posts CRUD API + Admin Back-Office.
 ### 모노레포 구조
 
 NestJS Monorepo Mode로 서비스(사용자)와 관리자(Back-Office) 서버를 분리하고, 공유 코드를 라이브러리로 관리한다.
+
+#### 왜 모노레포인가?
+
+서비스와 관리자 서버는 **동일한 엔티티, 마이그레이션, 인프라 모듈**(DB, Redis, 캐시, 로깅 등)을 공유하지만, **인증 체계와 비즈니스 로직은 독립적**이다. 모노레포는 이 두 가지 요구를 동시에 충족한다.
+
+- **코드 공유**: 엔티티, 마이그레이션, 인프라 모듈을 `libs/shared`에 한 번만 작성하고 `@app/shared`로 import
+- **독립 배포**: 각 앱은 별도 `main.ts`와 빌드 타겟을 가지며, 독립적으로 빌드·배포 가능
+- **독립 인증**: 서비스(User + JWT)와 관리자(Admin + 별도 JWT)는 토큰이 교차 사용 불가
+
+#### NestJS Monorepo Mode 구성
+
+`nest-cli.json`의 `"monorepo": true` 설정으로 활성화된다. 단일 루트 `tsconfig.json`에서 path alias를 정의하고, 각 앱/라이브러리는 자체 `tsconfig.app.json` 또는 `tsconfig.lib.json`을 갖는다.
+
+| 구분 | 프로젝트 | 타입 | Path Alias | 빌드 커맨드 |
+|------|----------|------|------------|-------------|
+| 앱 | `service` | application | `@service/*` | `nest build service` |
+| 앱 | `back-office` | application | `@back-office/*` | `nest build back-office` |
+| 라이브러리 | `shared` | library | `@app/shared`, `@app/shared/*` | 앱 빌드 시 자동 포함 |
+
+- `nest build <app>`은 해당 앱의 `tsconfig.app.json`을 기준으로 빌드하며, path alias를 통해 `libs/shared`를 자동으로 포함한다.
+- `concurrently`로 양쪽 서버를 동시에 실행할 수 있다 (`pnpm start:local`).
+- 통합 테스트는 앱별로 분리되어 있으며 (`test/service/`, `test/back-office/`), 공유 테스트 인프라는 `test/setup/`에 위치한다.
 
 ```
 project-root/
@@ -160,6 +183,17 @@ export const postRepositoryProviders: Provider[] = [
 - TTL: 게시물 5분, 목록 3분, 프로필 10분
 - 상세 가이드: [docs/cache-layer-guide.md](./docs/cache-layer-guide.md)
 
+### Event-Driven & Slack 알림
+
+- `@nestjs/event-emitter` 기반 도메인 이벤트 발행
+- `PostCreatedEvent` → `PostCreatedHandler`가 Slack 채널에 알림 전송
+- 이벤트 핸들러는 비동기 처리되어 메인 요청 흐름에 영향 없음
+
+### OpenTelemetry
+
+- `libs/shared/src/instrumentation.ts` — OTEL SDK 자동 계측 (양쪽 앱에서 import)
+- `OTEL_ENABLED` 환경변수로 활성화/비활성화, `OTEL_EXPORTER_OTLP_ENDPOINT`로 수집 대상 설정
+
 ---
 
 ## 시작하기
@@ -179,11 +213,12 @@ cp .env.example .env.local
 ### 실행
 
 ```bash
-# 서비스 서버 (사용자, PORT=3000)
-pnpm start:service:local
+# 양쪽 서버 동시 실행 (concurrently)
+pnpm start:local                 # service(3000) + back-office(3001) 동시 실행
 
-# 관리자 서버 (Back-Office, ADMIN_PORT=3001)
-pnpm start:back-office:local
+# 또는 앱별 개별 실행
+pnpm start:service:local         # 서비스 서버 (PORT=3000)
+pnpm start:back-office:local     # 관리자 서버 (ADMIN_PORT=3001)
 
 # 빌드
 pnpm build:all           # 양쪽 앱 빌드
@@ -294,3 +329,5 @@ GitHub Actions로 코드 품질을 자동 검증한다.
 | [멱등성 가이드](./docs/idempotency-guide.md) | Redis 기반 멱등성 처리 |
 | [ISP 적용](./docs/interface-segregation-principle.md) | Repository 인터페이스 분리 원칙 |
 | [GitHub Actions 가이드](./docs/github-actions-guide.md) | CI/CD 파이프라인 설정 |
+| [Slack 알림 PRD](./docs/slack-notification-prd.md) | Slack 알림 기능 기획 |
+| [로깅 시스템 PRD](./docs/logging-system-prd.md) | 구조화 로깅 시스템 기획 |
