@@ -1,11 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { NotFoundException } from '@nestjs/common';
 import { GetProfileHandler } from './get-profile.handler';
 import { GetProfileQuery } from './get-profile.query';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
 import { User } from '@app/shared';
 import { ProfileResponseDto } from '@service/auth/dto/response/profile.response.dto';
-import { CacheService } from '@app/shared';
 
 describe('GetProfileHandler', () => {
   let handler: GetProfileHandler;
@@ -23,28 +22,11 @@ describe('GetProfileHandler', () => {
   } as User;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByEmail: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(GetProfileHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GetProfileHandler,
-        { provide: IUserReadRepository, useValue: mockReadRepository },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    handler = module.get(GetProfileHandler);
+    handler = unit;
+    mockReadRepository = unitRef.get(IUserReadRepository);
   });
 
   it('존재하는 사용자의 프로필을 조회하면 ProfileResponseDto를 반환한다', async () => {

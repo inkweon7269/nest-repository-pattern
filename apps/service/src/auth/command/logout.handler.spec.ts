@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { NotFoundException } from '@nestjs/common';
 import { LogoutHandler } from './logout.handler';
 import { LogoutCommand } from './logout.command';
@@ -9,21 +9,10 @@ describe('LogoutHandler', () => {
   let mockWriteRepository: jest.Mocked<IUserWriteRepository>;
 
   beforeEach(async () => {
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-    };
+    const { unit, unitRef } = await TestBed.solitary(LogoutHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LogoutHandler,
-        { provide: IUserWriteRepository, useValue: mockWriteRepository },
-      ],
-    }).compile();
-
-    handler = module.get(LogoutHandler);
-
-    jest.clearAllMocks();
+    handler = unit;
+    mockWriteRepository = unitRef.get(IUserWriteRepository);
   });
 
   it('정상 로그아웃 시 update가 올바른 인자로 호출된다', async () => {

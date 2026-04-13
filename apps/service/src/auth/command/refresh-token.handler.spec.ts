@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -16,8 +16,8 @@ describe('RefreshTokenHandler', () => {
   let handler: RefreshTokenHandler;
   let mockReadRepository: jest.Mocked<IUserReadRepository>;
   let mockWriteRepository: jest.Mocked<IUserWriteRepository>;
-  let mockJwtService: jest.Mocked<Pick<JwtService, 'sign' | 'verify'>>;
-  let mockConfigService: jest.Mocked<Pick<ConfigService, 'get'>>;
+  let mockJwtService: jest.Mocked<JwtService>;
+  let mockConfigService: jest.Mocked<ConfigService>;
 
   const mockUser = {
     id: 1,
@@ -30,36 +30,14 @@ describe('RefreshTokenHandler', () => {
   } as User;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByEmail: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(RefreshTokenHandler).compile();
 
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-    };
-
-    mockJwtService = {
-      sign: jest.fn(),
-      verify: jest.fn(),
-    };
-
-    mockConfigService = {
-      get: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RefreshTokenHandler,
-        { provide: IUserReadRepository, useValue: mockReadRepository },
-        { provide: IUserWriteRepository, useValue: mockWriteRepository },
-        { provide: JwtService, useValue: mockJwtService },
-        { provide: ConfigService, useValue: mockConfigService },
-      ],
-    }).compile();
-
-    handler = module.get(RefreshTokenHandler);
+    handler = unit;
+    mockReadRepository = unitRef.get(IUserReadRepository);
+    mockWriteRepository = unitRef.get(IUserWriteRepository);
+    mockJwtService = unitRef.get(JwtService);
+    mockConfigService = unitRef.get(ConfigService);
 
     jest.clearAllMocks();
 

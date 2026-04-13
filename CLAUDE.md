@@ -196,8 +196,8 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 원칙: **로직은 단위 테스트, 연결(wiring)은 통합 테스트.** pass-through 레이어(Controller, Repository)의 단위 테스트는 작성하지 않는다.
 
 - **단위 테스트** (`apps/**/*.spec.ts`, `libs/**/*.spec.ts`) — 실제 조건 분기/변환 로직이 있는 레이어만 테스트
-  - Handler: DTO 변환 또는 NotFoundException 분기가 있는 Handler만 테스트 (`UpdatePostHandler`, `DeletePostHandler`, `GetPostByIdHandler`, `FindAllPostsPaginatedHandler`). pass-through 성격의 `CreatePostHandler`는 통합 테스트로 커버
-  - DTO: `PostResponseDto.of()`, `PaginatedResponseDto.of()` — 순수 팩토리 함수
+  - Handler: `@suites/unit`의 `TestBed.solitary()`로 의존성 자동 mock. `jest.Mocked<T>`로 타입 선언하고 `unitRef.get(Token)`으로 mock 인스턴스를 추출한다. `jest.mock('bcrypt')` 등 Node 모듈 mock은 Suites와 무관하게 유지.
+  - DTO: `PostResponseDto.of()`, `PaginatedResponseDto.of()` — 순수 팩토리 함수 (DI 없음, Suites 미사용)
 - **통합 테스트** (`test/service/*.integration-spec.ts`, `test/back-office/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp(AppModule)`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
 - ~~**e2e 테스트**~~ — 제거됨. 통합 테스트가 HTTP 레이어를 포함한 전체 플로우를 검증하므로 별도 e2e 테스트를 유지하지 않음.
 

@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { ConflictException } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -16,25 +16,11 @@ describe('RegisterHandler', () => {
   let mockWriteRepository: jest.Mocked<IUserWriteRepository>;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByEmail: jest.fn(),
-    };
+    const { unit, unitRef } = await TestBed.solitary(RegisterHandler).compile();
 
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RegisterHandler,
-        { provide: IUserReadRepository, useValue: mockReadRepository },
-        { provide: IUserWriteRepository, useValue: mockWriteRepository },
-      ],
-    }).compile();
-
-    handler = module.get(RegisterHandler);
+    handler = unit;
+    mockReadRepository = unitRef.get(IUserReadRepository);
+    mockWriteRepository = unitRef.get(IUserWriteRepository);
 
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
   });

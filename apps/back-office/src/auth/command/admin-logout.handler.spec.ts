@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { NotFoundException } from '@nestjs/common';
 import { AdminLogoutHandler } from './admin-logout.handler';
 import { AdminLogoutCommand } from './admin-logout.command';
@@ -9,21 +9,11 @@ describe('AdminLogoutHandler', () => {
   let mockWriteRepository: jest.Mocked<IAdminWriteRepository>;
 
   beforeEach(async () => {
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(AdminLogoutHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AdminLogoutHandler,
-        { provide: IAdminWriteRepository, useValue: mockWriteRepository },
-      ],
-    }).compile();
-
-    handler = module.get(AdminLogoutHandler);
-
-    jest.clearAllMocks();
+    handler = unit;
+    mockWriteRepository = unitRef.get(IAdminWriteRepository);
   });
 
   it('정상 로그아웃 시 update가 올바른 인자로 호출된다', async () => {

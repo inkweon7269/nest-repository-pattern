@@ -1,55 +1,23 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { ConflictException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreatePostHandler } from './create-post.handler';
 import { CreatePostCommand } from './create-post.command';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
-import { CacheService } from '@app/shared';
 import { Post } from '@app/shared';
 
 describe('CreatePostHandler', () => {
   let handler: CreatePostHandler;
   let mockReadRepository: jest.Mocked<IPostReadRepository>;
   let mockWriteRepository: jest.Mocked<IPostWriteRepository>;
-  let mockEventEmitter: jest.Mocked<Pick<EventEmitter2, 'emit'>>;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByUserIdAndTitle: jest.fn(),
-      findAllPaginated: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(CreatePostHandler).compile();
 
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    };
-
-    mockEventEmitter = {
-      emit: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CreatePostHandler,
-        { provide: IPostReadRepository, useValue: mockReadRepository },
-        { provide: IPostWriteRepository, useValue: mockWriteRepository },
-        { provide: EventEmitter2, useValue: mockEventEmitter },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    handler = module.get(CreatePostHandler);
+    handler = unit;
+    mockReadRepository = unitRef.get(IPostReadRepository);
+    mockWriteRepository = unitRef.get(IPostWriteRepository);
   });
 
   it('중복되지 않는 제목이면 게시글을 생성하고 id를 반환한다', async () => {

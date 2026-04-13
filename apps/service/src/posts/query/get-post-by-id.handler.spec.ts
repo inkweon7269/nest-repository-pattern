@@ -1,11 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { NotFoundException } from '@nestjs/common';
 import { GetPostByIdHandler } from './get-post-by-id.handler';
 import { GetPostByIdQuery } from './get-post-by-id.query';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { Post } from '@app/shared';
 import { PostResponseDto } from '@service/posts/dto/response/post.response.dto';
-import { CacheService } from '@app/shared';
 
 describe('GetPostByIdHandler', () => {
   let handler: GetPostByIdHandler;
@@ -23,29 +22,11 @@ describe('GetPostByIdHandler', () => {
   } as Post;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByUserIdAndTitle: jest.fn(),
-      findAllPaginated: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(GetPostByIdHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GetPostByIdHandler,
-        { provide: IPostReadRepository, useValue: mockReadRepository },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    handler = module.get(GetPostByIdHandler);
+    handler = unit;
+    mockReadRepository = unitRef.get(IPostReadRepository);
   });
 
   it('존재하는 본인의 게시글을 조회하면 PostResponseDto를 반환한다', async () => {

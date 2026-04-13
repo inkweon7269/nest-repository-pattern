@@ -1,38 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@suites/unit';
 import { NotFoundException } from '@nestjs/common';
 import { DeletePostHandler } from './delete-post.handler';
 import { DeletePostCommand } from './delete-post.command';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
-import { CacheService } from '@app/shared';
 
 describe('DeletePostHandler', () => {
   let handler: DeletePostHandler;
   let mockWriteRepository: jest.Mocked<IPostWriteRepository>;
 
   beforeEach(async () => {
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(DeletePostHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        DeletePostHandler,
-        { provide: IPostWriteRepository, useValue: mockWriteRepository },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    handler = module.get(DeletePostHandler);
+    handler = unit;
+    mockWriteRepository = unitRef.get(IPostWriteRepository);
   });
 
   it('존재하는 본인의 게시글을 삭제하면 에러 없이 완료된다', async () => {
