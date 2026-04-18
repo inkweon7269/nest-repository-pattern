@@ -12,6 +12,7 @@ NestJS **모노레포** 기반 Posts CRUD API + Admin Back-Office.
 | **Admin Back-Office** | 별도 서버로 운영되는 관리자 인증 (AdminRole: SUPER, MANAGER) |
 | **Health Check** | `GET /health` — DB + Redis 연결 상태 확인 + Graceful Shutdown |
 | **Rate Limiting** | `@nestjs/throttler` 기반 글로벌 Rate Limiting (login/register 엄격 제한) |
+| **Security (helmet + CORS)** | helmet 기반 보안 헤더(Swagger UI 호환 CSP) + 앱별 분리된 환경변수 CORS whitelist |
 | **Cache Layer** | Redis 기반 Cache-Aside 패턴 (CQRS Handler 레벨, Fail-Open) |
 | **Idempotency** | Redis 기반 POST 요청 멱등성 보장 |
 | **Logging** | pino-http 기반 구조화 로깅 (correlation ID, redaction) |
@@ -177,6 +178,14 @@ export const postRepositoryProviders: Provider[] = [
 - Named Throttlers: `short` (1초 3회), `long` (분당 60회)
 - login/register에 엄격한 제한
 
+### Security (helmet + CORS)
+
+- `applySecurityMiddleware` 공유 헬퍼(`libs/shared/src/bootstrap/security.ts`)가 main.ts 2곳 + `createIntegrationApp`에서 동일하게 호출 — 보안 설정 단일 소스
+- helmet: CSP directive를 Swagger UI 호환(`'unsafe-inline'`, `data:`, `validator.swagger.io`)으로 완화, 나머지 헤더(`X-Content-Type-Options`, `X-Frame-Options` 등)는 기본값 유지
+- CORS: 앱별 환경변수 분리 (`SERVICE_CORS_ORIGINS` / `BACK_OFFICE_CORS_ORIGINS`, 쉼표 구분). `credentials: true`, `allowedHeaders`에 `Idempotency-Key` 포함
+- fallback: `local`/`development`에서 env 미설정 시 모든 origin 허용, `production`에서는 env 누락 시 CORS 비활성화(fail-safe)
+- 상세 가이드: [docs/helmet-cors-guide.md](./docs/helmet-cors-guide.md)
+
 ### Cache Layer
 
 - `CacheService` — Redis 기반, Cache-Aside 패턴, Fail-Open
@@ -324,6 +333,7 @@ GitHub Actions로 코드 품질을 자동 검증한다.
 | [모노레포 분리 PRD](./docs/monorepo-separation-prd.md) | 서비스/관리자 서버 분리 기획 |
 | [모노레포 분리 체크리스트](./docs/monorepo-separation-todo.md) | 마이그레이션 단계별 체크리스트 |
 | [Cache Layer 가이드](./docs/cache-layer-guide.md) | 캐시 적용 방법 및 전략 |
+| [Helmet + CORS 가이드](./docs/helmet-cors-guide.md) | 보안 헤더 및 CORS whitelist 설정 가이드 |
 | [CQRS 가이드](./docs/cqrs-guide.md) | CQRS 패턴 적용 가이드 |
 | [테스트 전략](./docs/testing-strategy.md) | Classical School 테스트 구조 |
 | [멱등성 가이드](./docs/idempotency-guide.md) | Redis 기반 멱등성 처리 |

@@ -128,6 +128,17 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `skipIf: () => process.env.THROTTLE_SKIP === 'true'` — 통합 테스트 환경에서 비활성화
 - 429 Too Many Requests 자동 반환. Swagger에 `@ApiTooManyRequestsResponse` 적용
 
+### Security (helmet + CORS)
+
+- `applySecurityMiddleware` 공유 헬퍼 (`libs/shared/src/bootstrap/security.ts`)가 main.ts 2곳 + `createIntegrationApp`에서 동일하게 호출됨. 보안 설정은 반드시 이 헬퍼를 수정하여 한 곳에서 관리한다.
+- helmet CSP directive는 Swagger UI 호환을 위해 `styleSrc`/`scriptSrc`에 `'unsafe-inline'`, `imgSrc`에 `data:`/`validator.swagger.io`를 허용한다.
+- CORS whitelist 환경변수는 앱별로 분리: `SERVICE_CORS_ORIGINS` (service), `BACK_OFFICE_CORS_ORIGINS` (back-office). 쉼표 구분 origin 목록.
+- fallback 정책: `NODE_ENV=local`/`development`에서 env 미설정 시 `origin: true`(모든 origin 허용). `production`에서 env 누락 시 `enableCors`를 호출하지 않음(fail-safe).
+- CORS origin 거부는 반드시 `cb(null, false)` 사용 — `cb(new Error(...))`는 500 응답 및 에러 로그 오염을 유발하므로 금지.
+- `credentials: true` + `allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key']`. 새 커스텀 헤더 도입 시 이 목록을 업데이트해야 브라우저에서 사용 가능.
+- `createIntegrationApp(appModule, { corsOriginEnvKey })`로 테스트별 CORS 키를 명시. 기본값은 `SERVICE_CORS_ORIGINS` — back-office 통합 테스트는 `BACK_OFFICE_CORS_ORIGINS`를 명시적으로 전달.
+- 상세 가이드: `docs/helmet-cors-guide.md`
+
 ### Cache Layer
 
 - `CacheService` (`libs/shared/src/cache/`) — 기존 `REDIS_CLIENT`(ioredis)를 재사용한 캐시 유틸리티. 추가 패키지 없음
@@ -232,3 +243,5 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 | `manage-skills`         | 세션 변경사항을 분석하고, 검증 스킬을 생성/업데이트하며, CLAUDE.md를 관리합니다 |
 | `verify-restful-api`    | RESTful API 설계 원칙 준수 여부를 검증합니다                                    |
 | `respond-coderabbit`    | CodeRabbit PR 리뷰 코멘트를 자동 분석하고 응답합니다                            |
+| `commit`                | 검증(`format` → `lint:check` → `build` → `test` → `test:e2e`) 후 한국어 conventional commit 생성 및 푸시 |
+| `create-pr`             | 브랜치 정책에 따라 대상 브랜치(`feature/*`→`dev`, `dev`→`main`)를 판별해 PR 생성 |
