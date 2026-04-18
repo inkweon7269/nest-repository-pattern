@@ -48,7 +48,7 @@ export function applySecurityMiddleware(
             cb: (err: Error | null, allow?: boolean) => void,
           ) => {
             if (!origin || allowedOrigins.includes(origin)) cb(null, true);
-            else cb(new Error('Not allowed by CORS'));
+            else cb(null, false);
           },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],

@@ -184,7 +184,7 @@ pass-through 레이어 단위 테스트를 피하고 HTTP 레이어를 통합 �
 | `Content-Security-Policy` 헤더 | `default-src 'self'` 포함, `validator.swagger.io` 포함 |
 | whitelist origin 요청 | `Access-Control-Allow-Origin`에 origin 반영 |
 | non-whitelist origin 요청 | `Access-Control-Allow-Origin` 미설정 |
-| preflight `OPTIONS /v1/posts` | `Access-Control-Allow-Methods`에 POST 포함, `Access-Control-Allow-Headers`에 `Idempotency-Key` 포함 |
+| preflight `OPTIONS /health` | `Access-Control-Allow-Methods`에 POST 포함, `Access-Control-Allow-Headers`에 `Idempotency-Key` 포함 |
 
 검증 타겟은 인증이 필요 없는 `/health` 엔드포인트를 사용하여 테스트 복잡도를 최소화.
 
