@@ -75,6 +75,8 @@ export default async function globalSetup() {
       JWT_ADMIN_REFRESH_EXPIRATION: '7d',
       THROTTLE_SKIP: 'true',
       OTEL_ENABLED: 'false',
+      SERVICE_CORS_ORIGINS: 'http://allowed.test',
+      BACK_OFFICE_CORS_ORIGINS: 'http://allowed-admin.test',
     };
 
     writeFileSync(TEST_ENV_PATH, JSON.stringify(env, null, 2));

@@ -10,13 +10,21 @@ import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types';
 import { DataSource, EntityManager, QueryRunner } from 'typeorm';
 import { Logger } from 'nestjs-pino';
-import { HttpExceptionFilter, LoggingInterceptor } from '@app/shared';
+import {
+  applySecurityMiddleware,
+  CorsOriginEnvKey,
+  HttpExceptionFilter,
+  LoggingInterceptor,
+} from '@app/shared';
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
 export async function createIntegrationApp(
   appModule: Type,
+  options: { corsOriginEnvKey?: CorsOriginEnvKey } = {},
 ): Promise<INestApplication<App>> {
+  const { corsOriginEnvKey = 'SERVICE_CORS_ORIGINS' } = options;
+
   const env = JSON.parse(readFileSync(TEST_ENV_PATH, 'utf-8')) as Record<
     string,
     string
@@ -29,6 +37,8 @@ export async function createIntegrationApp(
   }).compile();
 
   const app = module.createNestApplication();
+
+  applySecurityMiddleware(app, { corsOriginEnvKey });
 
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(app.get(HttpExceptionFilter));

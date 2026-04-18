@@ -13,7 +13,9 @@ describe('Admin (integration)', () => {
   let txHelper: TransactionHelper;
 
   beforeAll(async () => {
-    app = await createIntegrationApp(AdminTestModule);
+    app = await createIntegrationApp(AdminTestModule, {
+      corsOriginEnvKey: 'BACK_OFFICE_CORS_ORIGINS',
+    });
     txHelper = useTransactionRollback(app);
   });
 
