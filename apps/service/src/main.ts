@@ -3,11 +3,17 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
-import { HttpExceptionFilter, LoggingInterceptor } from '@app/shared';
+import {
+  applySecurityMiddleware,
+  HttpExceptionFilter,
+  LoggingInterceptor,
+} from '@app/shared';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+
+  applySecurityMiddleware(app, { corsOriginEnvKey: 'SERVICE_CORS_ORIGINS' });
 
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(app.get(HttpExceptionFilter));

@@ -53,3 +53,10 @@ export { RedisHealthIndicator } from './health/redis-health.indicator';
 
 // Instrumentation
 export {} from './instrumentation';
+
+// Bootstrap - Security
+export {
+  applySecurityMiddleware,
+  type CorsOriginEnvKey,
+  type SecurityOptions,
+} from './bootstrap/security';
