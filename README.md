@@ -18,6 +18,7 @@ NestJS **모노레포** 기반 Posts CRUD API + Admin Back-Office.
 | **Logging** | pino-http 기반 구조화 로깅 (correlation ID, redaction) |
 | **Slack 알림** | 게시물 생성 시 이벤트 기반 Slack 알림 |
 | **OpenTelemetry** | OTEL SDK 자동 계측 (트레이싱, `OTEL_ENABLED`로 제어) |
+| **Build Tooling (SWC)** | webpack + swc-loader (빌드) + `@swc/jest` (테스트). 모노레포 모드 호환을 위해 webpack 경유 |
 
 ## 목차
 
@@ -203,6 +204,15 @@ export const postRepositoryProviders: Provider[] = [
 - `libs/shared/src/instrumentation.ts` — OTEL SDK 자동 계측 (양쪽 앱에서 import)
 - `OTEL_ENABLED` 환경변수로 활성화/비활성화, `OTEL_EXPORTER_OTLP_ENDPOINT`로 수집 대상 설정
 
+### Build Tooling (SWC)
+
+- 빌드: **webpack + swc-loader**, 테스트: **`@swc/jest`**. 모노레포 모드는 SWC builder를 직접 지원하지 않아 NestJS 공식 권장 경로인 webpack 경유
+- `webpack.config.js`는 함수 형태로 nest CLI 기본값(externals, `TsconfigPathsPlugin`, `ForkTsCheckerWebpackPlugin`, `node: { __dirname: false }`)을 그대로 보존하고 `module.rules`만 swc-loader로 교체
+- SWC 옵션은 `swcDefaultsFactory()`(legacyDecorator + decoratorMetadata + keepClassNames) 그대로 사용. 빌드는 `swcrc: false`로 격리, Jest는 루트 `.swcrc`
+- 엔티티 양방향 관계 필드는 `Relation<T>` 래퍼 + `import type { Relation }` 필수 (순환 참조 TDZ + TS1272 회피)
+- 마이그레이션 CLI는 `ts-node/register` 그대로 유지 (운영 안정성 분리)
+- 상세 가이드: [docs/swc-migration-guide.md](./docs/swc-migration-guide.md)
+
 ---
 
 ## 시작하기
@@ -334,6 +344,7 @@ GitHub Actions로 코드 품질을 자동 검증한다.
 | [모노레포 분리 체크리스트](./docs/monorepo-separation-todo.md) | 마이그레이션 단계별 체크리스트 |
 | [Cache Layer 가이드](./docs/cache-layer-guide.md) | 캐시 적용 방법 및 전략 |
 | [Helmet + CORS 가이드](./docs/helmet-cors-guide.md) | 보안 헤더 및 CORS whitelist 설정 가이드 |
+| [SWC 적용 가이드](./docs/swc-migration-guide.md) | webpack + swc-loader 빌드 / `@swc/jest` 테스트 전환 가이드 |
 | [CQRS 가이드](./docs/cqrs-guide.md) | CQRS 패턴 적용 가이드 |
 | [테스트 전략](./docs/testing-strategy.md) | Classical School 테스트 구조 |
 | [멱등성 가이드](./docs/idempotency-guide.md) | Redis 기반 멱등성 처리 |
