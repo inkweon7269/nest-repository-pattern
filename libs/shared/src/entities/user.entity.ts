@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Column, Entity, OneToMany, Relation } from 'typeorm';
 import { BaseTimeEntity } from './base.entity';
 import { Post } from './post.entity';
 
@@ -17,5 +17,5 @@ export class User extends BaseTimeEntity {
   hashedRefreshToken: string | null;
 
   @OneToMany(() => Post, (post) => post.user)
-  posts: Post[];
+  posts: Relation<Post[]>;
 }

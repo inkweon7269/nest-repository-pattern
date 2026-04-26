@@ -4,6 +4,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  Relation,
 } from 'typeorm';
 import { User } from './user.entity';
 import { BaseTimeEntity } from './base.entity';
@@ -15,7 +16,7 @@ export class Post extends BaseTimeEntity {
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user: Relation<User>;
 
   @Column({ length: 200 })
   title: string;
