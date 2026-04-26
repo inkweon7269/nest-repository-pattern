@@ -83,6 +83,7 @@
     "@nestjs/testing": "^11.1.17",
     "@suites/di.nestjs": "^3.0.1",
     "@suites/doubles.jest": "^3.0.1",
+    "@suites/types.common": "^3.0.0",
     "@suites/unit": "^3.0.1",
     "@swc/core": "^1.15.30",
     "@swc/jest": "^0.2.39",

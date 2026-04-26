@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { LogoutHandler } from './logout.handler';
 import { LogoutCommand } from './logout.command';
@@ -12,7 +13,9 @@ describe('LogoutHandler', () => {
     const { unit, unitRef } = await TestBed.solitary(LogoutHandler).compile();
 
     handler = unit;
-    userWriteRepository = unitRef.get(IUserWriteRepository);
+    userWriteRepository = unitRef.get<IUserWriteRepository>(
+      IUserWriteRepository as Type<IUserWriteRepository>,
+    );
   });
 
   it('정상 로그아웃 시 update가 올바른 인자로 호출된다', async () => {

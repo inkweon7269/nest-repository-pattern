@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { GetProfileHandler } from './get-profile.handler';
 import { GetProfileQuery } from './get-profile.query';
@@ -26,7 +27,9 @@ describe('GetProfileHandler', () => {
       await TestBed.solitary(GetProfileHandler).compile();
 
     handler = unit;
-    userReadRepository = unitRef.get(IUserReadRepository);
+    userReadRepository = unitRef.get<IUserReadRepository>(
+      IUserReadRepository as Type<IUserReadRepository>,
+    );
   });
 
   it('존재하는 사용자의 프로필을 조회하면 ProfileResponseDto를 반환한다', async () => {

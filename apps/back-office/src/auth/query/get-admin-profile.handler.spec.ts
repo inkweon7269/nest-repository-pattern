@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { GetAdminProfileHandler } from './get-admin-profile.handler';
 import { GetAdminProfileQuery } from './get-admin-profile.query';
@@ -28,7 +29,9 @@ describe('GetAdminProfileHandler', () => {
     ).compile();
 
     handler = unit;
-    adminReadRepository = unitRef.get(IAdminReadRepository);
+    adminReadRepository = unitRef.get<IAdminReadRepository>(
+      IAdminReadRepository as Type<IAdminReadRepository>,
+    );
   });
 
   it('존재하는 관리자의 프로필을 조회하면 AdminProfileResponseDto를 반환한다', async () => {

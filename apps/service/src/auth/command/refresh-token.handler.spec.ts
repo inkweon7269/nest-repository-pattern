@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -36,8 +37,12 @@ describe('RefreshTokenHandler', () => {
       await TestBed.solitary(RefreshTokenHandler).compile();
 
     handler = unit;
-    userReadRepository = unitRef.get(IUserReadRepository);
-    userWriteRepository = unitRef.get(IUserWriteRepository);
+    userReadRepository = unitRef.get<IUserReadRepository>(
+      IUserReadRepository as Type<IUserReadRepository>,
+    );
+    userWriteRepository = unitRef.get<IUserWriteRepository>(
+      IUserWriteRepository as Type<IUserWriteRepository>,
+    );
     jwtService = unitRef.get(JwtService);
     configService = unitRef.get(ConfigService);
 

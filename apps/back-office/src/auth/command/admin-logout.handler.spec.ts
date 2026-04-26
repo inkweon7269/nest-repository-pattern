@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { AdminLogoutHandler } from './admin-logout.handler';
 import { AdminLogoutCommand } from './admin-logout.command';
@@ -13,7 +14,9 @@ describe('AdminLogoutHandler', () => {
       await TestBed.solitary(AdminLogoutHandler).compile();
 
     handler = unit;
-    adminWriteRepository = unitRef.get(IAdminWriteRepository);
+    adminWriteRepository = unitRef.get<IAdminWriteRepository>(
+      IAdminWriteRepository as Type<IAdminWriteRepository>,
+    );
   });
 
   it('정상 로그아웃 시 update가 올바른 인자로 호출된다', async () => {

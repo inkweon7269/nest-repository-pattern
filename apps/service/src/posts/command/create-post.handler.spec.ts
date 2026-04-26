@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { ConflictException } from '@nestjs/common';
 import { CreatePostHandler } from './create-post.handler';
 import { CreatePostCommand } from './create-post.command';
@@ -16,8 +17,12 @@ describe('CreatePostHandler', () => {
       await TestBed.solitary(CreatePostHandler).compile();
 
     handler = unit;
-    postReadRepository = unitRef.get(IPostReadRepository);
-    postWriteRepository = unitRef.get(IPostWriteRepository);
+    postReadRepository = unitRef.get<IPostReadRepository>(
+      IPostReadRepository as Type<IPostReadRepository>,
+    );
+    postWriteRepository = unitRef.get<IPostWriteRepository>(
+      IPostWriteRepository as Type<IPostWriteRepository>,
+    );
   });
 
   it('중복되지 않는 제목이면 게시글을 생성하고 id를 반환한다', async () => {

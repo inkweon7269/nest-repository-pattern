@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { ConflictException } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -19,8 +20,12 @@ describe('RegisterHandler', () => {
     const { unit, unitRef } = await TestBed.solitary(RegisterHandler).compile();
 
     handler = unit;
-    userReadRepository = unitRef.get(IUserReadRepository);
-    userWriteRepository = unitRef.get(IUserWriteRepository);
+    userReadRepository = unitRef.get<IUserReadRepository>(
+      IUserReadRepository as Type<IUserReadRepository>,
+    );
+    userWriteRepository = unitRef.get<IUserWriteRepository>(
+      IUserWriteRepository as Type<IUserWriteRepository>,
+    );
 
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
   });

@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { GetPostByIdHandler } from './get-post-by-id.handler';
 import { GetPostByIdQuery } from './get-post-by-id.query';
@@ -26,7 +27,9 @@ describe('GetPostByIdHandler', () => {
       await TestBed.solitary(GetPostByIdHandler).compile();
 
     handler = unit;
-    postReadRepository = unitRef.get(IPostReadRepository);
+    postReadRepository = unitRef.get<IPostReadRepository>(
+      IPostReadRepository as Type<IPostReadRepository>,
+    );
   });
 
   it('존재하는 본인의 게시글을 조회하면 PostResponseDto를 반환한다', async () => {

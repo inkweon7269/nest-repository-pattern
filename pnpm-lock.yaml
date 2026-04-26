@@ -129,6 +129,9 @@ importers:
       '@suites/doubles.jest':
         specifier: ^3.0.1
         version: 3.0.1(jest@30.3.0(@types/node@25.5.0)(ts-node@10.9.2(@swc/core@1.15.30)(@types/node@25.5.0)(typescript@5.9.3)))
+      '@suites/types.common':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@suites/unit':
         specifier: ^3.0.1
         version: 3.0.1

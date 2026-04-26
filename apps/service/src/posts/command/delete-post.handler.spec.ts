@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { DeletePostHandler } from './delete-post.handler';
 import { DeletePostCommand } from './delete-post.command';
@@ -13,7 +14,9 @@ describe('DeletePostHandler', () => {
       await TestBed.solitary(DeletePostHandler).compile();
 
     handler = unit;
-    postWriteRepository = unitRef.get(IPostWriteRepository);
+    postWriteRepository = unitRef.get<IPostWriteRepository>(
+      IPostWriteRepository as Type<IPostWriteRepository>,
+    );
   });
 
   it('존재하는 본인의 게시글을 삭제하면 에러 없이 완료된다', async () => {

@@ -1,4 +1,5 @@
 import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { FindAllPostsPaginatedHandler } from './find-all-posts-paginated.handler';
 import { FindAllPostsPaginatedQuery } from './find-all-posts-paginated.query';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
@@ -37,7 +38,9 @@ describe('FindAllPostsPaginatedHandler', () => {
     ).compile();
 
     handler = unit;
-    postReadRepository = unitRef.get(IPostReadRepository);
+    postReadRepository = unitRef.get<IPostReadRepository>(
+      IPostReadRepository as Type<IPostReadRepository>,
+    );
   });
 
   it('게시글 목록을 페이지네이션하여 PaginatedResponseDto로 반환한다', async () => {
