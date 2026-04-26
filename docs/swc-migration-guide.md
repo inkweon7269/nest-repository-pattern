@@ -225,6 +225,50 @@ pnpm remove ts-jest ts-loader
 
 `webpack`, `webpack-node-externals`, `tsconfig-paths-webpack-plugin`, `fork-ts-checker-webpack-plugin`은 **`@nestjs/cli`의 직접 dependency로 이미 설치**되어 있다. nest CLI 내부에서만 require하므로 사용자가 직접 deps에 추가할 필요 없음.
 
+## 엔티티 호환성 — 순환 참조 + 데코레이터 메타데이터
+
+TypeORM 엔티티가 `@OneToMany` / `@ManyToOne` 등으로 양방향 관계를 가지면 두 엔티티 파일 사이에 **순환 참조**가 생긴다 (예: `User` ↔ `Post`). tsc는 이를 무리 없이 처리하지만, SWC + `decoratorMetadata: true` 조합은 두 가지 문제를 일으킨다.
+
+### 문제 1 — `Reflect.metadata('design:type', ClassRef)` TDZ
+
+**증상**: 단위 테스트 또는 부팅 시 `ReferenceError: Cannot access 'User' before initialization`.
+
+**원인**: SWC는 `decoratorMetadata: true`일 때 데코레이터가 붙은 프로퍼티의 타입을 `Reflect.metadata('design:type', User)`로 즉시 emit. 하지만 순환 참조 중인 모듈은 클래스 선언 직전에 평가되어 TDZ에 빠짐.
+
+**해결**: TypeORM이 SWC 호환을 위해 제공하는 **`Relation<T>` 래퍼**를 사용. `Relation<T>`는 단순 타입 별칭(`type Relation<T> = T`)이지만, 제네릭으로 감싸진 타입은 데코레이터 메타데이터 emit 시 `Object`로 처리되어 클래스 참조를 우회한다.
+
+```diff
+  // libs/shared/src/entities/post.entity.ts
+- @ManyToOne(() => User)
+- user: User;
++ @ManyToOne(() => User)
++ user: Relation<User>;
+
+  // libs/shared/src/entities/user.entity.ts
+- @OneToMany(() => Post, (post) => post.user)
+- posts: Post[];
++ @OneToMany(() => Post, (post) => post.user)
++ posts: Relation<Post[]>;
+```
+
+### 문제 2 — `TS1272: 데코레이터 시그니처의 타입은 import type 필수`
+
+**증상**: `pnpm start:local`(watch 모드) 시 `ForkTsCheckerWebpackPlugin`이 `TS1272: A type referenced in a decorated signature must be imported with 'import type' or a namespace import when 'isolatedModules' and 'emitDecoratorMetadata' are enabled.`로 빌드 거부.
+
+**원인**: `Relation`은 런타임 값이 없는 순수 타입 별칭. `tsconfig.json`이 `isolatedModules: true` + `emitDecoratorMetadata: true`일 때 TypeScript는 데코레이터 시그니처에 등장하는 **타입 전용** 심볼을 반드시 `import type`으로 들여오라고 요구.
+
+**해결**: `Relation`을 `import type`으로 분리 (`User`/`Post`처럼 클래스인 값 import는 그대로 둠).
+
+```diff
+- import { Column, Entity, OneToMany, Relation } from 'typeorm';
++ import { Column, Entity, OneToMany } from 'typeorm';
++ import type { Relation } from 'typeorm';
+```
+
+### 적용 범위
+
+본 프로젝트에서는 `libs/shared/src/entities/user.entity.ts`와 `post.entity.ts`만 해당. `Admin` 엔티티는 다른 엔티티와 관계가 없어 변경 불요. **새 엔티티가 양방향 관계를 가질 때마다 동일 패턴을 적용해야 한다**.
+
 ## 빌드 동작 비교
 
 | 항목 | tsc (이전) | webpack + swc-loader (이후) |
@@ -282,6 +326,14 @@ time pnpm test
 전환 전후 시간을 비교하여 효과를 정량화. CI 빌드 시간 절감 추정 자료로 활용.
 
 ## 트러블슈팅
+
+### `ReferenceError: Cannot access 'User' before initialization` (또는 다른 엔티티명)
+
+순환 참조된 엔티티에 `decoratorMetadata`가 즉시 `Reflect.metadata('design:type', ClassRef)`를 emit하면서 TDZ. 위 [엔티티 호환성 — 순환 참조 + 데코레이터 메타데이터](#엔티티-호환성--순환-참조--데코레이터-메타데이터) 참조. **해결**: 양방향 관계 필드 타입을 `Relation<T>`로 감싸기.
+
+### `TS1272: A type referenced in a decorated signature must be imported with 'import type' ...`
+
+`tsconfig.json`이 `isolatedModules: true` + `emitDecoratorMetadata: true`일 때 데코레이터 시그니처에 사용된 타입은 `import type` 필수. `Relation`이 대표적. **해결**: `import type { Relation } from 'typeorm'`로 분리. `User`/`Post` 같은 클래스(값 + 타입)는 `import type`으로 옮길 필요 없음. `pnpm build:all`(non-watch, `mode: 'none'`)에서는 ForkTsChecker가 비동기 모드라 통과해도, `pnpm start:local`(watch, `mode: 'development'`)에서는 차단된다는 점에 주의.
 
 ### `Cannot find module '@nestjs/cli/lib/compiler/defaults/swc-defaults'`
 
