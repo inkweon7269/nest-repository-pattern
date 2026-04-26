@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed, type Mocked } from '@suites/unit';
 import { NotFoundException } from '@nestjs/common';
 import { AdminLogoutHandler } from './admin-logout.handler';
 import { AdminLogoutCommand } from './admin-logout.command';
@@ -6,44 +6,34 @@ import { IAdminWriteRepository } from '@back-office/auth/interface/admin-write-r
 
 describe('AdminLogoutHandler', () => {
   let handler: AdminLogoutHandler;
-  let mockWriteRepository: jest.Mocked<IAdminWriteRepository>;
+  let adminWriteRepository: Mocked<IAdminWriteRepository>;
 
   beforeEach(async () => {
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(AdminLogoutHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AdminLogoutHandler,
-        { provide: IAdminWriteRepository, useValue: mockWriteRepository },
-      ],
-    }).compile();
-
-    handler = module.get(AdminLogoutHandler);
-
-    jest.clearAllMocks();
+    handler = unit;
+    adminWriteRepository = unitRef.get(IAdminWriteRepository);
   });
 
   it('정상 로그아웃 시 update가 올바른 인자로 호출된다', async () => {
-    mockWriteRepository.update.mockResolvedValue(1);
+    adminWriteRepository.update.mockResolvedValue(1);
 
     const command = new AdminLogoutCommand(1);
     await handler.execute(command);
 
-    expect(mockWriteRepository.update).toHaveBeenCalledWith(1, {
+    expect(adminWriteRepository.update).toHaveBeenCalledWith(1, {
       hashedRefreshToken: null,
     });
   });
 
   it('존재하지 않는 관리자 ID (affected=0) → NotFoundException', async () => {
-    mockWriteRepository.update.mockResolvedValue(0);
+    adminWriteRepository.update.mockResolvedValue(0);
 
     const command = new AdminLogoutCommand(999);
 
     await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
-    expect(mockWriteRepository.update).toHaveBeenCalledWith(999, {
+    expect(adminWriteRepository.update).toHaveBeenCalledWith(999, {
       hashedRefreshToken: null,
     });
   });
