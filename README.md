@@ -316,6 +316,8 @@ pnpm test:cov                # 커버리지 리포트
 | **서비스 통합 테스트** | `test/service/*.integration-spec.ts` | Auth + Posts 전체 플로우 | 필수 |
 | **관리자 통합 테스트** | `test/back-office/*.integration-spec.ts` | Admin Auth 전체 플로우 + 토큰 격리 | 필수 |
 
+단위 테스트(Handler)는 [Suites](https://docs.nestjs.com/recipes/suites)(`TestBed.solitary(...).compile()`)로 작성하여 `unitRef.get(Token)`으로 자동 mock을 회수한다 — `Test.createTestingModule(...)` 보일러플레이트 제거.
+
 통합 테스트는 Testcontainers + `globalSetup` 패턴으로 PostgreSQL/Redis 컨테이너를 자동 관리하며, per-test 트랜잭션 격리를 적용한다.
 
 ---

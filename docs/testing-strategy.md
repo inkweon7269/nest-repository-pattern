@@ -361,3 +361,59 @@ Before:                          After:
 ```
 
 단위 테스트 레이어가 얇아지고, 통합 테스트 레이어가 두꺼워진다. e2e 테스트는 HTTP 레이어 검증 역할로 유지된다.
+
+---
+
+## 9. 이후 진화 (PRD 이후 변경 사항)
+
+위 PRD가 채택된 이후 코드베이스가 추가로 진화하면서 다음과 같이 변경되었다. 본 문서의 1~8섹션은 당시 의사결정 근거를 보존하기 위해 그대로 두고, 현재 상태는 아래 표를 따른다.
+
+### Facade → CQRS Handler
+
+`PostsFacade`/`PostsService` 레이어가 제거되고 **CQRS 패턴**(`@nestjs/cqrs`의 `CommandBus`/`QueryBus`)으로 재구성되었다. Facade가 갖던 "검증 + 변환" 책임은 각 Command Handler / Query Handler로 분산되었다.
+
+```
+Before:  Controller → Facade → Service → Repository
+After:   Controller → CommandBus/QueryBus → Handler (검증 + 로직) → Repository
+```
+
+따라서 단위 테스트 대상도 `*.facade.spec.ts` → `*.handler.spec.ts`로 변경되었다. 분기/변환 로직이 있는 Handler만 단위 테스트 대상이고, pass-through 성격의 Handler(예: `CreatePostHandler`)는 통합 테스트로 커버한다.
+
+### e2e 테스트 제거
+
+별도 `*.e2e-spec.ts`(mock DB 기반)는 제거되었다. 통합 테스트(`*.integration-spec.ts`)가 ValidationPipe / 라우팅 / 상태 코드 등 HTTP 레이어를 함께 검증하면서 실제 DB까지 거치므로 e2e와 역할이 중복되었기 때문이다. 자세한 내용은 `CLAUDE.md`의 "테스트 구조 (Classical School)" 섹션 참조.
+
+### Suites 도입 (단위 테스트 보일러플레이트 제거)
+
+Handler 단위 테스트는 [Suites](https://docs.nestjs.com/recipes/suites)의 `TestBed.solitary(...).compile()`로 작성한다. `Test.createTestingModule(...)` + 수동 mock 객체 패턴이 사라지고, `unitRef.get(Token)`으로 자동 mock을 회수한다.
+
+```typescript
+// Before: ~50줄 setup
+mockReadRepository = { findById: jest.fn(), ... };
+mockWriteRepository = { create: jest.fn(), ... };
+const module = await Test.createTestingModule({
+  providers: [
+    Handler,
+    { provide: IPostReadRepository, useValue: mockReadRepository },
+    { provide: IPostWriteRepository, useValue: mockWriteRepository },
+    ...
+  ],
+}).compile();
+
+// After: ~5줄 setup
+const { unit, unitRef } = await TestBed.solitary(Handler).compile();
+handler = unit;
+readRepo = unitRef.get(IPostReadRepository);
+writeRepo = unitRef.get(IPostWriteRepository);
+```
+
+**주의:** Repository 인터페이스(`IPostReadRepository` 등)는 abstract class라 `unitRef.get`의 `Type<T>` 시그니처에 직접 할당되지 않는다. `import type { Type } from '@suites/types.common'`을 추가하고 `unitRef.get<IPostReadRepository>(IPostReadRepository as Type<IPostReadRepository>)` 패턴으로 캐스팅이 필요하다 (`JwtService`/`ConfigService` 등 concrete class는 캐스팅 불필요). 자세한 함정은 `CLAUDE.md`의 Testing 섹션 참조.
+
+### 현재 테스트 구성
+
+| 테스트 유형 | 위치 | 주요 도구 | Docker |
+|-------------|------|-----------|--------|
+| 단위 테스트 — Handler | `apps/**/*.handler.spec.ts` | Suites (`TestBed.solitary`) | 불필요 |
+| 단위 테스트 — DTO 팩토리 | `apps/**/*.response.dto.spec.ts` | Jest 순수 함수 검증 | 불필요 |
+| 통합 테스트 — service | `test/service/*.integration-spec.ts` | Testcontainers + 트랜잭션 롤백 | 필수 |
+| 통합 테스트 — back-office | `test/back-office/*.integration-spec.ts` | Testcontainers + 트랜잭션 롤백 | 필수 |
