@@ -174,6 +174,16 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `OTEL_ENABLED` 환경변수로 활성화/비활성화 제어
 - `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`으로 trace 수집 대상 설정
 
+### Build Tooling (SWC)
+
+- 빌드는 **webpack + swc-loader**, 단위/통합 테스트는 **`@swc/jest`**. 모노레포 모드는 SWC builder를 직접 지원하지 않으므로 NestJS 공식 권장 경로인 webpack 경유.
+- `webpack.config.js`(루트)는 함수 형태 — nest CLI 기본값(`webpack-defaults`: externals, `TsconfigPathsPlugin`, `IgnorePlugin`, `ForkTsCheckerWebpackPlugin`, `node: { __dirname: false }`)을 그대로 spread로 보존하고 `module.rules`만 swc-loader로 교체. 새로운 webpack 옵션이 필요하면 spread 패턴을 깨지 않도록 주의(예: `node`/`plugins`/`module`을 통째로 덮어쓰지 말 것).
+- SWC 옵션은 `@nestjs/cli/lib/compiler/defaults/swc-defaults`의 `swcDefaultsFactory()`를 그대로 사용. 빌드는 `swcrc: false`로 격리, Jest는 루트 `.swcrc`를 사용.
+- **엔티티 양방향 관계는 SWC 호환 필수 패턴 적용**: 순환 참조 + `decoratorMetadata`가 TDZ를 유발하므로 관계 타입을 `Relation<T>`로 감싸고, `Relation`은 반드시 `import type { Relation } from 'typeorm'`로 들여온다(`isolatedModules` + `emitDecoratorMetadata` 조합에서 TS1272 회피). 새 엔티티가 양방향 관계를 가질 때마다 동일 패턴 강제.
+- `pnpm build:all`(non-watch)에선 ForkTsChecker가 비동기로 통과해도, `pnpm start:local`(watch)에서 차단되는 TS1272는 watch 모드에서 즉시 잡힘.
+- 마이그레이션 CLI(`migration:*`)는 `ts-node/register + tsconfig-paths/register` 그대로 유지. 운영 안정성 분리를 위해 SWC 전환 범위에서 제외.
+- 상세 가이드: `docs/swc-migration-guide.md`
+
 ### NestJS Conventions
 
 - 모듈 파일(`*.module.ts`) 수정 후 모든 providers, exports, imports가 올바르게 등록되었는지 확인한다. 흔한 실수: Guard/Service를 export하면서 providers에 추가하지 않는 것.
