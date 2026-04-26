@@ -4,8 +4,8 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  Relation,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { User } from './user.entity';
 import { BaseTimeEntity } from './base.entity';
 

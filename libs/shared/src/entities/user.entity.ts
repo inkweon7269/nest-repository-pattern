@@ -1,4 +1,5 @@
-import { Column, Entity, OneToMany, Relation } from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { BaseTimeEntity } from './base.entity';
 import { Post } from './post.entity';
 
