@@ -1,15 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { GetPostByIdHandler } from './get-post-by-id.handler';
 import { GetPostByIdQuery } from './get-post-by-id.query';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { Post } from '@app/shared';
 import { PostResponseDto } from '@service/posts/dto/response/post.response.dto';
-import { CacheService } from '@app/shared';
 
 describe('GetPostByIdHandler', () => {
   let handler: GetPostByIdHandler;
-  let mockReadRepository: jest.Mocked<IPostReadRepository>;
+  let postReadRepository: Mocked<IPostReadRepository>;
 
   const now = new Date();
   const mockPost: Post = {
@@ -23,33 +23,17 @@ describe('GetPostByIdHandler', () => {
   } as Post;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByUserIdAndTitle: jest.fn(),
-      findAllPaginated: jest.fn(),
-    };
+    const { unit, unitRef } =
+      await TestBed.solitary(GetPostByIdHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GetPostByIdHandler,
-        { provide: IPostReadRepository, useValue: mockReadRepository },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    handler = module.get(GetPostByIdHandler);
+    handler = unit;
+    postReadRepository = unitRef.get<IPostReadRepository>(
+      IPostReadRepository as Type<IPostReadRepository>,
+    );
   });
 
   it('존재하는 본인의 게시글을 조회하면 PostResponseDto를 반환한다', async () => {
-    mockReadRepository.findById.mockResolvedValue(mockPost);
+    postReadRepository.findById.mockResolvedValue(mockPost);
 
     const query = new GetPostByIdQuery(1, 1);
     const result = await handler.execute(query);
@@ -62,7 +46,7 @@ describe('GetPostByIdHandler', () => {
   });
 
   it('존재하지 않는 게시글을 조회하면 NotFoundException을 발생시킨다', async () => {
-    mockReadRepository.findById.mockResolvedValue(null);
+    postReadRepository.findById.mockResolvedValue(null);
 
     const query = new GetPostByIdQuery(1, 999);
 
@@ -70,7 +54,7 @@ describe('GetPostByIdHandler', () => {
   });
 
   it('다른 사용자의 게시글을 조회하면 NotFoundException을 발생시킨다', async () => {
-    mockReadRepository.findById.mockResolvedValue(mockPost);
+    postReadRepository.findById.mockResolvedValue(mockPost);
 
     const query = new GetPostByIdQuery(2, 1);
 

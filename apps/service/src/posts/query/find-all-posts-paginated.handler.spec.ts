@@ -1,14 +1,14 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { FindAllPostsPaginatedHandler } from './find-all-posts-paginated.handler';
 import { FindAllPostsPaginatedQuery } from './find-all-posts-paginated.query';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { Post } from '@app/shared';
 import { PostResponseDto } from '@service/posts/dto/response/post.response.dto';
-import { CacheService } from '@app/shared';
 
 describe('FindAllPostsPaginatedHandler', () => {
   let handler: FindAllPostsPaginatedHandler;
-  let mockReadRepository: jest.Mocked<IPostReadRepository>;
+  let postReadRepository: Mocked<IPostReadRepository>;
 
   const now = new Date();
   const mockPosts: Post[] = [
@@ -33,38 +33,23 @@ describe('FindAllPostsPaginatedHandler', () => {
   ];
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByUserIdAndTitle: jest.fn(),
-      findAllPaginated: jest.fn(),
-    };
+    const { unit, unitRef } = await TestBed.solitary(
+      FindAllPostsPaginatedHandler,
+    ).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        FindAllPostsPaginatedHandler,
-        { provide: IPostReadRepository, useValue: mockReadRepository },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            del: jest.fn(),
-            delByPattern: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    handler = module.get(FindAllPostsPaginatedHandler);
+    handler = unit;
+    postReadRepository = unitRef.get<IPostReadRepository>(
+      IPostReadRepository as Type<IPostReadRepository>,
+    );
   });
 
   it('게시글 목록을 페이지네이션하여 PaginatedResponseDto로 반환한다', async () => {
-    mockReadRepository.findAllPaginated.mockResolvedValue([mockPosts, 5]);
+    postReadRepository.findAllPaginated.mockResolvedValue([mockPosts, 5]);
 
     const query = new FindAllPostsPaginatedQuery(1, 2, { userId: 1 });
     const result = await handler.execute(query);
 
-    expect(mockReadRepository.findAllPaginated).toHaveBeenCalledWith(1, 2, {
+    expect(postReadRepository.findAllPaginated).toHaveBeenCalledWith(1, 2, {
       userId: 1,
     });
     expect(result.items).toHaveLength(2);
@@ -82,7 +67,7 @@ describe('FindAllPostsPaginatedHandler', () => {
   });
 
   it('빈 목록이면 빈 items와 올바른 메타 정보를 반환한다', async () => {
-    mockReadRepository.findAllPaginated.mockResolvedValue([[], 0]);
+    postReadRepository.findAllPaginated.mockResolvedValue([[], 0]);
 
     const query = new FindAllPostsPaginatedQuery(1, 10, { userId: 1 });
     const result = await handler.execute(query);

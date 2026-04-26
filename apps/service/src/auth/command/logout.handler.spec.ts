@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { LogoutHandler } from './logout.handler';
 import { LogoutCommand } from './logout.command';
@@ -6,44 +7,35 @@ import { IUserWriteRepository } from '@service/auth/interface/user-write-reposit
 
 describe('LogoutHandler', () => {
   let handler: LogoutHandler;
-  let mockWriteRepository: jest.Mocked<IUserWriteRepository>;
+  let userWriteRepository: Mocked<IUserWriteRepository>;
 
   beforeEach(async () => {
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-    };
+    const { unit, unitRef } = await TestBed.solitary(LogoutHandler).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LogoutHandler,
-        { provide: IUserWriteRepository, useValue: mockWriteRepository },
-      ],
-    }).compile();
-
-    handler = module.get(LogoutHandler);
-
-    jest.clearAllMocks();
+    handler = unit;
+    userWriteRepository = unitRef.get<IUserWriteRepository>(
+      IUserWriteRepository as Type<IUserWriteRepository>,
+    );
   });
 
   it('정상 로그아웃 시 update가 올바른 인자로 호출된다', async () => {
-    mockWriteRepository.update.mockResolvedValue(1);
+    userWriteRepository.update.mockResolvedValue(1);
 
     const command = new LogoutCommand(1);
     await handler.execute(command);
 
-    expect(mockWriteRepository.update).toHaveBeenCalledWith(1, {
+    expect(userWriteRepository.update).toHaveBeenCalledWith(1, {
       hashedRefreshToken: null,
     });
   });
 
   it('존재하지 않는 사용자 ID (affected=0) → NotFoundException', async () => {
-    mockWriteRepository.update.mockResolvedValue(0);
+    userWriteRepository.update.mockResolvedValue(0);
 
     const command = new LogoutCommand(999);
 
     await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
-    expect(mockWriteRepository.update).toHaveBeenCalledWith(999, {
+    expect(userWriteRepository.update).toHaveBeenCalledWith(999, {
       hashedRefreshToken: null,
     });
   });

@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { NotFoundException } from '@nestjs/common';
 import { GetAdminProfileHandler } from './get-admin-profile.handler';
 import { GetAdminProfileQuery } from './get-admin-profile.query';
@@ -8,7 +9,7 @@ import { AdminProfileResponseDto } from '@back-office/auth/dto/response/admin-pr
 
 describe('GetAdminProfileHandler', () => {
   let handler: GetAdminProfileHandler;
-  let mockReadRepository: jest.Mocked<IAdminReadRepository>;
+  let adminReadRepository: Mocked<IAdminReadRepository>;
 
   const now = new Date();
   const mockAdmin: Admin = {
@@ -23,23 +24,18 @@ describe('GetAdminProfileHandler', () => {
   } as Admin;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByEmail: jest.fn(),
-    };
+    const { unit, unitRef } = await TestBed.solitary(
+      GetAdminProfileHandler,
+    ).compile();
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GetAdminProfileHandler,
-        { provide: IAdminReadRepository, useValue: mockReadRepository },
-      ],
-    }).compile();
-
-    handler = module.get(GetAdminProfileHandler);
+    handler = unit;
+    adminReadRepository = unitRef.get<IAdminReadRepository>(
+      IAdminReadRepository as Type<IAdminReadRepository>,
+    );
   });
 
   it('존재하는 관리자의 프로필을 조회하면 AdminProfileResponseDto를 반환한다', async () => {
-    mockReadRepository.findById.mockResolvedValue(mockAdmin);
+    adminReadRepository.findById.mockResolvedValue(mockAdmin);
 
     const query = new GetAdminProfileQuery(1);
     const result = await handler.execute(query);
@@ -52,7 +48,7 @@ describe('GetAdminProfileHandler', () => {
   });
 
   it('존재하지 않는 관리자를 조회하면 NotFoundException을 발생시킨다', async () => {
-    mockReadRepository.findById.mockResolvedValue(null);
+    adminReadRepository.findById.mockResolvedValue(null);
 
     const query = new GetAdminProfileQuery(999);
 

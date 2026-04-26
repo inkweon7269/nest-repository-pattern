@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed, type Mocked } from '@suites/unit';
+import type { Type } from '@suites/types.common';
 import { ConflictException } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -12,36 +13,26 @@ jest.mock('bcrypt');
 
 describe('RegisterHandler', () => {
   let handler: RegisterHandler;
-  let mockReadRepository: jest.Mocked<IUserReadRepository>;
-  let mockWriteRepository: jest.Mocked<IUserWriteRepository>;
+  let userReadRepository: Mocked<IUserReadRepository>;
+  let userWriteRepository: Mocked<IUserWriteRepository>;
 
   beforeEach(async () => {
-    mockReadRepository = {
-      findById: jest.fn(),
-      findByEmail: jest.fn(),
-    };
+    const { unit, unitRef } = await TestBed.solitary(RegisterHandler).compile();
 
-    mockWriteRepository = {
-      create: jest.fn(),
-      update: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RegisterHandler,
-        { provide: IUserReadRepository, useValue: mockReadRepository },
-        { provide: IUserWriteRepository, useValue: mockWriteRepository },
-      ],
-    }).compile();
-
-    handler = module.get(RegisterHandler);
+    handler = unit;
+    userReadRepository = unitRef.get<IUserReadRepository>(
+      IUserReadRepository as Type<IUserReadRepository>,
+    );
+    userWriteRepository = unitRef.get<IUserWriteRepository>(
+      IUserWriteRepository as Type<IUserWriteRepository>,
+    );
 
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
   });
 
   it('중복되지 않는 이메일이면 사용자를 생성하고 id를 반환한다', async () => {
-    mockReadRepository.findByEmail.mockResolvedValue(null);
-    mockWriteRepository.create.mockResolvedValue({ id: 1 } as User);
+    userReadRepository.findByEmail.mockResolvedValue(null);
+    userWriteRepository.create.mockResolvedValue({ id: 1 } as User);
 
     const command = new RegisterCommand(
       'user@example.com',
@@ -51,11 +42,11 @@ describe('RegisterHandler', () => {
     const result = await handler.execute(command);
 
     expect(result).toBe(1);
-    expect(mockReadRepository.findByEmail).toHaveBeenCalledWith(
+    expect(userReadRepository.findByEmail).toHaveBeenCalledWith(
       'user@example.com',
     );
     expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
-    expect(mockWriteRepository.create).toHaveBeenCalledWith({
+    expect(userWriteRepository.create).toHaveBeenCalledWith({
       email: 'user@example.com',
       password: 'hashed-password',
       name: '홍길동',
@@ -63,7 +54,7 @@ describe('RegisterHandler', () => {
   });
 
   it('동일한 이메일이 이미 존재하면 ConflictException을 발생시킨다', async () => {
-    mockReadRepository.findByEmail.mockResolvedValue({ id: 1 } as User);
+    userReadRepository.findByEmail.mockResolvedValue({ id: 1 } as User);
 
     const command = new RegisterCommand(
       'user@example.com',
@@ -72,15 +63,15 @@ describe('RegisterHandler', () => {
     );
 
     await expect(handler.execute(command)).rejects.toThrow(ConflictException);
-    expect(mockWriteRepository.create).not.toHaveBeenCalled();
+    expect(userWriteRepository.create).not.toHaveBeenCalled();
   });
 
   it('DB unique constraint 위반 시(23505) ConflictException을 발생시킨다', async () => {
-    mockReadRepository.findByEmail.mockResolvedValue(null);
+    userReadRepository.findByEmail.mockResolvedValue(null);
 
     const dbError = new QueryFailedError('INSERT', [], new Error());
     Object.assign(dbError, { driverError: { code: '23505' } });
-    mockWriteRepository.create.mockRejectedValue(dbError);
+    userWriteRepository.create.mockRejectedValue(dbError);
 
     const command = new RegisterCommand(
       'user@example.com',
