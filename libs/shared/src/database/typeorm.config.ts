@@ -1,4 +1,5 @@
 import { DataSourceOptions } from 'typeorm';
+import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Admin } from '../entities/admin.entity';
@@ -20,5 +21,6 @@ export function createDataSourceOptions(
     entities,
     migrations: [__dirname + '/../migrations/*{.ts,.js}'],
     logging: nodeEnv !== 'production',
+    namingStrategy: new SnakeNamingStrategy(),
   };
 }

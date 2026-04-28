@@ -107,6 +107,9 @@ importers:
       typeorm:
         specifier: ^0.3.28
         version: 0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@4.7.1)(ts-node@10.9.2(@swc/core@1.15.30)(@types/node@25.5.0)(typescript@5.9.3))
+      typeorm-naming-strategies:
+        specifier: ^4.1.0
+        version: 4.1.0(typeorm@0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@4.7.1)(ts-node@10.9.2(@swc/core@1.15.30)(@types/node@25.5.0)(typescript@5.9.3)))
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.5
@@ -4484,6 +4487,11 @@ packages:
 
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
+
+  typeorm-naming-strategies@4.1.0:
+    resolution: {integrity: sha512-vPekJXzZOTZrdDvTl1YoM+w+sUIfQHG4kZTpbFYoTsufyv9NIBRe4Q+PdzhEAFA2std3D9LZHEb1EjE9zhRpiQ==}
+    peerDependencies:
+      typeorm: ^0.2.0 || ^0.3.0
 
   typeorm@0.3.28:
     resolution: {integrity: sha512-6GH7wXhtfq2D33ZuRXYwIsl/qM5685WZcODZb7noOOcRMteM9KF2x2ap3H0EBjnSV0VO4gNAfJT5Ukp0PkOlvg==}
@@ -9683,6 +9691,10 @@ snapshots:
       is-typed-array: 1.1.15
 
   typedarray@0.0.6: {}
+
+  typeorm-naming-strategies@4.1.0(typeorm@0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@4.7.1)(ts-node@10.9.2(@swc/core@1.15.30)(@types/node@25.5.0)(typescript@5.9.3))):
+    dependencies:
+      typeorm: 0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@4.7.1)(ts-node@10.9.2(@swc/core@1.15.30)(@types/node@25.5.0)(typescript@5.9.3))
 
   typeorm@0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@4.7.1)(ts-node@10.9.2(@swc/core@1.15.30)(@types/node@25.5.0)(typescript@5.9.3)):
     dependencies:

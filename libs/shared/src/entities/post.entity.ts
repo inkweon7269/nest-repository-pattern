@@ -2,6 +2,7 @@ import {
   Column,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
@@ -10,12 +11,16 @@ import { User } from './user.entity';
 import { BaseTimeEntity } from './base.entity';
 
 @Entity('posts')
+@Index('UQ_posts_user_id_title', ['userId', 'title'], {
+  unique: true,
+  where: '"deleted_at" IS NULL',
+})
 export class Post extends BaseTimeEntity {
   @Column()
   userId: number;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn()
   user: Relation<User>;
 
   @Column({ length: 200 })
