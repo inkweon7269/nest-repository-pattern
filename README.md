@@ -13,6 +13,7 @@ NestJS **모노레포** 기반 Posts CRUD API + Admin Back-Office.
 | **Health Check** | `GET /health` — DB + Redis 연결 상태 확인 + Graceful Shutdown |
 | **Rate Limiting** | `@nestjs/throttler` 기반 글로벌 Rate Limiting (login/register 엄격 제한) |
 | **Security (helmet + CORS)** | helmet 기반 보안 헤더(Swagger UI 호환 CSP) + 앱별 분리된 환경변수 CORS whitelist |
+| **DB Naming Convention** | `SnakeNamingStrategy` 적용 — 코드 camelCase / DB 컬럼 snake_case 자동 매핑 |
 | **Cache Layer** | Redis 기반 Cache-Aside 패턴 (CQRS Handler 레벨, Fail-Open) |
 | **Idempotency** | Redis 기반 POST 요청 멱등성 보장 |
 | **Logging** | pino-http 기반 구조화 로깅 (correlation ID, redaction) |
@@ -187,11 +188,30 @@ export const postRepositoryProviders: Provider[] = [
 - fallback: `local`/`development`에서 env 미설정 시 모든 origin 허용, `production`에서는 env 누락 시 CORS 비활성화(fail-safe)
 - 상세 가이드: [docs/helmet-cors-guide.md](./docs/helmet-cors-guide.md)
 
+### Database Naming Convention
+
+- 코드는 **camelCase**, DB 컬럼은 **snake_case**. `typeorm-naming-strategies`의 `SnakeNamingStrategy`를 `DataSourceOptions.namingStrategy`로 적용 (`libs/shared/src/database/typeorm.config.ts`)
+- 새 엔티티 추가 시 `@Column()`에 별도 옵션 없이 자동 매핑 (예: `createdAt` → `created_at`, `userId` → `user_id`, `hashedRefreshToken` → `hashed_refresh_token`)
+- `@JoinColumn`에 `name` 인자를 박지 않는다 — strategy를 우회시켜 camelCase 컬럼이 생성됨
+- DB 제약(`@Index('UQ_xxx', [...], { unique, where })`, `@ManyToOne(() => X, { onDelete: 'CASCADE' })`)은 엔티티에 선언 — raw migration에만 박으면 향후 `migration:generate` 시 누락되어 회귀
+
 ### Cache Layer
 
 - `CacheService` — Redis 기반, Cache-Aside 패턴, Fail-Open
 - TTL: 게시물 5분, 목록 3분, 프로필 10분
 - 상세 가이드: [docs/cache-layer-guide.md](./docs/cache-layer-guide.md)
+
+### Idempotency
+
+- `@Idempotent()` 데코레이터로 POST 엔드포인트의 멱등성 보장 (`libs/shared/src/idempotency/`)
+- Redis 기반 키 저장. `IdempotencyInterceptor`가 요청 헤더의 `Idempotency-Key`로 중복 여부 판단
+- 상세 가이드: [docs/idempotency-guide.md](./docs/idempotency-guide.md)
+
+### Logging
+
+- `pino-http` 기반 구조화 로깅 (`libs/shared/src/logging/`)
+- `LoggingInterceptor` (HTTP 요청/응답) + `HttpExceptionFilter` (예외 처리) 글로벌 적용
+- correlation ID, 민감 정보 redaction 지원
 
 ### Event-Driven & Slack 알림
 
@@ -251,8 +271,10 @@ pnpm build:back-office   # 관리자만 빌드
 마이그레이션 파일은 `libs/shared/src/migrations/`에 위치.
 
 ```bash
-pnpm migration:local     # pending migration 실행
-pnpm migration:revert:local  # 마지막 migration 롤백
+pnpm migration:local                                                # pending migration 실행
+pnpm migration:generate:local -- libs/shared/src/migrations/Name    # 엔티티 diff로 자동 생성
+pnpm migration:create -- libs/shared/src/migrations/Name            # 빈 템플릿 생성
+pnpm migration:revert:local                                         # 마지막 migration 롤백
 ```
 
 ---
@@ -319,6 +341,8 @@ pnpm test:cov                # 커버리지 리포트
 단위 테스트(Handler)는 [Suites](https://docs.nestjs.com/recipes/suites)(`TestBed.solitary(...).compile()`)로 작성하여 `unitRef.get(Token)`으로 자동 mock을 회수한다 — `Test.createTestingModule(...)` 보일러플레이트 제거.
 
 통합 테스트는 Testcontainers + `globalSetup` 패턴으로 PostgreSQL/Redis 컨테이너를 자동 관리하며, per-test 트랜잭션 격리를 적용한다.
+
+> 별도 e2e 테스트 디렉토리는 두지 않습니다. 통합 테스트가 HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)를 함께 검증하므로 중복을 회피합니다.
 
 ---
 
