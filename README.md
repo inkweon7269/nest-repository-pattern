@@ -284,11 +284,11 @@ Swagger UI: `http://localhost:3001/api`
 | Method | Endpoint | 설명 | 인증 |
 |--------|----------|------|------|
 | GET | `/health` | Health Check (DB + Redis) | X |
-| POST | `/v1/admin/auth/register` | 관리자 등록 (MANAGER 고정) | X |
-| POST | `/v1/admin/auth/login` | 관리자 로그인 | X |
-| POST | `/v1/admin/auth/refresh` | 관리자 토큰 갱신 | X |
-| POST | `/v1/admin/auth/logout` | 관리자 로그아웃 | O |
-| GET | `/v1/admin/auth/profile` | 관리자 프로필 조회 | O |
+| POST | `/v1/back-office/auth/register` | 관리자 등록 (MANAGER 고정) | X |
+| POST | `/v1/back-office/auth/login` | 관리자 로그인 | X |
+| POST | `/v1/back-office/auth/refresh` | 관리자 토큰 갱신 | X |
+| POST | `/v1/back-office/auth/logout` | 관리자 로그아웃 | O |
+| GET | `/v1/back-office/auth/profile` | 관리자 프로필 조회 | O |
 
 > 서비스 토큰과 관리자 토큰은 별도 JWT 시크릿을 사용하여 교차 사용이 불가합니다.
 
