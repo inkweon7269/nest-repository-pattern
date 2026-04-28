@@ -36,14 +36,14 @@ describe('Admin (integration)', () => {
 
   function registerAdmin(body: Record<string, unknown> = {}) {
     return request(app.getHttpServer())
-      .post('/v1/admin/auth/register')
+      .post('/v1/back-office/auth/register')
       .send({ ...defaultAdmin, ...body });
   }
 
   async function registerAndLogin(body: Record<string, unknown> = {}) {
     await registerAdmin(body).expect(201);
     const loginRes = await request(app.getHttpServer())
-      .post('/v1/admin/auth/login')
+      .post('/v1/back-office/auth/login')
       .send({
         email: (body.email as string) ?? defaultAdmin.email,
         password: (body.password as string) ?? defaultAdmin.password,
@@ -86,7 +86,7 @@ describe('Admin (integration)', () => {
       await registerAdmin().expect(201);
 
       await request(app.getHttpServer())
-        .post('/v1/admin/auth/login')
+        .post('/v1/back-office/auth/login')
         .send({ email: defaultAdmin.email, password: defaultAdmin.password })
         .expect(200);
     });
@@ -95,7 +95,7 @@ describe('Admin (integration)', () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
-        .get('/v1/admin/auth/profile')
+        .get('/v1/back-office/auth/profile')
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .expect(200);
 
@@ -112,28 +112,28 @@ describe('Admin (integration)', () => {
 
     it('should return 400 when email is missing', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/register')
+        .post('/v1/back-office/auth/register')
         .send({ password: 'password123', name: '테스트' })
         .expect(400);
     });
 
     it('should return 400 when password is shorter than 8 characters', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/register')
+        .post('/v1/back-office/auth/register')
         .send({ email: 'a@b.com', password: 'short', name: '테스트' })
         .expect(400);
     });
 
     it('should return 400 when name is missing', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/register')
+        .post('/v1/back-office/auth/register')
         .send({ email: 'a@b.com', password: 'password123' })
         .expect(400);
     });
 
     it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/register')
+        .post('/v1/back-office/auth/register')
         .send({ ...defaultAdmin, role: 'SUPER' })
         .expect(400);
     });
@@ -147,7 +147,7 @@ describe('Admin (integration)', () => {
       await registerAdmin().expect(201);
 
       const res = await request(app.getHttpServer())
-        .post('/v1/admin/auth/login')
+        .post('/v1/back-office/auth/login')
         .send({ email: defaultAdmin.email, password: defaultAdmin.password })
         .expect(200);
 
@@ -163,7 +163,7 @@ describe('Admin (integration)', () => {
 
     it('should return 401 for non-existent email', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/login')
+        .post('/v1/back-office/auth/login')
         .send({ email: 'nobody@example.com', password: 'password123' })
         .expect(401);
     });
@@ -172,21 +172,21 @@ describe('Admin (integration)', () => {
       await registerAdmin().expect(201);
 
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/login')
+        .post('/v1/back-office/auth/login')
         .send({ email: defaultAdmin.email, password: 'wrongpassword' })
         .expect(401);
     });
 
     it('should return 400 when email is missing', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/login')
+        .post('/v1/back-office/auth/login')
         .send({ password: 'password123' })
         .expect(400);
     });
 
     it('should return 400 when password is missing', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/login')
+        .post('/v1/back-office/auth/login')
         .send({ email: 'a@b.com' })
         .expect(400);
     });
@@ -200,7 +200,7 @@ describe('Admin (integration)', () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
-        .post('/v1/admin/auth/refresh')
+        .post('/v1/back-office/auth/refresh')
         .send({ refreshToken: tokens.refreshToken })
         .expect(200);
 
@@ -213,26 +213,26 @@ describe('Admin (integration)', () => {
       const tokens = await registerAndLogin();
 
       await request(app.getHttpServer())
-        .post('/v1/admin/auth/refresh')
+        .post('/v1/back-office/auth/refresh')
         .send({ refreshToken: tokens.refreshToken })
         .expect(200);
 
       await request(app.getHttpServer())
-        .post('/v1/admin/auth/refresh')
+        .post('/v1/back-office/auth/refresh')
         .send({ refreshToken: tokens.refreshToken })
         .expect(401);
     });
 
     it('should return 401 for invalid token', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/refresh')
+        .post('/v1/back-office/auth/refresh')
         .send({ refreshToken: 'invalid-token' })
         .expect(401);
     });
 
     it('should return 400 when refreshToken is missing', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/refresh')
+        .post('/v1/back-office/auth/refresh')
         .send({})
         .expect(400);
     });
@@ -246,7 +246,7 @@ describe('Admin (integration)', () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
-        .get('/v1/admin/auth/profile')
+        .get('/v1/back-office/auth/profile')
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .expect(200);
 
@@ -271,7 +271,7 @@ describe('Admin (integration)', () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
-        .get('/v1/admin/auth/profile')
+        .get('/v1/back-office/auth/profile')
         .set('Authorization', `Bearer ${tokens.accessToken}`)
         .expect(200);
 
@@ -281,13 +281,13 @@ describe('Admin (integration)', () => {
 
     it('should return 401 without token', () => {
       return request(app.getHttpServer())
-        .get('/v1/admin/auth/profile')
+        .get('/v1/back-office/auth/profile')
         .expect(401);
     });
 
     it('should return 401 with invalid token', () => {
       return request(app.getHttpServer())
-        .get('/v1/admin/auth/profile')
+        .get('/v1/back-office/auth/profile')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
     });
@@ -301,7 +301,7 @@ describe('Admin (integration)', () => {
       const { accessToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
-        .post('/v1/admin/auth/logout')
+        .post('/v1/back-office/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(204);
     });
@@ -310,25 +310,25 @@ describe('Admin (integration)', () => {
       const { accessToken, refreshToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
-        .post('/v1/admin/auth/logout')
+        .post('/v1/back-office/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(204);
 
       await request(app.getHttpServer())
-        .post('/v1/admin/auth/refresh')
+        .post('/v1/back-office/auth/refresh')
         .send({ refreshToken })
         .expect(401);
     });
 
     it('should return 401 when no Authorization header is provided', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/logout')
+        .post('/v1/back-office/auth/logout')
         .expect(401);
     });
 
     it('should return 401 when an invalid token is provided', () => {
       return request(app.getHttpServer())
-        .post('/v1/admin/auth/logout')
+        .post('/v1/back-office/auth/logout')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
     });
@@ -342,7 +342,7 @@ describe('Admin (integration)', () => {
       const userTokens = await registerAndLoginUser();
 
       await request(app.getHttpServer())
-        .get('/v1/admin/auth/profile')
+        .get('/v1/back-office/auth/profile')
         .set('Authorization', `Bearer ${userTokens.accessToken}`)
         .expect(401);
     });

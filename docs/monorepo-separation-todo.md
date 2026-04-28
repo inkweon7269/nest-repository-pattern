@@ -288,7 +288,7 @@
 
   # 관리자 서버
   curl localhost:3001/health
-  curl -X POST localhost:3001/v1/admin/auth/register ...
+  curl -X POST localhost:3001/v1/back-office/auth/register ...
   ```
 - [ ] 서비스 토큰으로 관리자 엔드포인트 접근 → 401 확인
 - [ ] 관리자 토큰으로 서비스 엔드포인트 접근 → 401 확인

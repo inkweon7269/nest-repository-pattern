@@ -40,7 +40,7 @@ import { AdminProfileResponseDto } from './dto/response/admin-profile.response.d
 import { AuthTokens } from '@app/shared';
 
 @ApiTags('Admin Auth')
-@Controller('admin/auth')
+@Controller('back-office/auth')
 export class AdminAuthController {
   constructor(
     private readonly commandBus: CommandBus,
