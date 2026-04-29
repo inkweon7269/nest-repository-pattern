@@ -3,6 +3,7 @@ export { BaseTimeEntity } from './entities/base.entity';
 export { User } from './entities/user.entity';
 export { Post } from './entities/post.entity';
 export { Admin } from './entities/admin.entity';
+export { OAuthAccount } from './entities/oauth-account.entity';
 
 // Enum
 export { AdminRole } from './enum/admin-role.enum';

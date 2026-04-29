@@ -8,6 +8,7 @@ import { LoginHandler } from './command/login.handler';
 import { RefreshTokenHandler } from './command/refresh-token.handler';
 import { LogoutHandler } from './command/logout.handler';
 import { userRepositoryProviders } from './user-repository.provider';
+import { oauthAccountRepositoryProviders } from './oauth-account-repository.provider';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { GetProfileHandler } from './query/get-profile.handler';
@@ -29,6 +30,7 @@ const queryHandlers = [GetProfileHandler];
     ...commandHandlers,
     ...queryHandlers,
     ...userRepositoryProviders,
+    ...oauthAccountRepositoryProviders,
     AuthTokenIssuer,
     JwtStrategy,
     JwtAuthGuard,
