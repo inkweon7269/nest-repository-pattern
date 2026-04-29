@@ -30,13 +30,22 @@
 
 ### 1.4 API 명세
 
+#### 본 PRD 범위 (구현 완료)
+
 | Method | Path | 인증 | 설명 | 응답 |
 |---|---|---|---|---|
 | GET | `/v1/auth/google` | 무인증 | Google 동의 화면으로 redirect | 302 redirect |
 | GET | `/v1/auth/google/callback` | 무인증 | 콜백 처리, 토큰 발급 후 프론트 redirect | 302 redirect |
-| GET | `/v1/auth/google/link` | `JwtAuthGuard` | 인증 사용자가 구글 계정 연결 시작 | 302 redirect |
-| GET | `/v1/auth/google/link/callback` | `JwtAuthGuard` | 연결 콜백, OAuthAccount 추가 | 302 redirect |
 | DELETE | `/v1/auth/google/unlink` | `JwtAuthGuard` | 구글 계정 연결 해제 | 204 No Content |
+
+#### 후속 PRD로 분리 (미구현)
+
+| Method | Path | 인증 | 설명 | 비고 |
+|---|---|---|---|---|
+| GET | `/v1/auth/google/link` | `JwtAuthGuard` | 인증 사용자가 구글 계정 연결 시작 | OAuth `state` 토큰 인프라 필요 |
+| GET | `/v1/auth/google/link/callback` | (state 토큰) | 연결 콜백, OAuthAccount 추가 | 동일 |
+
+> **Link 플로우 분리 사유**: 브라우저 OAuth redirect는 Authorization 헤더를 보낼 수 없어 콜백 시점에 사용자 식별이 불가능하다. 이를 해결하려면 (1) signed JWT를 OAuth `state` 파라미터에 인코딩, (2) `GoogleLinkInitGuard` 커스텀 가드로 동적 state 옵션 전달, (3) 콜백에서 state 검증 → 사용자 ID 복원 인프라가 필요하다. 본 PRD에서는 핵심 로그인 플로우에 집중하고, link/unlink 중 unlink만 구현. `LinkGoogleAccountHandler` / `LinkGoogleAccountCommand` / `GoogleLinkStrategy`는 코드에 보존되어 있어 후속 PRD에서 라우트만 추가하면 즉시 사용 가능.
 
 > URI는 `app.module.ts`의 `defaultVersion: '1'` 정책으로 자동 prefix 적용.
 
@@ -827,6 +836,7 @@ pnpm test:migration    # 신규 마이그레이션 안전성 검증
 
 | 항목 | 설명 |
 |---|---|
+| **Google 계정 link 플로우** | `GET /v1/auth/google/link`, `/link/callback`. OAuth `state` 토큰 인프라(signed JWT + `GoogleLinkInitGuard` 커스텀 가드 + 콜백에서 state 검증) 필요. `LinkGoogleAccountHandler`, `LinkGoogleAccountCommand`, `GoogleLinkStrategy`는 코드에 보존되어 있어 라우트와 state 인프라만 추가하면 됨. **별도 PRD로 진행** |
 | 비밀번호 단독 설정 엔드포인트 | `PATCH /v1/auth/password` — 구글 단독 가입자가 비밀번호 추가 시. 본 PRD 범위 외 |
 | Kakao/Naver 등 멀티 프로바이더 추가 | `oauth_accounts.provider` 컬럼은 확장 가능하도록 설계됨. 별도 PRD로 진행 |
 | Swagger UI에서 OAuth 흐름 직접 테스트 | `DocumentBuilder.addOAuth2()` 추가 가능. 본 PRD에선 `@ApiExcludeEndpoint`로 OAuth 라우트 숨김 |

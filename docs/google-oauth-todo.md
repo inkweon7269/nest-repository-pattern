@@ -7,6 +7,25 @@
 
 ---
 
+## 진행 현황 (요약)
+
+| Phase | 상태 | 비고 |
+|---|---|---|
+| 1. 환경 준비 | ✅ 완료 | OAuth Client 발급, 패키지 설치, 환경변수 |
+| 2. DB 스키마 | ✅ 완료 | `oauth_accounts` 테이블 + 마이그레이션 |
+| 3. AuthTokenIssuer 추출 | ✅ 완료 | LoginHandler/RefreshTokenHandler 리팩토링 포함 |
+| 4. Repository 레이어 | ✅ 완료 | ISP + `useExisting` 패턴 |
+| 5. Passport Strategy | ✅ 완료 | `GoogleStrategy`, `GoogleLinkStrategy` (link strategy는 라우트 미연결 상태로 보존) |
+| 6. Command Handler | ✅ 완료 | login/link/unlink 3종 + 단위 테스트 12케이스 |
+| 7. Controller | ⚠️ **부분 완료** | `/google`, `/callback`, `DELETE /unlink` 3개. **link 라우트 2개는 OAuth state 인프라 필요로 후속 PRD 분리** |
+| 8. 통합 테스트 | ✅ 완료 | 9개 시나리오, MockGoogleStrategy 헬퍼 |
+| 9. 검증 | ✅ 완료 | format/lint/build/test/test:e2e 통과 |
+| 수동 E2E | ⏳ 사용자 작업 | 실제 Google credential로 브라우저 검증 |
+
+**커밋 범위**: `feature/google-login` 브랜치, `0052d1e` ~ `28c25fe` (8개 커밋)
+
+---
+
 ## 용어 빠른 참조
 
 체크리스트에서 자주 등장하는 용어 요약. 자세한 설명은 PRD 문서를 참고한다.
@@ -266,35 +285,34 @@
 
 > **이 단계에서 하는 일:** HTTP 라우팅 계층을 추가하고 신규 컴포넌트를 모듈에 등록한다. Swagger 데코레이터로 OAuth 라우트의 가시성을 적절히 조정한다.
 
-### 7.1 Controller 작성
+### 7.1 Controller 작성 (3개 엔드포인트 — 본 PRD 범위)
 
-- [ ] `apps/service/src/auth/google-auth.controller.ts` 신규 생성 (또는 기존 `auth.controller.ts`에 메서드 추가 — 팀 컨벤션에 따름)
+- [x] `apps/service/src/auth/google-auth.controller.ts` 신규 생성
   - `@Controller('auth/google')`
-  - 5개 라우트:
+  - 3개 라우트:
     - `GET /` — `@UseGuards(AuthGuard('google'))` + `@Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })`
     - `GET /callback` — `@UseGuards(AuthGuard('google'))` + try/catch로 redirect 처리
-    - `GET /link` — `@UseGuards(JwtAuthGuard, AuthGuard('google-link'))` + `@ApiBearerAuth()`
-    - `GET /link/callback` — 동일 가드 + redirect 처리
     - `DELETE /unlink` — `@UseGuards(JwtAuthGuard)` + `@HttpCode(204)`
   - 콜백 redirect URL 생성 시 `encodeURIComponent` 사용 (이메일 등 특수문자 방어)
+- [x] SWC 호환을 위해 `import type { Request, Response } from 'express'` 사용 (TS1272 회피)
+
+> **link 라우트 2개(`GET /link`, `GET /link/callback`)는 본 PRD에서 제외.** 이유는 [PRD §1.4](./google-oauth-prd.md#14-api-명세) 참고. 후속 PRD에서 OAuth state 인프라와 함께 추가.
 
 ### 7.2 Swagger 처리
 
-- [ ] `GET /auth/google` — `@ApiOperation({ summary: 'Google OAuth 로그인 시작' })`
-- [ ] `GET /auth/google/callback` — `@ApiExcludeEndpoint()` (Google이 호출, Swagger UI 노출 X)
-- [ ] `GET /auth/google/link` — `@ApiBearerAuth()` + `@ApiOperation()`
-- [ ] `GET /auth/google/link/callback` — `@ApiExcludeEndpoint()`
-- [ ] `DELETE /auth/google/unlink` — `@ApiBearerAuth()` + `@ApiNoContentResponse()` + `@ApiNotFoundResponse()`
+- [x] `GET /auth/google` — `@ApiOperation({ summary: 'Google OAuth 로그인 시작' })` + `@ApiTooManyRequestsResponse`
+- [x] `GET /auth/google/callback` — `@ApiExcludeEndpoint()` (Google이 호출, Swagger UI 노출 X)
+- [x] `DELETE /auth/google/unlink` — `@ApiBearerAuth()` + `@ApiNoContentResponse()` + `@ApiNotFoundResponse()` + `@ApiUnauthorizedResponse()`
 
 ### 7.3 모듈 등록
 
-- [ ] `apps/service/src/auth/auth.module.ts` 수정
-  - `controllers`에 `GoogleAuthController` 추가 (별도 컨트롤러 사용 시)
-  - `providers`에 추가:
+- [x] `apps/service/src/auth/auth.module.ts` 수정
+  - `controllers`에 `GoogleAuthController` 추가
+  - `providers`에 등록 (Phase 3~6 누적):
     - `GoogleLoginHandler`, `LinkGoogleAccountHandler`, `UnlinkGoogleAccountHandler`
-    - `GoogleStrategy`, `GoogleLinkStrategy`
+    - `GoogleStrategy`, `GoogleLinkStrategy` (link strategy는 라우트 미연결 상태로 보존)
     - `...oauthAccountRepositoryProviders`
-    - `AuthTokenIssuer` (Phase 3에서 미등록 시 여기서 추가)
+    - `AuthTokenIssuer`
 
 ---
 
@@ -474,6 +492,10 @@ Phase 3 (AuthTokenIssuer) ────┘
 
 ## 후속 작업 (본 PRD 범위 외)
 
+- [ ] **Google 계정 link 플로우** (`GET /v1/auth/google/link`, `/link/callback`)
+  - 사전 작업: signed JWT를 OAuth `state` 파라미터에 인코딩하는 인프라 설계
+  - 구현: `GoogleLinkInitGuard` 커스텀 가드 (동적 `state` 옵션 전달) + 콜백에서 state 검증 → user.id 복원
+  - 활용: 이미 작성된 `LinkGoogleAccountHandler`, `LinkGoogleAccountCommand`, `GoogleLinkStrategy`를 라우트에 연결만 하면 됨
 - [ ] 비밀번호 단독 설정 엔드포인트 (`PATCH /v1/auth/password`) — 구글 단독 가입자 대상
 - [ ] Kakao/Naver 등 멀티 프로바이더 추가 (별도 PRD)
 - [ ] Swagger UI에서 OAuth 직접 테스트 (`DocumentBuilder.addOAuth2()`)
