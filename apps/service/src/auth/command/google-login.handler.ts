@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { GoogleLoginCommand } from './google-login.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
@@ -58,13 +59,23 @@ export class GoogleLoginHandler implements ICommandHandler<
       password: hashedPassword,
       name: displayName,
     });
-    await this.oauthWriteRepository.create({
-      userId: newUser.id,
-      provider: 'google',
-      providerId,
-      providerEmail: email,
-      emailVerified,
-    });
+    try {
+      await this.oauthWriteRepository.create({
+        userId: newUser.id,
+        provider: 'google',
+        providerId,
+        providerEmail: email,
+        emailVerified,
+      });
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string })?.code === '23505'
+      ) {
+        throw new ConflictException('이미 연결된 Google 계정입니다');
+      }
+      throw error;
+    }
     return this.tokenIssuer.issueTokens(newUser);
   }
 }

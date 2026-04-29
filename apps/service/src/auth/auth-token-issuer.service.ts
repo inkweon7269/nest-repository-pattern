@@ -18,14 +18,14 @@ export class AuthTokenIssuer {
     const payload = { sub: user.id, email: user.email };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m'),
     } as JwtSignOptions);
 
     const refreshToken = this.jwtService.sign(
       { ...payload, type: 'refresh', jti: randomUUID() },
       {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.configService.get<string>(
           'JWT_REFRESH_EXPIRATION',
           '7d',

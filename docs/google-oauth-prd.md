@@ -89,7 +89,7 @@ window.location.href = authorizationUrl;
 
 `GET /v1/auth/google/callback`에서 토큰 발급 후 `GOOGLE_FRONTEND_REDIRECT_URL`로 redirect. 토큰은 **fragment(`#`)** 로 전달한다.
 
-```
+```text
 ${GOOGLE_FRONTEND_REDIRECT_URL}#accessToken=eyJ...&refreshToken=eyJ...
 ```
 
@@ -109,7 +109,7 @@ ${GOOGLE_FRONTEND_REDIRECT_URL}#accessToken=eyJ...&refreshToken=eyJ...
 
 ### 2.1 OAuth 플로우 단계
 
-```
+```text
 [Browser] ─GET /v1/auth/google──────────────────▶ [Service]
                                                       │
                                                       ▼
@@ -136,7 +136,7 @@ ${GOOGLE_FRONTEND_REDIRECT_URL}#accessToken=eyJ...&refreshToken=eyJ...
 
 `GoogleLoginHandler`의 분기 로직:
 
-```
+```text
 1. validate() 결과의 emailVerified === false
    → UnauthorizedException ('Google 미검증 이메일')
 
@@ -158,7 +158,8 @@ ${GOOGLE_FRONTEND_REDIRECT_URL}#accessToken=eyJ...&refreshToken=eyJ...
 | 항목 | 정책 |
 |---|---|
 | `email_verified` | `false`면 즉시 거부 (G Workspace 임의 도메인 탈취 방지) |
-| CSRF 방어 | `passport-google-oauth20`의 `state: true` 옵션 활성화 |
+| CSRF 방어 (Login 플로우) | `state: false` — `passport`의 자동 state는 express-session이 필요한데 본 프로젝트는 무세션 Bearer 기반. CSRF는 짧은 access token + Origin/CORS 화이트리스트로 방어 |
+| CSRF 방어 (Link 플로우) | signed JWT state 토큰을 `GoogleLinkInitiator`에서 발행, 콜백에서 `JwtService.verify` + `type='google-link-state'` 클레임 검증 |
 | Redirect URL | `GOOGLE_FRONTEND_REDIRECT_URL` 환경변수 단일 값 고정 (open redirect 방지) |
 | 토큰 전달 | URL fragment (`#`) — 서버 로그/리퍼러 노출 차단 |
 | Rate Limiting | `/auth/google`, `/auth/google/callback`에 기존 `@Throttle({ short: 2/1s, long: 5/60s })` 적용 |
@@ -209,7 +210,7 @@ pnpm add -D @types/passport-google-oauth20
 
 ### 3.1 신규 생성 파일
 
-```
+```text
 libs/shared/src/
 ├── entities/
 │   └── oauth-account.entity.ts                     # OAuthAccount 엔티티

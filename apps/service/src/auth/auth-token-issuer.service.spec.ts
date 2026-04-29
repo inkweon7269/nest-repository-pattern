@@ -45,13 +45,16 @@ describe('AuthTokenIssuer', () => {
     userWriteRepository.update.mockResolvedValue(1);
     configService.get.mockImplementation(
       (key: string, defaultValue?: string) => {
-        if (key === 'JWT_ACCESS_SECRET') return 'test-access-secret';
-        if (key === 'JWT_REFRESH_SECRET') return 'test-refresh-secret';
         if (key === 'JWT_ACCESS_EXPIRATION') return defaultValue ?? '15m';
         if (key === 'JWT_REFRESH_EXPIRATION') return defaultValue ?? '7d';
         return defaultValue;
       },
     );
+    configService.getOrThrow.mockImplementation((key: string) => {
+      if (key === 'JWT_ACCESS_SECRET') return 'test-access-secret';
+      if (key === 'JWT_REFRESH_SECRET') return 'test-refresh-secret';
+      throw new Error(`Unexpected getOrThrow key: ${key}`);
+    });
   });
 
   it('access/refresh 토큰을 발급하고 hashedRefreshToken을 저장한다', async () => {

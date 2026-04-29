@@ -61,6 +61,8 @@ export class GoogleAuthController {
 
   @Get('callback')
   @UseGuards(AuthGuard('google'))
+  @Throttle({ short: { ttl: 1000, limit: 2 }, long: { ttl: 60000, limit: 5 } })
+  @ApiTooManyRequestsResponse({ description: '요청 횟수 초과' })
   @ApiExcludeEndpoint()
   async googleCallback(
     @Req() req: Request,

@@ -1,5 +1,6 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { QueryFailedError } from 'typeorm';
 import { LinkGoogleAccountCommand } from './link-google-account.command';
 import { IOAuthAccountReadRepository } from '@service/auth/interface/oauth-account-read-repository.interface';
 import { IOAuthAccountWriteRepository } from '@service/auth/interface/oauth-account-write-repository.interface';
@@ -40,12 +41,22 @@ export class LinkGoogleAccountHandler implements ICommandHandler<
       throw new ConflictException('이미 Google 계정이 연결되어 있습니다');
     }
 
-    await this.oauthWriteRepository.create({
-      userId,
-      provider: 'google',
-      providerId,
-      providerEmail: email,
-      emailVerified,
-    });
+    try {
+      await this.oauthWriteRepository.create({
+        userId,
+        provider: 'google',
+        providerId,
+        providerEmail: email,
+        emailVerified,
+      });
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string })?.code === '23505'
+      ) {
+        throw new ConflictException('이미 Google 계정이 연결되어 있습니다');
+      }
+      throw error;
+    }
   }
 }

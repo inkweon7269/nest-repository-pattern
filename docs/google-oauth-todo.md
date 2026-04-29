@@ -480,7 +480,7 @@
 
 ## 의존성 그래프
 
-```
+```text
 Phase 1 (환경)
   └─▶ Phase 2 (DB 스키마)
         └─▶ Phase 4 (Repository)
