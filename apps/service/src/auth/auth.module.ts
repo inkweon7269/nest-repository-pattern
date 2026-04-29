@@ -10,6 +10,8 @@ import { LogoutHandler } from './command/logout.handler';
 import { userRepositoryProviders } from './user-repository.provider';
 import { oauthAccountRepositoryProviders } from './oauth-account-repository.provider';
 import { JwtStrategy } from './strategy/jwt.strategy';
+import { GoogleStrategy } from './strategy/google.strategy';
+import { GoogleLinkStrategy } from './strategy/google-link.strategy';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { GetProfileHandler } from './query/get-profile.handler';
 import { AuthTokenIssuer } from './auth-token-issuer.service';
@@ -33,6 +35,8 @@ const queryHandlers = [GetProfileHandler];
     ...oauthAccountRepositoryProviders,
     AuthTokenIssuer,
     JwtStrategy,
+    GoogleStrategy,
+    GoogleLinkStrategy,
     JwtAuthGuard,
   ],
   exports: [JwtAuthGuard],

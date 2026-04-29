@@ -77,6 +77,11 @@ export default async function globalSetup() {
       OTEL_ENABLED: 'false',
       SERVICE_CORS_ORIGINS: 'http://allowed.test',
       BACK_OFFICE_CORS_ORIGINS: 'http://allowed-admin.test',
+      GOOGLE_CLIENT_ID: 'test-google-client-id',
+      GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
+      GOOGLE_CALLBACK_URL: 'http://localhost/v1/auth/google/callback',
+      GOOGLE_LINK_CALLBACK_URL: 'http://localhost/v1/auth/google/link/callback',
+      GOOGLE_FRONTEND_REDIRECT_URL: 'http://localhost/oauth/callback',
     };
 
     writeFileSync(TEST_ENV_PATH, JSON.stringify(env, null, 2));
