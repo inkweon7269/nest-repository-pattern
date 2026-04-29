@@ -44,6 +44,11 @@ export class MockGoogleLinkStrategy extends PassportStrategy(
     } as StrategyOptions);
   }
 
+  validate(): GoogleLinkValidatePayload {
+    // authenticate()를 직접 오버라이드하여 success를 호출하므로 호출되지 않음.
+    throw new Error('MockGoogleLinkStrategy.validate should not be invoked');
+  }
+
   authenticate(req: Request, options?: { state?: string }): void {
     if (req.url?.includes('/callback')) {
       if (!MockGoogleLinkStrategy.profile) {

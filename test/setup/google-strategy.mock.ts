@@ -26,6 +26,11 @@ export class MockGoogleStrategy extends PassportStrategy(Strategy, 'google') {
     } as StrategyOptions);
   }
 
+  validate(): GoogleProfilePayload {
+    // authenticate()를 직접 오버라이드하여 success를 호출하므로 호출되지 않음.
+    throw new Error('MockGoogleStrategy.validate should not be invoked');
+  }
+
   authenticate(req: Request): void {
     if (req.url?.includes('/callback')) {
       if (!MockGoogleStrategy.profile) {
