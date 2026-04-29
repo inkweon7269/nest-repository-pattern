@@ -19,11 +19,21 @@ import {
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
+export interface ProviderOverride {
+  provide: unknown;
+  useClass?: Type;
+  useValue?: unknown;
+}
+
 export async function createIntegrationApp(
   appModule: Type,
-  options: { corsOriginEnvKey?: CorsOriginEnvKey } = {},
+  options: {
+    corsOriginEnvKey?: CorsOriginEnvKey;
+    overrideProviders?: ProviderOverride[];
+  } = {},
 ): Promise<INestApplication<App>> {
-  const { corsOriginEnvKey = 'SERVICE_CORS_ORIGINS' } = options;
+  const { corsOriginEnvKey = 'SERVICE_CORS_ORIGINS', overrideProviders = [] } =
+    options;
 
   const env = JSON.parse(readFileSync(TEST_ENV_PATH, 'utf-8')) as Record<
     string,
@@ -32,9 +42,16 @@ export async function createIntegrationApp(
 
   Object.assign(process.env, env);
 
-  const module = await Test.createTestingModule({
-    imports: [appModule],
-  }).compile();
+  const builder = Test.createTestingModule({ imports: [appModule] });
+  for (const override of overrideProviders) {
+    const target = builder.overrideProvider(override.provide as Type);
+    if (override.useClass) {
+      target.useClass(override.useClass);
+    } else if (override.useValue !== undefined) {
+      target.useValue(override.useValue);
+    }
+  }
+  const module = await builder.compile();
 
   const app = module.createNestApplication();
 
