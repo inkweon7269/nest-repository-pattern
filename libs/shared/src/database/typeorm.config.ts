@@ -3,8 +3,9 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Admin } from '../entities/admin.entity';
+import { OAuthAccount } from '../entities/oauth-account.entity';
 
-const entities = [User, Post, Admin];
+const entities = [User, Post, Admin, OAuthAccount];
 
 export function createDataSourceOptions(
   env: Record<string, string | undefined>,
