@@ -3,6 +3,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
+import { GoogleAuthController } from './google-auth.controller';
 import { RegisterHandler } from './command/register.handler';
 import { LoginHandler } from './command/login.handler';
 import { RefreshTokenHandler } from './command/refresh-token.handler';
@@ -33,7 +34,7 @@ const queryHandlers = [GetProfileHandler];
 
 @Module({
   imports: [CqrsModule, PassportModule, JwtModule.register({}), AppCacheModule],
-  controllers: [AuthController],
+  controllers: [AuthController, GoogleAuthController],
   providers: [
     ...commandHandlers,
     ...queryHandlers,
