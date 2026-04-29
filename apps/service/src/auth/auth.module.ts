@@ -7,6 +7,9 @@ import { RegisterHandler } from './command/register.handler';
 import { LoginHandler } from './command/login.handler';
 import { RefreshTokenHandler } from './command/refresh-token.handler';
 import { LogoutHandler } from './command/logout.handler';
+import { GoogleLoginHandler } from './command/google-login.handler';
+import { LinkGoogleAccountHandler } from './command/link-google-account.handler';
+import { UnlinkGoogleAccountHandler } from './command/unlink-google-account.handler';
 import { userRepositoryProviders } from './user-repository.provider';
 import { oauthAccountRepositoryProviders } from './oauth-account-repository.provider';
 import { JwtStrategy } from './strategy/jwt.strategy';
@@ -22,6 +25,9 @@ const commandHandlers = [
   LoginHandler,
   RefreshTokenHandler,
   LogoutHandler,
+  GoogleLoginHandler,
+  LinkGoogleAccountHandler,
+  UnlinkGoogleAccountHandler,
 ];
 const queryHandlers = [GetProfileHandler];
 
