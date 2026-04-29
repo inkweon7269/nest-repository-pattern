@@ -11,6 +11,7 @@ import { userRepositoryProviders } from './user-repository.provider';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { GetProfileHandler } from './query/get-profile.handler';
+import { AuthTokenIssuer } from './auth-token-issuer.service';
 import { AppCacheModule } from '@app/shared';
 
 const commandHandlers = [
@@ -28,6 +29,7 @@ const queryHandlers = [GetProfileHandler];
     ...commandHandlers,
     ...queryHandlers,
     ...userRepositoryProviders,
+    AuthTokenIssuer,
     JwtStrategy,
     JwtAuthGuard,
   ],
