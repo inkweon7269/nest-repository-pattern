@@ -34,29 +34,60 @@
 |---|---|---|---|---|
 | GET | `/v1/auth/google` | 무인증 | Google 동의 화면으로 redirect | 302 redirect |
 | GET | `/v1/auth/google/callback` | 무인증 | 콜백 처리, 토큰 발급 후 프론트 redirect | 302 redirect |
-| GET | `/v1/auth/google/link` | `JwtAuthGuard` + `GoogleLinkInitGuard` | 인증 사용자가 구글 계정 연결 시작 (signed state 토큰 발행) | 302 redirect |
+| **POST** | `/v1/auth/google/link` | `JwtAuthGuard` (Bearer 헤더) | 인증 사용자가 구글 계정 연결 시작 — Google 동의 화면 URL 반환 | **200 JSON `{ authorizationUrl }`** |
 | GET | `/v1/auth/google/link/callback` | state 토큰 검증 | 연결 콜백, OAuthAccount 추가 | 302 redirect |
 | DELETE | `/v1/auth/google/unlink` | `JwtAuthGuard` | 구글 계정 연결 해제 | 204 No Content |
 
 > URI는 `app.module.ts`의 `defaultVersion: '1'` 정책으로 자동 prefix 적용.
 
+> **`POST /link`인 이유**: 브라우저 top-level navigation(`window.location.href`)으로는 `Authorization` 헤더를 추가할 수 없어 GET + Bearer 조합은 동작 불가. POST + JSON `{ authorizationUrl }` 패턴은 프론트가 fetch로 인증 헤더를 보낼 수 있고, 받은 URL로 직접 redirect만 하면 된다. CORS preflight(OPTIONS)는 본 프로젝트의 `applySecurityMiddleware`가 이미 `Authorization` 헤더와 `OPTIONS` 메서드를 허용하므로 추가 설정 불필요(`libs/shared/src/bootstrap/security.ts`).
+
 #### Link 플로우의 사용자 식별 메커니즘
 
 브라우저 OAuth redirect는 Authorization 헤더를 보낼 수 없어 콜백 시점 사용자 식별이 어렵다. 본 프로젝트는 다음 3단 인프라로 해결한다.
 
-1. **`GoogleLinkInitGuard`** (`apps/service/src/auth/guard/google-link-init.guard.ts`)
-   - `JwtAuthGuard` 통과 후 실행
-   - `getAuthenticateOptions()` 오버라이드 — 인증된 user.id로 signed JWT(state)를 발행하여 passport에 동적 옵션 전달
+1. **`GoogleLinkInitiator`** (`apps/service/src/auth/google-link-initiator.service.ts`)
+   - 평범한 도메인 서비스 — `buildAuthorizationUrl(userId)` 메서드 노출
+   - 인증된 user.id로 signed JWT(state)를 발행하고 Google OAuth 2.0 authorization URL을 빌드해 반환
    - state payload: `{ sub: userId, type: 'google-link-state', jti: uuid }`, 5분 만료, `JWT_ACCESS_SECRET` 재사용
+   - 컨트롤러는 `JwtAuthGuard`로 user를 식별 후 이 서비스 호출 → 결과를 `LinkInitiateResponseDto`로 반환
 2. **`GoogleLinkStrategy`** (`state: false`, `passReqToCallback: true`)
    - passport의 자동 state 비활성화하고 우리가 직접 검증
    - `validate(req, ...)`에서 `req.query.state`를 `JwtService.verify`로 검증, `type='google-link-state'` 체크
    - 반환: `{ userId, profile }`
 3. **콜백 컨트롤러** — `req.user`에 들어온 `{ userId, profile }`를 `LinkGoogleAccountCommand`로 전달
 
-### 1.5 콜백 → 프론트 토큰 전달
+### 1.5 프론트엔드 통합 가이드 (Link 플로우)
 
-콜백에서 토큰 발급 후 `GOOGLE_FRONTEND_REDIRECT_URL`로 redirect. 토큰은 **fragment(`#`)** 로 전달한다.
+```typescript
+// 1) 인증된 fetch로 link 시작 호출
+const res = await fetch('/v1/auth/google/link', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${accessToken}` },
+});
+if (res.status === 401) {
+  // 토큰 만료 → 리프레시 또는 재로그인
+  return;
+}
+if (!res.ok) {
+  // 429 등 처리
+  return;
+}
+const { authorizationUrl } = await res.json();
+
+// 2) Google 동의 화면으로 이동 (top-level navigation)
+window.location.href = authorizationUrl;
+
+// 3) 콜백은 백엔드가 처리하여 GOOGLE_FRONTEND_REDIRECT_URL로 redirect
+//    프론트 라우트(예: /oauth/callback)에서 fragment 파싱:
+//    - #linked=true            → 성공
+//    - #error=email_not_verified
+//    - #error=link_conflict
+```
+
+### 1.6 콜백 → 프론트 토큰 전달 (Login 플로우)
+
+`GET /v1/auth/google/callback`에서 토큰 발급 후 `GOOGLE_FRONTEND_REDIRECT_URL`로 redirect. 토큰은 **fragment(`#`)** 로 전달한다.
 
 ```
 ${GOOGLE_FRONTEND_REDIRECT_URL}#accessToken=eyJ...&refreshToken=eyJ...
@@ -69,6 +100,8 @@ ${GOOGLE_FRONTEND_REDIRECT_URL}#accessToken=eyJ...&refreshToken=eyJ...
 | 미검증 이메일 | `#error=email_not_verified` |
 
 > `?` query string이 아닌 `#` fragment를 사용하여 액세스 로그/리퍼러 헤더에 토큰 노출 방지.
+
+> Link 플로우의 콜백(`GET /v1/auth/google/link/callback`)도 동일하게 `GOOGLE_FRONTEND_REDIRECT_URL`로 redirect하지만 fragment는 `#linked=true` / `#error=link_conflict` / `#error=email_not_verified` 중 하나.
 
 ---
 

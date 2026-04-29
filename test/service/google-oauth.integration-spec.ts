@@ -210,9 +210,9 @@ describe('Google OAuth (integration)', () => {
   });
 
   // ============================================================
-  // GET /v1/auth/google/link  &  /link/callback
+  // POST /v1/auth/google/link  &  GET /link/callback
   // ============================================================
-  describe('GET /v1/auth/google/link (계정 연결 시작)', () => {
+  describe('POST /v1/auth/google/link (계정 연결 시작)', () => {
     async function getLocalUserAccessToken(
       email = 'local-user@example.com',
     ): Promise<string> {
@@ -226,24 +226,32 @@ describe('Google OAuth (integration)', () => {
 
     it('인증 없이 호출하면 401', async () => {
       await request(app.getHttpServer())
-        .get('/v1/auth/google/link')
+        .post('/v1/auth/google/link')
         .expect(401);
     });
 
-    it('인증된 사용자가 호출하면 state 토큰을 포함한 OAuth URL로 redirect한다', async () => {
+    it('인증된 사용자가 호출하면 200 JSON으로 authorizationUrl을 반환한다', async () => {
       const accessToken = await getLocalUserAccessToken();
 
       const res = await request(app.getHttpServer())
-        .get('/v1/auth/google/link')
+        .post('/v1/auth/google/link')
         .set('Authorization', `Bearer ${accessToken}`)
-        .expect(302);
+        .expect(200);
 
-      expect(res.headers.location).toContain('accounts.google.com');
-      const url = new URL(res.headers.location);
+      expect(res.body).toHaveProperty('authorizationUrl');
+      expect(res.body.authorizationUrl).toContain('accounts.google.com');
+
+      const url = new URL(res.body.authorizationUrl);
       const stateParam = url.searchParams.get('state');
       expect(stateParam).toBeTruthy();
       // state는 JWT 형태(3 segment, dot 2개)
       expect(stateParam!.split('.').length).toBe(3);
+
+      // OAuth 표준 query 파라미터 모두 포함
+      expect(url.searchParams.get('client_id')).toBeTruthy();
+      expect(url.searchParams.get('redirect_uri')).toBeTruthy();
+      expect(url.searchParams.get('response_type')).toBe('code');
+      expect(url.searchParams.get('scope')).toBe('openid email profile');
     });
   });
 
@@ -261,11 +269,11 @@ describe('Google OAuth (integration)', () => {
       const accessToken = loginRes.body.accessToken as string;
 
       const startRes = await request(app.getHttpServer())
-        .get('/v1/auth/google/link')
+        .post('/v1/auth/google/link')
         .set('Authorization', `Bearer ${accessToken}`)
-        .expect(302);
+        .expect(200);
 
-      const url = new URL(startRes.headers.location);
+      const url = new URL(startRes.body.authorizationUrl);
       const stateToken = url.searchParams.get('state')!;
 
       const user = await dataSource

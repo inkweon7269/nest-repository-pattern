@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Post,
   Req,
   Res,
   UnauthorizedException,
@@ -18,6 +19,7 @@ import {
   ApiExcludeEndpoint,
   ApiNoContentResponse,
   ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiTooManyRequestsResponse,
@@ -26,7 +28,6 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
-import { GoogleLinkInitGuard } from './guard/google-link-init.guard';
 import { CurrentUser } from './decorator/current-user.decorator';
 import { AuthUser } from './decorator/auth-user.type';
 import { GoogleLoginCommand } from './command/google-login.command';
@@ -34,6 +35,8 @@ import { LinkGoogleAccountCommand } from './command/link-google-account.command'
 import { UnlinkGoogleAccountCommand } from './command/unlink-google-account.command';
 import { GoogleProfilePayload } from './strategy/google-profile.type';
 import { GoogleLinkValidatePayload } from './strategy/google-link.strategy';
+import { GoogleLinkInitiator } from './google-link-initiator.service';
+import { LinkInitiateResponseDto } from './dto/response/link-initiate.response.dto';
 import { AuthTokens } from '@app/shared';
 
 @ApiTags('Auth')
@@ -42,6 +45,7 @@ export class GoogleAuthController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly configService: ConfigService,
+    private readonly linkInitiator: GoogleLinkInitiator,
   ) {}
 
   @Get()
@@ -90,15 +94,19 @@ export class GoogleAuthController {
     }
   }
 
-  @Get('link')
-  @UseGuards(JwtAuthGuard, GoogleLinkInitGuard)
+  @Post('link')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Google 계정 연결 시작 (인증된 사용자가 본인 계정에 Google 연결)',
+    summary:
+      'Google 계정 연결 시작 — 동의 화면 URL을 반환 (브라우저 navigation 호환)',
   })
+  @ApiOkResponse({ type: LinkInitiateResponseDto })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
-  googleLinkStart(): void {
-    /* GoogleLinkInitGuard가 state 토큰을 만들어 Google로 redirect */
+  googleLinkStart(@CurrentUser() user: AuthUser): LinkInitiateResponseDto {
+    const authorizationUrl = this.linkInitiator.buildAuthorizationUrl(user.id);
+    return LinkInitiateResponseDto.of(authorizationUrl);
   }
 
   @Get('link/callback')

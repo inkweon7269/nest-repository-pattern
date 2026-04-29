@@ -17,7 +17,7 @@
 | 4. Repository 레이어 | ✅ 완료 | ISP + `useExisting` 패턴 |
 | 5. Passport Strategy | ✅ 완료 | `GoogleStrategy`, `GoogleLinkStrategy`(state 토큰 검증) |
 | 6. Command Handler | ✅ 완료 | login/link/unlink 3종 + 단위 테스트 12케이스 |
-| 7. Controller | ✅ 완료 | 5개 라우트(login/callback/link/link-callback/unlink) + `GoogleLinkInitGuard` |
+| 7. Controller | ✅ 완료 | 5개 라우트 — link 시작은 **`POST /link` JSON `{ authorizationUrl }` 반환** (브라우저 navigation 호환), 나머지는 redirect/204 |
 | 8. 통합 테스트 | ✅ 완료 | 17개 시나리오, MockGoogleStrategy + MockGoogleLinkStrategy |
 | 9. 검증 | ✅ 완료 | format/lint/build/test/test:e2e 통과 |
 | 수동 E2E | ⏳ 사용자 작업 | 실제 Google credential로 브라우저 검증 |
@@ -290,18 +290,22 @@
   - 5개 라우트:
     - `GET /` — `@UseGuards(AuthGuard('google'))` + `@Throttle({ short: { limit: 2, ttl: 1000 }, long: { limit: 5, ttl: 60000 } })`
     - `GET /callback` — `@UseGuards(AuthGuard('google'))` + try/catch로 redirect 처리
-    - `GET /link` — `@UseGuards(JwtAuthGuard, GoogleLinkInitGuard)` + `@ApiBearerAuth`
+    - **`POST /link`** — `@UseGuards(JwtAuthGuard)` + `@HttpCode(200)` + `LinkInitiateResponseDto` 반환 (브라우저 navigation 호환)
     - `GET /link/callback` — `@UseGuards(AuthGuard('google-link'))` + try/catch redirect
     - `DELETE /unlink` — `@UseGuards(JwtAuthGuard)` + `@HttpCode(204)`
   - 콜백 redirect URL 생성 시 `encodeURIComponent` 사용 (이메일 등 특수문자 방어)
 - [x] SWC 호환을 위해 `import type { Request, Response } from 'express'` 사용 (TS1272 회피)
 
-### 7.2 GoogleLinkInitGuard 작성
+### 7.2 GoogleLinkInitiator 서비스 작성
 
-- [x] `apps/service/src/auth/guard/google-link-init.guard.ts`
-  - `AuthGuard('google-link')` 상속
-  - `getAuthenticateOptions(context)` 오버라이드 → `JwtAuthGuard`가 채운 `req.user`에서 user.id 추출 → signed JWT 발행 → `{ state: token }` 반환
+- [x] `apps/service/src/auth/google-link-initiator.service.ts`
+  - 평범한 도메인 서비스 (`@Injectable()`) — passport 가드 패턴 폐기
+  - `buildAuthorizationUrl(userId)` — signed JWT(state) 발행 + Google OAuth 2.0 authorization URL 빌드 후 반환
   - state payload: `{ sub: userId, type: 'google-link-state', jti: uuid }`, 5분 만료, `JWT_ACCESS_SECRET` 재사용
+  - 컨트롤러는 `JwtAuthGuard`로 user 식별 → 이 서비스 호출 → `LinkInitiateResponseDto` JSON 반환
+- [x] `apps/service/src/auth/dto/response/link-initiate.response.dto.ts` — `{ authorizationUrl }` DTO
+
+> 이전 단계의 `GoogleLinkInitGuard`(passport `getAuthenticateOptions` 오버라이드)는 폐기. 자동 redirect 가드 패턴이 `POST /link` JSON 반환 흐름과 맞지 않아 평범한 서비스 클래스로 단순화.
 
 ### 7.3 GoogleLinkStrategy state 검증
 
@@ -314,7 +318,7 @@
 
 - [x] `GET /auth/google` — `@ApiOperation` + `@ApiTooManyRequestsResponse`
 - [x] `GET /auth/google/callback` — `@ApiExcludeEndpoint`
-- [x] `GET /auth/google/link` — `@ApiBearerAuth` + `@ApiOperation` + `@ApiUnauthorizedResponse`
+- [x] **`POST /auth/google/link`** — `@ApiBearerAuth` + `@ApiOperation` + `@ApiOkResponse({ type: LinkInitiateResponseDto })` + `@ApiUnauthorizedResponse`
 - [x] `GET /auth/google/link/callback` — `@ApiExcludeEndpoint`
 - [x] `DELETE /auth/google/unlink` — `@ApiBearerAuth` + `@ApiNoContentResponse` + `@ApiNotFoundResponse` + `@ApiUnauthorizedResponse`
 
@@ -325,9 +329,13 @@
   - `providers`에 등록:
     - `GoogleLoginHandler`, `LinkGoogleAccountHandler`, `UnlinkGoogleAccountHandler`
     - `GoogleStrategy`, `GoogleLinkStrategy`
-    - `JwtAuthGuard`, `GoogleLinkInitGuard`
+    - `JwtAuthGuard`, `GoogleLinkInitiator`
     - `...oauthAccountRepositoryProviders`
     - `AuthTokenIssuer`
+
+### 7.6 CORS preflight (확인 사항)
+
+- [x] `applySecurityMiddleware`(`libs/shared/src/bootstrap/security.ts`)가 이미 `Authorization` 헤더와 `OPTIONS` 메서드를 허용 → `POST /v1/auth/google/link` preflight 정상 동작 (추가 변경 불필요)
 
 ---
 
