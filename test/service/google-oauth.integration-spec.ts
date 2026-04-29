@@ -8,8 +8,10 @@ import {
   TransactionHelper,
 } from '../setup/integration-helper';
 import { MockGoogleStrategy } from '../setup/google-strategy.mock';
+import { MockGoogleLinkStrategy } from '../setup/google-link-strategy.mock';
 import { AppModule } from '../../apps/service/src/app.module';
 import { GoogleStrategy } from '../../apps/service/src/auth/strategy/google.strategy';
+import { GoogleLinkStrategy } from '../../apps/service/src/auth/strategy/google-link.strategy';
 import { OAuthAccount, User } from '@app/shared';
 
 describe('Google OAuth (integration)', () => {
@@ -21,6 +23,7 @@ describe('Google OAuth (integration)', () => {
     app = await createIntegrationApp(AppModule, {
       overrideProviders: [
         { provide: GoogleStrategy, useClass: MockGoogleStrategy },
+        { provide: GoogleLinkStrategy, useClass: MockGoogleLinkStrategy },
       ],
     });
     txHelper = useTransactionRollback(app);
@@ -29,6 +32,7 @@ describe('Google OAuth (integration)', () => {
 
   beforeEach(async () => {
     MockGoogleStrategy.profile = null;
+    MockGoogleLinkStrategy.profile = null;
     await txHelper.start();
   });
 
@@ -202,6 +206,205 @@ describe('Google OAuth (integration)', () => {
         .getRepository(User)
         .count({ where: { email: validProfile.email } });
       expect(userCount).toBe(0);
+    });
+  });
+
+  // ============================================================
+  // GET /v1/auth/google/link  &  /link/callback
+  // ============================================================
+  describe('GET /v1/auth/google/link (계정 연결 시작)', () => {
+    async function getLocalUserAccessToken(
+      email = 'local-user@example.com',
+    ): Promise<string> {
+      await registerLocalUser(email);
+      const loginRes = await request(app.getHttpServer())
+        .post('/v1/auth/login')
+        .send({ email, password: 'password123' })
+        .expect(200);
+      return loginRes.body.accessToken as string;
+    }
+
+    it('인증 없이 호출하면 401', async () => {
+      await request(app.getHttpServer())
+        .get('/v1/auth/google/link')
+        .expect(401);
+    });
+
+    it('인증된 사용자가 호출하면 state 토큰을 포함한 OAuth URL로 redirect한다', async () => {
+      const accessToken = await getLocalUserAccessToken();
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/google/link')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(302);
+
+      expect(res.headers.location).toContain('accounts.google.com');
+      const url = new URL(res.headers.location);
+      const stateParam = url.searchParams.get('state');
+      expect(stateParam).toBeTruthy();
+      // state는 JWT 형태(3 segment, dot 2개)
+      expect(stateParam!.split('.').length).toBe(3);
+    });
+  });
+
+  describe('GET /v1/auth/google/link/callback', () => {
+    async function startLinkAndCaptureState(): Promise<{
+      stateToken: string;
+      accessToken: string;
+      userId: number;
+    }> {
+      await registerLocalUser('linker@example.com');
+      const loginRes = await request(app.getHttpServer())
+        .post('/v1/auth/login')
+        .send({ email: 'linker@example.com', password: 'password123' })
+        .expect(200);
+      const accessToken = loginRes.body.accessToken as string;
+
+      const startRes = await request(app.getHttpServer())
+        .get('/v1/auth/google/link')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(302);
+
+      const url = new URL(startRes.headers.location);
+      const stateToken = url.searchParams.get('state')!;
+
+      const user = await dataSource
+        .getRepository(User)
+        .findOneByOrFail({ email: 'linker@example.com' });
+
+      return { stateToken, accessToken, userId: user.id };
+    }
+
+    it('정상 link → oauth_accounts 레코드 생성 + #linked=true로 redirect', async () => {
+      const { stateToken, userId } = await startLinkAndCaptureState();
+
+      MockGoogleLinkStrategy.profile = {
+        providerId: 'google-link-sub-1',
+        email: 'gmail-account@example.com',
+        emailVerified: true,
+        displayName: 'Google 사용자',
+      };
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/google/link/callback')
+        .query({ state: stateToken })
+        .expect(302);
+
+      expect(parseFragment(res.headers.location).linked).toBe('true');
+
+      const oauth = await dataSource.getRepository(OAuthAccount).findOneBy({
+        userId,
+        provider: 'google',
+      });
+      expect(oauth).not.toBeNull();
+      expect(oauth!.providerId).toBe('google-link-sub-1');
+      expect(oauth!.providerEmail).toBe('gmail-account@example.com');
+    });
+
+    it('미검증 이메일이면 #error=email_not_verified로 redirect하고 oauth_accounts를 생성하지 않는다', async () => {
+      const { stateToken, userId } = await startLinkAndCaptureState();
+
+      MockGoogleLinkStrategy.profile = {
+        providerId: 'google-link-sub-2',
+        email: 'unverified@example.com',
+        emailVerified: false,
+        displayName: '미검증',
+      };
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/google/link/callback')
+        .query({ state: stateToken })
+        .expect(302);
+
+      expect(parseFragment(res.headers.location).error).toBe(
+        'email_not_verified',
+      );
+
+      const oauthCount = await dataSource
+        .getRepository(OAuthAccount)
+        .count({ where: { userId, provider: 'google' } });
+      expect(oauthCount).toBe(0);
+    });
+
+    it('동일 Google 계정이 다른 사용자에 이미 연결되어 있으면 #error=link_conflict로 redirect한다', async () => {
+      // 1) 다른 사용자 A를 신규 가입(Google 콜백)으로 만들어 oauth_accounts 1건 생성
+      MockGoogleStrategy.profile = {
+        providerId: 'shared-google-sub',
+        email: 'first-owner@example.com',
+        emailVerified: true,
+        displayName: 'First Owner',
+      };
+      await request(app.getHttpServer())
+        .get('/v1/auth/google/callback')
+        .expect(302);
+
+      // 2) 사용자 B(linker@example.com)가 동일 google sub로 link 시도
+      const { stateToken } = await startLinkAndCaptureState();
+      MockGoogleLinkStrategy.profile = {
+        providerId: 'shared-google-sub',
+        email: 'first-owner@example.com',
+        emailVerified: true,
+        displayName: 'First Owner',
+      };
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/google/link/callback')
+        .query({ state: stateToken })
+        .expect(302);
+
+      expect(parseFragment(res.headers.location).error).toBe('link_conflict');
+    });
+
+    it('본인이 이미 동일 provider에 연결되어 있으면 #error=link_conflict', async () => {
+      const { stateToken, userId } = await startLinkAndCaptureState();
+
+      // 사전 — 본인 userId에 google oauth_account 직접 삽입
+      await dataSource.getRepository(OAuthAccount).save({
+        userId,
+        provider: 'google',
+        providerId: 'pre-existing-sub',
+        providerEmail: 'pre@example.com',
+        emailVerified: true,
+      });
+
+      MockGoogleLinkStrategy.profile = {
+        providerId: 'another-google-sub',
+        email: 'another@example.com',
+        emailVerified: true,
+        displayName: 'Another',
+      };
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/google/link/callback')
+        .query({ state: stateToken })
+        .expect(302);
+
+      expect(parseFragment(res.headers.location).error).toBe('link_conflict');
+    });
+
+    it('state 토큰 없이 콜백을 호출하면 401', async () => {
+      MockGoogleLinkStrategy.profile = {
+        providerId: 'whatever',
+        email: 'whatever@example.com',
+        emailVerified: true,
+        displayName: 'X',
+      };
+      await request(app.getHttpServer())
+        .get('/v1/auth/google/link/callback')
+        .expect(401);
+    });
+
+    it('변조된 state 토큰을 보내면 401', async () => {
+      MockGoogleLinkStrategy.profile = {
+        providerId: 'whatever',
+        email: 'whatever@example.com',
+        emailVerified: true,
+        displayName: 'X',
+      };
+      await request(app.getHttpServer())
+        .get('/v1/auth/google/link/callback')
+        .query({ state: 'tampered.invalid.token' })
+        .expect(401);
     });
   });
 

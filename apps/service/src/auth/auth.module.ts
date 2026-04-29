@@ -17,6 +17,7 @@ import { JwtStrategy } from './strategy/jwt.strategy';
 import { GoogleStrategy } from './strategy/google.strategy';
 import { GoogleLinkStrategy } from './strategy/google-link.strategy';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
+import { GoogleLinkInitGuard } from './guard/google-link-init.guard';
 import { GetProfileHandler } from './query/get-profile.handler';
 import { AuthTokenIssuer } from './auth-token-issuer.service';
 import { AppCacheModule } from '@app/shared';
@@ -45,6 +46,7 @@ const queryHandlers = [GetProfileHandler];
     GoogleStrategy,
     GoogleLinkStrategy,
     JwtAuthGuard,
+    GoogleLinkInitGuard,
   ],
   exports: [JwtAuthGuard],
 })

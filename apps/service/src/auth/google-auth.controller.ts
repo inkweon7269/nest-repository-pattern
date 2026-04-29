@@ -26,11 +26,14 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
+import { GoogleLinkInitGuard } from './guard/google-link-init.guard';
 import { CurrentUser } from './decorator/current-user.decorator';
 import { AuthUser } from './decorator/auth-user.type';
 import { GoogleLoginCommand } from './command/google-login.command';
+import { LinkGoogleAccountCommand } from './command/link-google-account.command';
 import { UnlinkGoogleAccountCommand } from './command/unlink-google-account.command';
 import { GoogleProfilePayload } from './strategy/google-profile.type';
+import { GoogleLinkValidatePayload } from './strategy/google-link.strategy';
 import { AuthTokens } from '@app/shared';
 
 @ApiTags('Auth')
@@ -77,6 +80,47 @@ export class GoogleAuthController {
         res.redirect(
           `${frontUrl}#error=email_already_exists&email=${encodeURIComponent(profile.email)}`,
         );
+        return;
+      }
+      if (error instanceof UnauthorizedException) {
+        res.redirect(`${frontUrl}#error=email_not_verified`);
+        return;
+      }
+      throw error;
+    }
+  }
+
+  @Get('link')
+  @UseGuards(JwtAuthGuard, GoogleLinkInitGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Google 계정 연결 시작 (인증된 사용자가 본인 계정에 Google 연결)',
+  })
+  @ApiUnauthorizedResponse({ description: '인증 실패' })
+  googleLinkStart(): void {
+    /* GoogleLinkInitGuard가 state 토큰을 만들어 Google로 redirect */
+  }
+
+  @Get('link/callback')
+  @UseGuards(AuthGuard('google-link'))
+  @ApiExcludeEndpoint()
+  async googleLinkCallback(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { userId, profile } = req.user as GoogleLinkValidatePayload;
+    const frontUrl = this.configService.getOrThrow<string>(
+      'GOOGLE_FRONTEND_REDIRECT_URL',
+    );
+
+    try {
+      await this.commandBus.execute(
+        new LinkGoogleAccountCommand(userId, profile),
+      );
+      res.redirect(`${frontUrl}#linked=true`);
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        res.redirect(`${frontUrl}#error=link_conflict`);
         return;
       }
       if (error instanceof UnauthorizedException) {
