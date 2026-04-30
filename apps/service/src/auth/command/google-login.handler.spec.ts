@@ -17,6 +17,12 @@ import { GoogleProfilePayload } from '@service/auth/strategy/google-profile.type
 import { OAuthAccount, User } from '@app/shared';
 
 jest.mock('bcrypt');
+// 단위 테스트는 실 DataSource를 부트스트랩하지 않으므로 `@Transactional()`을
+// 트랜잭션 컨텍스트 초기화 없이 통과시키도록 no-op으로 치환한다. 트랜잭션 의미는
+// 통합 테스트에서 검증한다.
+jest.mock('typeorm-transactional', () => ({
+  Transactional: () => () => undefined,
+}));
 
 describe('GoogleLoginHandler', () => {
   let handler: GoogleLoginHandler;

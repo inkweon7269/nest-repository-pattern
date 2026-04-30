@@ -16,9 +16,9 @@
 | 3. AuthTokenIssuer 추출 | ✅ 완료 | LoginHandler/RefreshTokenHandler 리팩토링 포함 |
 | 4. Repository 레이어 | ✅ 완료 | ISP + `useExisting` 패턴 |
 | 5. Passport Strategy | ✅ 완료 | `GoogleStrategy`, `GoogleLinkStrategy`(state 토큰 검증) |
-| 6. Command Handler | ✅ 완료 | login/link/unlink 3종 + 단위 테스트 12케이스 |
+| 6. Command Handler | ✅ 완료 | login/link/unlink 3종 + 단위 테스트 12케이스. **GoogleLoginHandler에 `@Transactional()` 적용** (users+oauth_accounts 원자성) |
 | 7. Controller | ✅ 완료 | 5개 라우트 — link 시작은 **`POST /link` JSON `{ authorizationUrl }` 반환** (브라우저 navigation 호환), 나머지는 redirect/204 |
-| 8. 통합 테스트 | ✅ 완료 | 17개 시나리오, MockGoogleStrategy + MockGoogleLinkStrategy |
+| 8. 통합 테스트 | ✅ 완료 | 17개 시나리오, MockGoogleStrategy + MockGoogleLinkStrategy. 격리 전략은 **TRUNCATE + Redis FLUSHDB** (typeorm-transactional 호환) |
 | 9. 검증 | ✅ 완료 | format/lint/build/test/test:e2e 통과 |
 | 수동 E2E | ⏳ 사용자 작업 | 실제 Google credential로 브라우저 검증 |
 
@@ -70,6 +70,7 @@
 ### 1.2 패키지 설치
 
 - [ ] `pnpm add passport-google-oauth20`
+- [ ] `pnpm add typeorm-transactional` — `GoogleLoginHandler` 신규 가입 분기 원자성용
 - [ ] `pnpm add -D @types/passport-google-oauth20`
 - [ ] 설치 후 `pnpm install` lockfile 갱신 확인
 

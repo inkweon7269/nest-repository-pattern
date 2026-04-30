@@ -197,12 +197,23 @@ export class AuthTokenIssuer {
 ```bash
 # 런타임
 pnpm add passport-google-oauth20
+pnpm add typeorm-transactional   # 신규 가입 분기 원자성
 
 # 개발용
 pnpm add -D @types/passport-google-oauth20
 ```
 
 기존 `@nestjs/passport` / `passport` / `@nestjs/jwt` / `bcrypt`는 그대로 재사용.
+
+### 2.7 트랜잭션 인프라
+
+`GoogleLoginHandler`의 신규 가입 분기는 `users` insert와 `oauth_accounts` insert를 단일 트랜잭션으로 묶어 원자성을 확보한다.
+
+- **패키지**: [`typeorm-transactional`](https://github.com/Aliheym/typeorm-transactional) (AsyncLocalStorage 기반, TypeORM 0.3.x 호환)
+- **부트스트랩**: `apps/{service,back-office}/src/main.ts`에서 `initializeTransactionalContext()` 호출 후 `addTransactionalDataSource(app.get(DataSource))` 등록
+- **적용**: `GoogleLoginHandler.execute()`에 `@Transactional()` 데코레이터 부착. 메서드 내부의 모든 Repository 호출이 동일 트랜잭션에 자동 참여 (Repository 시그니처 변경 없음)
+- **23505 catch 보존**: `oauth_accounts` insert에서 발생할 수 있는 동시성 경쟁(두 요청이 동시에 동일 providerId 가입 시도)을 별도로 처리. 트랜잭션은 부분 실패 → 자동 롤백을, 23505는 동시성 → `ConflictException(409)`을 담당
+- **테스트 영향**: `useTransactionRollback` 헬퍼는 `dataSource.manager` override 방식이 typeorm-transactional의 별도 커넥션 트랜잭션과 충돌하므로, **TRUNCATE + Redis FLUSHDB** 기반 격리로 전환. 단위 테스트는 spec 파일 단위로 `jest.mock('typeorm-transactional', () => ({ Transactional: () => () => undefined }))`로 no-op 처리
 
 ---
 
@@ -677,6 +688,7 @@ export class GoogleLoginHandler implements ICommandHandler<GoogleLoginCommand, A
     private readonly tokenIssuer: AuthTokenIssuer,
   ) {}
 
+  @Transactional()  // typeorm-transactional: users + oauth_accounts 원자성
   async execute(cmd: GoogleLoginCommand): Promise<AuthTokens> {
     const { providerId, email, emailVerified, displayName } = cmd.profile;
 

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { QueryFailedError } from 'typeorm';
+import { Transactional } from 'typeorm-transactional';
 import * as bcrypt from 'bcrypt';
 import { GoogleLoginCommand } from './google-login.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
@@ -28,6 +29,7 @@ export class GoogleLoginHandler implements ICommandHandler<
     private readonly tokenIssuer: AuthTokenIssuer,
   ) {}
 
+  @Transactional()
   async execute(command: GoogleLoginCommand): Promise<AuthTokens> {
     const { providerId, email, emailVerified, displayName } = command.profile;
 
