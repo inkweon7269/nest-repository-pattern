@@ -39,7 +39,7 @@
 | DELETE | `/v1/auth/google/unlink` | `JwtAuthGuard` | 구글 계정 연결 해제 | 204 No Content |
 
 > URI는 `app.module.ts`의 `defaultVersion: '1'` 정책으로 자동 prefix 적용.
-
+>
 > **`POST /link`인 이유**: 브라우저 top-level navigation(`window.location.href`)으로는 `Authorization` 헤더를 추가할 수 없어 GET + Bearer 조합은 동작 불가. POST + JSON `{ authorizationUrl }` 패턴은 프론트가 fetch로 인증 헤더를 보낼 수 있고, 받은 URL로 직접 redirect만 하면 된다. CORS preflight(OPTIONS)는 본 프로젝트의 `applySecurityMiddleware`가 이미 `Authorization` 헤더와 `OPTIONS` 메서드를 허용하므로 추가 설정 불필요(`libs/shared/src/bootstrap/security.ts`).
 
 #### Link 플로우의 사용자 식별 메커니즘
@@ -100,7 +100,7 @@ ${GOOGLE_FRONTEND_REDIRECT_URL}#accessToken=eyJ...&refreshToken=eyJ...
 | 미검증 이메일 | `#error=email_not_verified` |
 
 > `?` query string이 아닌 `#` fragment를 사용하여 액세스 로그/리퍼러 헤더에 토큰 노출 방지.
-
+>
 > Link 플로우의 콜백(`GET /v1/auth/google/link/callback`)도 동일하게 `GOOGLE_FRONTEND_REDIRECT_URL`로 redirect하지만 fragment는 `#linked=true` / `#error=link_conflict` / `#error=email_not_verified` 중 하나.
 
 ---
@@ -519,25 +519,19 @@ export const oauthAccountRepositoryProviders: Provider[] = [
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(configService: ConfigService) {
     super({
-      clientID: configService.getOrThrow('GOOGLE_CLIENT_ID'),
-      clientSecret: configService.getOrThrow('GOOGLE_CLIENT_SECRET'),
-      callbackURL: configService.getOrThrow('GOOGLE_CALLBACK_URL'),
+      clientID: configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+      clientSecret: configService.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
+      callbackURL: configService.getOrThrow<string>('GOOGLE_CALLBACK_URL'),
       scope: ['email', 'profile'],
-      state: true, // CSRF 방어
-    });
+      // state: true는 express-session 기반 store가 필요. 본 프로젝트는 무세션
+      // (Bearer 기반)이라 false로 두고 CSRF 방어는 짧은 수명 access token + Origin
+      // 검증 등에 위임. (link 플로우는 별도 signed JWT state로 검증)
+      state: false,
+    } as StrategyOptions);
   }
 
-  async validate(_at: string, _rt: string, profile: Profile): Promise<GoogleProfilePayload> {
-    const email = profile.emails?.[0];
-    if (!email?.value) {
-      throw new UnauthorizedException('Google 이메일 누락');
-    }
-    return {
-      providerId: profile.id,
-      email: email.value,
-      emailVerified: email.verified ?? false,
-      displayName: profile.displayName,
-    };
+  validate(_at: string, _rt: string, profile: Profile): GoogleProfilePayload {
+    return toGoogleProfilePayload(profile);
   }
 }
 ```
@@ -546,25 +540,48 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
 ### 7.2 `GoogleLinkStrategy` (연결 플로우)
 
-연결 콜백 URL이 다르므로 별도 전략으로 등록(`'google-link'` name).
+연결 콜백 URL이 다르며, `state`는 백엔드가 직접 발행한 signed JWT로 검증한다(`type='google-link-state'`). `passReqToCallback: true`로 `req.query.state`를 `validate()`에서 직접 검증.
 
 ```ts
 @Injectable()
 export class GoogleLinkStrategy extends PassportStrategy(Strategy, 'google-link') {
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly jwtService: JwtService,
+  ) {
     super({
-      clientID: configService.getOrThrow('GOOGLE_CLIENT_ID'),
-      clientSecret: configService.getOrThrow('GOOGLE_CLIENT_SECRET'),
-      callbackURL: configService.getOrThrow('GOOGLE_LINK_CALLBACK_URL'),
+      clientID: configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+      clientSecret: configService.getOrThrow<string>('GOOGLE_CLIENT_SECRET'),
+      callbackURL: configService.getOrThrow<string>('GOOGLE_LINK_CALLBACK_URL'),
       scope: ['email', 'profile'],
-      state: true,
-    });
+      // 자동 state 비활성화 — `GoogleLinkInitiator`가 signed JWT state를 발행하고
+      // 본 strategy의 validate()가 직접 검증한다.
+      state: false,
+      passReqToCallback: true,
+    } as StrategyOptionsWithRequest);
   }
-  // validate() 동일
+
+  validate(
+    req: Request,
+    _at: string,
+    _rt: string,
+    profile: Profile,
+  ): { userId: number; profile: GoogleProfilePayload } {
+    const stateToken = (req.query as { state?: string }).state;
+    if (!stateToken) throw new UnauthorizedException('state 누락');
+    const payload = this.jwtService.verify<{ sub: number; type: string }>(
+      stateToken,
+      { secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET') },
+    );
+    if (payload.type !== GOOGLE_LINK_STATE_TYPE) {
+      throw new UnauthorizedException('잘못된 state 타입');
+    }
+    return { userId: payload.sub, profile: toGoogleProfilePayload(profile) };
+  }
 }
 ```
 
-컨트롤러에서 `@UseGuards(JwtAuthGuard, AuthGuard('google-link'))`로 사용.
+링크 시작 라우트는 passport 가드를 사용하지 않고 `GoogleLinkInitiator`가 authorization URL을 빌드해 JSON으로 반환한다(브라우저 navigation 호환). 콜백만 `AuthGuard('google-link')`로 보호.
 
 ### 7.3 `GoogleProfilePayload` 타입
 
@@ -627,25 +644,31 @@ export class GoogleAuthController {
     }
   }
 
-  @Get('link')
-  @UseGuards(JwtAuthGuard, AuthGuard('google-link'))
+  @Post('link')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  googleLinkStart() {
-    /* passport 자동 redirect */
+  @ApiOperation({ summary: 'Google 계정 연결 시작 — Google 동의 화면 URL 반환' })
+  @ApiOkResponse({ type: LinkInitiateResponseDto })
+  googleLinkStart(@CurrentUser() user: AuthUser): LinkInitiateResponseDto {
+    // GoogleLinkInitiator가 signed JWT state를 발행하고 authorization URL을 빌드.
+    // 프론트는 받은 URL로 window.location.href를 이동시킨다.
+    const authorizationUrl = this.linkInitiator.buildAuthorizationUrl(user.id);
+    return LinkInitiateResponseDto.of(authorizationUrl);
   }
 
   @Get('link/callback')
-  @UseGuards(JwtAuthGuard, AuthGuard('google-link'))
+  @UseGuards(AuthGuard('google-link'))
   @ApiExcludeEndpoint()
-  async googleLinkCallback(
-    @CurrentUser() user: AuthUser,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
-    const profile = req.user as GoogleProfilePayload;
+  async googleLinkCallback(@Req() req: Request, @Res() res: Response) {
+    // GoogleLinkStrategy가 state JWT를 검증하고 { userId, profile }을 req.user에 주입.
+    const { userId, profile } = req.user as {
+      userId: number;
+      profile: GoogleProfilePayload;
+    };
     const frontUrl = this.configService.getOrThrow<string>('GOOGLE_FRONTEND_REDIRECT_URL');
 
-    await this.commandBus.execute(new LinkGoogleAccountCommand(user.id, profile));
+    await this.commandBus.execute(new LinkGoogleAccountCommand(userId, profile));
     return res.redirect(`${frontUrl}#linked=true`);
   }
 
@@ -667,8 +690,8 @@ export class GoogleAuthController {
 |---|---|
 | `GET /auth/google` | `@ApiOperation()` (단순 redirect 유발 — Swagger UI에서 직접 테스트는 비권장) |
 | `GET /auth/google/callback` | `@ApiExcludeEndpoint()` (Google이 호출하는 콜백, 사용자 직접 호출 X) |
-| `GET /auth/google/link` | `@ApiBearerAuth()` |
-| `GET /auth/google/link/callback` | `@ApiExcludeEndpoint()` |
+| `POST /auth/google/link` | `@ApiBearerAuth()` + `@ApiOperation()` + `@ApiOkResponse({ type: LinkInitiateResponseDto })` |
+| `GET /auth/google/link/callback` | `@ApiExcludeEndpoint()` (signed state로 사용자 식별, 직접 호출 X) |
 | `DELETE /auth/google/unlink` | `@ApiBearerAuth()` + `@ApiNoContentResponse()` |
 
 ---

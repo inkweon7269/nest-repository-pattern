@@ -14,7 +14,7 @@ import { IUserWriteRepository } from '@service/auth/interface/user-write-reposit
 import { IOAuthAccountReadRepository } from '@service/auth/interface/oauth-account-read-repository.interface';
 import { IOAuthAccountWriteRepository } from '@service/auth/interface/oauth-account-write-repository.interface';
 import { AuthTokenIssuer } from '@service/auth/auth-token-issuer.service';
-import { AuthTokens } from '@app/shared';
+import { AuthTokens, User } from '@app/shared';
 
 @CommandHandler(GoogleLoginCommand)
 export class GoogleLoginHandler implements ICommandHandler<
@@ -56,11 +56,22 @@ export class GoogleLoginHandler implements ICommandHandler<
 
     const randomSecret = randomBytes(32).toString('hex');
     const hashedPassword = await bcrypt.hash(randomSecret, 10);
-    const newUser = await this.userWriteRepository.create({
-      email,
-      password: hashedPassword,
-      name: displayName,
-    });
+    let newUser: User;
+    try {
+      newUser = await this.userWriteRepository.create({
+        email,
+        password: hashedPassword,
+        name: displayName,
+      });
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string })?.code === '23505'
+      ) {
+        throw new ConflictException(`이미 가입된 이메일입니다: '${email}'`);
+      }
+      throw error;
+    }
     try {
       await this.oauthWriteRepository.create({
         userId: newUser.id,
