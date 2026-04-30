@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { RefreshTokenHandler } from './refresh-token.handler';
 import { RefreshTokenCommand } from './refresh-token.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
-import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
+import { AuthTokenIssuer } from '@service/auth/auth-token-issuer.service';
 import { User } from '@app/shared';
 
 jest.mock('bcrypt');
@@ -16,9 +16,9 @@ jest.mock('bcrypt');
 describe('RefreshTokenHandler', () => {
   let handler: RefreshTokenHandler;
   let userReadRepository: Mocked<IUserReadRepository>;
-  let userWriteRepository: Mocked<IUserWriteRepository>;
   let jwtService: Mocked<JwtService>;
   let configService: Mocked<ConfigService>;
+  let tokenIssuer: Mocked<AuthTokenIssuer>;
 
   const mockUser = {
     id: 1,
@@ -40,11 +40,9 @@ describe('RefreshTokenHandler', () => {
     userReadRepository = unitRef.get<IUserReadRepository>(
       IUserReadRepository as Type<IUserReadRepository>,
     );
-    userWriteRepository = unitRef.get<IUserWriteRepository>(
-      IUserWriteRepository as Type<IUserWriteRepository>,
-    );
     jwtService = unitRef.get(JwtService);
     configService = unitRef.get(ConfigService);
+    tokenIssuer = unitRef.get(AuthTokenIssuer);
 
     jwtService.verify.mockReturnValue({
       sub: 1,
@@ -53,15 +51,14 @@ describe('RefreshTokenHandler', () => {
     });
     userReadRepository.findById.mockResolvedValue(mockUser);
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-    (bcrypt.hash as jest.Mock).mockResolvedValue('new-hashed-refresh-token');
-    jwtService.sign
-      .mockReturnValueOnce('new-access-token')
-      .mockReturnValueOnce('new-refresh-token');
-    userWriteRepository.update.mockResolvedValue(1);
+    tokenIssuer.issueTokens.mockResolvedValue({
+      accessToken: 'new-access-token',
+      refreshToken: 'new-refresh-token',
+    });
     configService.get.mockReturnValue(undefined);
   });
 
-  it('유효한 refresh token으로 새 토큰 쌍을 반환한다', async () => {
+  it('유효한 refresh token이면 AuthTokenIssuer로 위임하여 새 토큰 쌍을 반환한다', async () => {
     const command = new RefreshTokenCommand('valid-refresh-token');
     const result = await handler.execute(command);
 
@@ -81,9 +78,7 @@ describe('RefreshTokenHandler', () => {
       expectedDigest,
       'stored-hashed-refresh-token',
     );
-    expect(userWriteRepository.update).toHaveBeenCalledWith(1, {
-      hashedRefreshToken: 'new-hashed-refresh-token',
-    });
+    expect(tokenIssuer.issueTokens).toHaveBeenCalledWith(mockUser);
   });
 
   it('jwtService.verify 실패 시 UnauthorizedException을 발생시킨다', async () => {
@@ -97,6 +92,7 @@ describe('RefreshTokenHandler', () => {
       UnauthorizedException,
     );
     expect(userReadRepository.findById).not.toHaveBeenCalled();
+    expect(tokenIssuer.issueTokens).not.toHaveBeenCalled();
   });
 
   it('type이 refresh가 아니면 UnauthorizedException을 발생시킨다', async () => {
@@ -111,6 +107,7 @@ describe('RefreshTokenHandler', () => {
       UnauthorizedException,
     );
     expect(userReadRepository.findById).not.toHaveBeenCalled();
+    expect(tokenIssuer.issueTokens).not.toHaveBeenCalled();
   });
 
   it('사용자가 존재하지 않으면 UnauthorizedException을 발생시킨다', async () => {
@@ -122,6 +119,7 @@ describe('RefreshTokenHandler', () => {
       UnauthorizedException,
     );
     expect(bcrypt.compare).not.toHaveBeenCalled();
+    expect(tokenIssuer.issueTokens).not.toHaveBeenCalled();
   });
 
   it('hashedRefreshToken이 null이면 UnauthorizedException을 발생시킨다', async () => {
@@ -136,6 +134,7 @@ describe('RefreshTokenHandler', () => {
       UnauthorizedException,
     );
     expect(bcrypt.compare).not.toHaveBeenCalled();
+    expect(tokenIssuer.issueTokens).not.toHaveBeenCalled();
   });
 
   it('bcrypt.compare가 false면 UnauthorizedException을 발생시킨다', async () => {
@@ -146,6 +145,6 @@ describe('RefreshTokenHandler', () => {
     await expect(handler.execute(command)).rejects.toThrow(
       UnauthorizedException,
     );
-    expect(jwtService.sign).not.toHaveBeenCalled();
+    expect(tokenIssuer.issueTokens).not.toHaveBeenCalled();
   });
 });

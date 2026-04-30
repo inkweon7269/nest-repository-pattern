@@ -1,21 +1,21 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { RefreshTokenCommand } from './refresh-token.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
-import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
+import { AuthTokenIssuer } from '@service/auth/auth-token-issuer.service';
 import { AuthTokens } from '@app/shared';
 
 @CommandHandler(RefreshTokenCommand)
 export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand> {
   constructor(
     private readonly userReadRepository: IUserReadRepository,
-    private readonly userWriteRepository: IUserWriteRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly tokenIssuer: AuthTokenIssuer,
   ) {}
 
   async execute(command: RefreshTokenCommand): Promise<AuthTokens> {
@@ -48,30 +48,6 @@ export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand>
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const newPayload = { sub: user.id, email: user.email };
-
-    const accessToken = this.jwtService.sign(newPayload, {
-      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m'),
-    } as JwtSignOptions);
-
-    const refreshToken = this.jwtService.sign(
-      { ...newPayload, type: 'refresh', jti: randomUUID() },
-      {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get<string>(
-          'JWT_REFRESH_EXPIRATION',
-          '7d',
-        ),
-      } as JwtSignOptions,
-    );
-
-    const newTokenDigest = createHash('sha256')
-      .update(refreshToken)
-      .digest('hex');
-    const hashedRefreshToken = await bcrypt.hash(newTokenDigest, 10);
-    await this.userWriteRepository.update(user.id, { hashedRefreshToken });
-
-    return { accessToken, refreshToken };
+    return this.tokenIssuer.issueTokens(user);
   }
 }

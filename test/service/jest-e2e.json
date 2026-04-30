@@ -15,5 +15,6 @@
   },
   "globalSetup": "../setup/global-setup.ts",
   "globalTeardown": "../setup/global-teardown.ts",
+  "setupFiles": ["../setup/jest-setup.ts"],
   "maxWorkers": 1
 }

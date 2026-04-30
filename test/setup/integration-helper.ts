@@ -8,8 +8,13 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { App } from 'supertest/types';
-import { DataSource, EntityManager, QueryRunner } from 'typeorm';
+import { DataSource } from 'typeorm';
+import type Redis from 'ioredis';
 import { Logger } from 'nestjs-pino';
+import {
+  addTransactionalDataSource,
+  deleteDataSourceByName,
+} from 'typeorm-transactional';
 import {
   applySecurityMiddleware,
   CorsOriginEnvKey,
@@ -19,11 +24,21 @@ import {
 
 const TEST_ENV_PATH = join(__dirname, '..', '.test-env.json');
 
+export interface ProviderOverride {
+  provide: unknown;
+  useClass?: Type;
+  useValue?: unknown;
+}
+
 export async function createIntegrationApp(
   appModule: Type,
-  options: { corsOriginEnvKey?: CorsOriginEnvKey } = {},
+  options: {
+    corsOriginEnvKey?: CorsOriginEnvKey;
+    overrideProviders?: ProviderOverride[];
+  } = {},
 ): Promise<INestApplication<App>> {
-  const { corsOriginEnvKey = 'SERVICE_CORS_ORIGINS' } = options;
+  const { corsOriginEnvKey = 'SERVICE_CORS_ORIGINS', overrideProviders = [] } =
+    options;
 
   const env = JSON.parse(readFileSync(TEST_ENV_PATH, 'utf-8')) as Record<
     string,
@@ -32,11 +47,21 @@ export async function createIntegrationApp(
 
   Object.assign(process.env, env);
 
-  const module = await Test.createTestingModule({
-    imports: [appModule],
-  }).compile();
+  const builder = Test.createTestingModule({ imports: [appModule] });
+  for (const override of overrideProviders) {
+    const target = builder.overrideProvider(override.provide as Type);
+    if (override.useClass) {
+      target.useClass(override.useClass);
+    } else if (override.useValue !== undefined) {
+      target.useValue(override.useValue);
+    }
+  }
+  const module = await builder.compile();
 
   const app = module.createNestApplication();
+  // 통합 테스트는 spec마다 새 DataSource를 생성하므로 기존 등록을 정리 후 재등록
+  deleteDataSourceByName('default');
+  addTransactionalDataSource(app.get(DataSource));
 
   applySecurityMiddleware(app, { corsOriginEnvKey });
 
@@ -76,33 +101,24 @@ export interface TransactionHelper {
   rollback(): Promise<void>;
 }
 
+// `@Transactional()`(typeorm-transactional)은 별도 커넥션으로 새 트랜잭션을
+// 열기 때문에 `dataSource.manager` override 방식의 격리는 충돌한다.
+// 본 헬퍼는 기존 호출부 호환을 위해 인터페이스만 유지하고,
+// 격리는 각 테스트 전 TRUNCATE + Redis FLUSHDB로 보장한다.
+// (TRUNCATE RESTART IDENTITY로 ID가 1부터 재시작하므로 캐시 키가 충돌함)
 export function useTransactionRollback(
   app: INestApplication<App>,
 ): TransactionHelper {
   const dataSource = app.get(DataSource);
-  let queryRunner: QueryRunner;
-  let originalManager: EntityManager;
+  const redis = app.get<Redis>('REDIS_CLIENT');
 
   return {
     async start() {
-      originalManager = dataSource.manager;
-      queryRunner = dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      Object.defineProperty(dataSource, 'manager', {
-        value: queryRunner.manager,
-        writable: true,
-        configurable: true,
-      });
+      await truncateAllTables(dataSource);
+      await redis.flushdb();
     },
     async rollback() {
-      await queryRunner.rollbackTransaction();
-      await queryRunner.release();
-      Object.defineProperty(dataSource, 'manager', {
-        value: originalManager,
-        writable: true,
-        configurable: true,
-      });
+      // 다음 테스트의 start()에서 정리. 명시적 cleanup 없음.
     },
   };
 }

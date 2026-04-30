@@ -1,7 +1,12 @@
 import '@app/shared/instrumentation';
+import {
+  addTransactionalDataSource,
+  initializeTransactionalContext,
+} from 'typeorm-transactional';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { DataSource } from 'typeorm';
 import { Logger } from 'nestjs-pino';
 import {
   applySecurityMiddleware,
@@ -11,7 +16,10 @@ import {
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  initializeTransactionalContext();
+
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  addTransactionalDataSource(app.get(DataSource));
 
   applySecurityMiddleware(app, { corsOriginEnvKey: 'SERVICE_CORS_ORIGINS' });
 
