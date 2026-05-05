@@ -39,7 +39,7 @@ export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand>
     let payload: RefreshTokenPayload;
     try {
       payload = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
