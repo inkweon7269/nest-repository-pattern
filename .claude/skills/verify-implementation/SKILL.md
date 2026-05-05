@@ -30,6 +30,7 @@ argument-hint: '[선택사항: 특정 verify 스킬 이름]'
 | # | 스킬 | 설명 |
 |---|------|------|
 | 1 | `verify-restful-api` | RESTful API 설계 원칙 준수 여부 검증 |
+| 2 | `verify-handler-structure` | Service 앱 Command Handler 구조 회귀 검증 (메서드 책임 분리, try-catch 범위, @Transactional 범위, 23505 매핑 위치) |
 
 ## 워크플로우
 

@@ -31,6 +31,7 @@ argument-hint: '[선택사항: 특정 스킬 이름 또는 집중할 영역]'
 | 스킬 | 설명 | 커버 파일 패턴 |
 |------|------|---------------|
 | `verify-restful-api` | RESTful API 설계 원칙 준수 여부 검증 | `src/**/*.controller.ts`, `src/**/dto/**/*.dto.ts`, `src/main.ts` |
+| `verify-handler-structure` | Service 앱 Command Handler 구조(메서드 책임 분리, try-catch 범위, @Transactional 범위, 23505 매핑 위치) 회귀 검증 | `apps/service/src/**/command/*.handler.ts` |
 
 ## 워크플로우
 
