@@ -285,6 +285,7 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 | `nestjs-expert`          | NestJS 모듈/Handler/Repository 작성, DI 디버깅, Handler Authoring Rules 적용, CQRS/Repository 전반   |
 | `tdd-test-writer`        | TDD 기반 테스트 작성 (Suites `TestBed.solitary` 단위 테스트, `createIntegrationApp` 통합 테스트)     |
 | `postgres-db-normalizer` | 스키마 설계/정규화 분석, TypeORM 엔티티/마이그레이션 생성                                            |
+| `code-reviewer`          | 작성한 diff/PR을 fresh perspective로 검토 (코드 품질·타입·예외·유지보수성·중복·네이밍). 보안은 `security-review`, 성능은 OTEL에 위임 |
 
 ### Skills
 
@@ -296,6 +297,8 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 | `manage-skills`         | 세션 변경사항을 분석하고, 검증 스킬을 생성/업데이트하며, CLAUDE.md를 관리합니다 |
 | `verify-restful-api`    | RESTful API 설계 원칙 준수 여부를 검증합니다                                    |
 | `verify-handler-structure` | Service 앱 Command Handler 구조 회귀를 검증합니다 (메서드 분리, try-catch 범위, `@Transactional` 범위, 23505 매핑 위치) |
+| `verify-db-safety`      | TypeORM 마이그레이션의 destructive query, rollback 가능성, NOT NULL 컬럼 추가 시 default 누락 등 DB 안전성을 검증합니다 |
+| `verify-api-compat`     | API 하위 호환성을 검증합니다 (Response DTO `of()` 누락, Request 필수 필드 신규 추가, 라우트 시그니처 변경 등 git diff 기반) |
 | `respond-coderabbit`    | CodeRabbit PR 리뷰 코멘트를 자동 분석하고 응답합니다                            |
 | `commit`                | 검증(`format` → `lint:check` → `build` → `test` → `test:e2e`) 후 한국어 conventional commit 생성 및 푸시 |
 | `create-pr`             | 브랜치 정책에 따라 대상 브랜치(`feature/*`→`dev`, `dev`→`main`)를 판별해 PR 생성 |

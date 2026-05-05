@@ -32,6 +32,8 @@ argument-hint: '[선택사항: 특정 스킬 이름 또는 집중할 영역]'
 |------|------|---------------|
 | `verify-restful-api` | RESTful API 설계 원칙 준수 여부 검증 | `src/**/*.controller.ts`, `src/**/dto/**/*.dto.ts`, `src/main.ts` |
 | `verify-handler-structure` | Service 앱 Command Handler 구조(메서드 책임 분리, try-catch 범위, @Transactional 범위, 23505 매핑 위치) 회귀 검증 | `apps/service/src/**/command/*.handler.ts` |
+| `verify-db-safety` | TypeORM 마이그레이션의 destructive query/rollback/NOT NULL 안전성 검증 | `libs/shared/src/migrations/*.ts`, `libs/shared/src/entities/*.entity.ts` |
+| `verify-api-compat` | API 하위 호환성 검증 (Response of() 누락, Request 필수 필드 추가, 라우트 시그니처 변경 등 git diff 기반) | `apps/**/*.controller.ts`, `apps/**/dto/**/*.dto.ts` |
 
 ## 워크플로우
 

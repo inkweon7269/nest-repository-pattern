@@ -31,6 +31,8 @@ argument-hint: '[선택사항: 특정 verify 스킬 이름]'
 |---|------|------|
 | 1 | `verify-restful-api` | RESTful API 설계 원칙 준수 여부 검증 |
 | 2 | `verify-handler-structure` | Service 앱 Command Handler 구조 회귀 검증 (메서드 책임 분리, try-catch 범위, @Transactional 범위, 23505 매핑 위치) |
+| 3 | `verify-db-safety` | TypeORM 마이그레이션 안전성 검증 (destructive query, rollback 가능성, NOT NULL 추가 시 default 누락, synchronize 검사) |
+| 4 | `verify-api-compat` | API 하위 호환성 검증 (Response of() 누락 필드, Request 필수 필드 신규 추가, 라우트 시그니처 변경 등 git diff 기반) |
 
 ## 워크플로우
 
