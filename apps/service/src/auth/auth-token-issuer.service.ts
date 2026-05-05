@@ -15,14 +15,24 @@ export class AuthTokenIssuer {
   ) {}
 
   async issueTokens(user: User): Promise<AuthTokens> {
-    const payload = { sub: user.id, email: user.email };
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateRefreshToken(user);
+    await this.persistRefreshTokenDigest(user.id, refreshToken);
 
-    const accessToken = this.jwtService.sign(payload, {
+    return { accessToken, refreshToken };
+  }
+
+  private generateAccessToken(user: User): string {
+    const payload = { sub: user.id, email: user.email };
+    return this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m'),
     } as JwtSignOptions);
+  }
 
-    const refreshToken = this.jwtService.sign(
+  private generateRefreshToken(user: User): string {
+    const payload = { sub: user.id, email: user.email };
+    return this.jwtService.sign(
       { ...payload, type: 'refresh', jti: randomUUID() },
       {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
@@ -32,11 +42,14 @@ export class AuthTokenIssuer {
         ),
       } as JwtSignOptions,
     );
+  }
 
+  private async persistRefreshTokenDigest(
+    userId: number,
+    refreshToken: string,
+  ): Promise<void> {
     const tokenDigest = createHash('sha256').update(refreshToken).digest('hex');
     const hashedRefreshToken = await bcrypt.hash(tokenDigest, 10);
-    await this.userWriteRepository.update(user.id, { hashedRefreshToken });
-
-    return { accessToken, refreshToken };
+    await this.userWriteRepository.update(userId, { hashedRefreshToken });
   }
 }
