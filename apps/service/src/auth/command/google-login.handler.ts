@@ -12,9 +12,13 @@ import { GoogleLoginCommand } from './google-login.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
 import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
 import { IOAuthAccountReadRepository } from '@service/auth/interface/oauth-account-read-repository.interface';
-import { IOAuthAccountWriteRepository } from '@service/auth/interface/oauth-account-write-repository.interface';
+import {
+  CreateOAuthAccountInput,
+  IOAuthAccountWriteRepository,
+} from '@service/auth/interface/oauth-account-write-repository.interface';
 import { AuthTokenIssuer } from '@service/auth/auth-token-issuer.service';
-import { AuthTokens, User } from '@app/shared';
+import type { GoogleProfilePayload } from '@service/auth/strategy/google-profile.type';
+import { AuthTokens, OAuthAccount, User } from '@app/shared';
 
 @CommandHandler(GoogleLoginCommand)
 export class GoogleLoginHandler implements ICommandHandler<
@@ -29,57 +33,92 @@ export class GoogleLoginHandler implements ICommandHandler<
     private readonly tokenIssuer: AuthTokenIssuer,
   ) {}
 
-  @Transactional()
   async execute(command: GoogleLoginCommand): Promise<AuthTokens> {
-    const { providerId, email, emailVerified, displayName } = command.profile;
+    const { profile } = command;
 
-    if (!emailVerified) {
-      throw new UnauthorizedException('Google 미검증 이메일');
+    this.validateEmailVerified(profile);
+
+    const oauth = await this.findExistingOAuth(profile.providerId);
+    if (oauth) {
+      return this.loginExistingOAuthUser(oauth.userId);
     }
 
-    const oauth = await this.oauthReadRepository.findByProviderId({
+    await this.validateEmailAvailable(profile.email);
+    return this.signupAndIssueTokens(profile);
+  }
+
+  private validateEmailVerified(profile: GoogleProfilePayload): void {
+    if (!profile.emailVerified) {
+      throw new UnauthorizedException('Google 미검증 이메일');
+    }
+  }
+
+  private findExistingOAuth(providerId: string): Promise<OAuthAccount | null> {
+    return this.oauthReadRepository.findByProviderId({
       provider: 'google',
       providerId,
     });
-    if (oauth) {
-      const user = await this.userReadRepository.findById(oauth.userId);
-      if (!user) {
-        throw new NotFoundException('연결된 사용자를 찾을 수 없습니다');
-      }
-      return this.tokenIssuer.issueTokens(user);
-    }
+  }
 
+  private async loginExistingOAuthUser(userId: number): Promise<AuthTokens> {
+    const user = await this.userReadRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('연결된 사용자를 찾을 수 없습니다');
+    }
+    return this.tokenIssuer.issueTokens(user);
+  }
+
+  private async validateEmailAvailable(email: string): Promise<void> {
     const existing = await this.userReadRepository.findByEmail(email);
     if (existing) {
       throw new ConflictException(`이미 가입된 이메일입니다: '${email}'`);
     }
+  }
 
+  @Transactional()
+  private async signupAndIssueTokens(
+    profile: GoogleProfilePayload,
+  ): Promise<AuthTokens> {
+    const newUser = await this.createUserOrConflict(profile);
+    await this.linkOAuthOrConflict({
+      userId: newUser.id,
+      provider: 'google',
+      providerId: profile.providerId,
+      providerEmail: profile.email,
+      emailVerified: profile.emailVerified,
+    });
+    return this.tokenIssuer.issueTokens(newUser);
+  }
+
+  private async createUserOrConflict(
+    profile: GoogleProfilePayload,
+  ): Promise<User> {
     const randomSecret = randomBytes(32).toString('hex');
     const hashedPassword = await bcrypt.hash(randomSecret, 10);
-    let newUser: User;
     try {
-      newUser = await this.userWriteRepository.create({
-        email,
+      return await this.userWriteRepository.create({
+        email: profile.email,
         password: hashedPassword,
-        name: displayName,
+        name: profile.displayName,
       });
     } catch (error) {
       if (
         error instanceof QueryFailedError &&
         (error.driverError as { code?: string })?.code === '23505'
       ) {
-        throw new ConflictException(`이미 가입된 이메일입니다: '${email}'`);
+        throw new ConflictException(
+          `이미 가입된 이메일입니다: '${profile.email}'`,
+        );
       }
       throw error;
     }
+  }
+
+  private async linkOAuthOrConflict(
+    input: CreateOAuthAccountInput,
+  ): Promise<void> {
     try {
-      await this.oauthWriteRepository.create({
-        userId: newUser.id,
-        provider: 'google',
-        providerId,
-        providerEmail: email,
-        emailVerified,
-      });
+      await this.oauthWriteRepository.create(input);
     } catch (error) {
       if (
         error instanceof QueryFailedError &&
@@ -89,6 +128,5 @@ export class GoogleLoginHandler implements ICommandHandler<
       }
       throw error;
     }
-    return this.tokenIssuer.issueTokens(newUser);
   }
 }
