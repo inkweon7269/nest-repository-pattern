@@ -57,6 +57,129 @@ const queryHandlers = [GetPostByIdHandler, FindAllPostsPaginatedHandler];
 - Handler들을 `commandHandlers`, `queryHandlers` 배열로 분리하여 providers에 등록
 - ~~Facade, ValidationService, Service~~ — CQRS 리팩토링으로 제거됨. Handler가 이 역할을 통합 수행.
 
+### Handler Authoring Rules
+
+핸들러 본문은 다음 규칙을 따른다 (Auth/Posts 핸들러 리팩터링으로 정착된 패턴).
+
+#### 1. `execute()`는 "호출만", 본문 분기/검증은 private 메서드로 추출
+
+`execute()`는 비즈니스 의도가 한 화면에 보이도록 평탄화한다. 길어지면 (≈50줄 초과) 의도가 묻히므로 분리를 검토한다.
+
+```ts
+async execute(command: GoogleLoginCommand): Promise<AuthTokens> {
+  const { profile } = command;
+  this.validateEmailVerified(profile);
+  const oauth = await this.findExistingOAuth(profile.providerId);
+  if (oauth) return this.loginExistingOAuthUser(oauth.userId);
+  await this.validateEmailAvailable(profile.email);
+  return this.signupAndIssueTokens(profile);
+}
+```
+
+#### 2. 메서드 네이밍 규약
+
+| 패턴                              | 용도                                                               |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `validate{Subject}{Predicate}`    | 통과/실패만 결정 (예외 throw, 반환 없음). 예: `validateEmailVerified`, `validateTitleNotDuplicated` |
+| `load{Subject}…OrThrow`           | 조회 + null 체크 + 명시 예외(`NotFoundException`/`UnauthorizedException` 등) |
+| `find{Subject}…`                  | 단순 조회 (null 가능, 호출자가 처리)                               |
+| `create…OrConflict` / `persist…OrConflict` / `link…OrConflict` | 단일 write + 23505 → `ConflictException` 매핑 |
+| `emit…Event`, `invalidate…Cache`  | side-effect 분리 (try 밖에 위치)                                   |
+
+수동사가 아닌 명령형 prefix를 일관되게 사용. `ensure*` 보다는 `validate*`(Boolean 판단) 또는 `load*OrThrow`(조회 + 검증)가 의도가 더 분명.
+
+#### 3. try-catch는 "단일 write 한 줄"만 감싼다
+
+`try` 블록 안에 이벤트 emit, 캐시 무효화, 추가 write를 함께 두지 않는다. catch 책임이 모호해지고 부분 실패 의미가 흐려진다.
+
+```ts
+// ✅ Good — try는 write 한 줄만
+private async createUserOrConflict(input: CreateUserInput): Promise<User> {
+  try {
+    return await this.userWriteRepository.create(input);
+  } catch (error) {
+    if (
+      error instanceof QueryFailedError &&
+      (error.driverError as { code?: string })?.code === '23505'
+    ) {
+      throw new ConflictException(`이미 가입된 이메일입니다: '${input.email}'`);
+    }
+    throw error;
+  }
+}
+
+async execute(command: CreatePostCommand): Promise<number> {
+  await this.validateTitleNotDuplicated(command.userId, command.title);
+  const post = await this.persistPostOrConflict({...});
+  this.emitCreatedEvent(post.id, command.title, command.userId);  // try 밖
+  await this.invalidateUserCache(command.userId);                 // try 밖
+  return post.id;
+}
+```
+
+```ts
+// ❌ Bad — try 블록 안에 이벤트/캐시까지 묶임
+async execute(command) {
+  try {
+    const post = await this.postWriteRepository.create(...);
+    this.eventEmitter.emit(...);
+    await this.cacheService.delByPattern(...);
+    return post.id;
+  } catch (error) { ... }
+}
+```
+
+#### 4. `@Transactional()` 범위 — read는 트랜잭션 밖
+
+`typeorm-transactional`의 `@Transactional()`은 **다중 write를 묶은 private 메서드 1개**에만 단다. `execute()` 전체에 달지 않는다. read-only 분기까지 트랜잭션을 여는 회귀를 막는다. 단일 write 핸들러는 `@Transactional()` 불필요.
+
+```ts
+async execute(command: GoogleLoginCommand): Promise<AuthTokens> {
+  // ── 트랜잭션 밖 ──
+  this.validateEmailVerified(profile);
+  const oauth = await this.findExistingOAuth(profile.providerId);
+  if (oauth) return this.loginExistingOAuthUser(oauth.userId);   // read-only 분기는 트랜잭션 X
+  await this.validateEmailAvailable(profile.email);
+  return this.signupAndIssueTokens(profile);                     // 여기만 트랜잭션
+}
+
+@Transactional()
+private async signupAndIssueTokens(profile: GoogleProfilePayload): Promise<AuthTokens> {
+  const user = await this.createUserOrConflict({...});      // write 1
+  await this.linkOAuthOrConflict({ userId: user.id, ... }); // write 2
+  return this.tokenIssuer.issueTokens(user);                // REQUIRED로 같은 tx 참여
+}
+```
+
+부트스트랩에 `initializeTransactionalContext()` + `addTransactionalDataSource(app.get(DataSource))` 등록은 양쪽 앱의 `main.ts`에 이미 되어 있다.
+
+단위 테스트는 실 DataSource를 부트하지 않으므로 spec 최상단에 `jest.mock('typeorm-transactional', () => ({ Transactional: () => () => undefined }))`를 추가해 데코레이터를 no-op으로 치환한다. 트랜잭션 의미는 통합 테스트로 검증.
+
+#### 5. 데코레이터 메서드의 파라미터 타입은 `import type`
+
+`@Transactional()` 같은 데코레이터가 붙은 메서드의 파라미터에 interface/type을 쓸 때는 반드시 `import type`로 들여온다. SWC + `isolatedModules` + `emitDecoratorMetadata` 조합에서 값으로 import하면 TS1272로 watch 모드 빌드가 멈춘다.
+
+```ts
+import type { GoogleProfilePayload } from '@service/auth/strategy/google-profile.type';
+
+@Transactional()
+private async signupAndIssueTokens(profile: GoogleProfilePayload): Promise<AuthTokens> { ... }
+```
+
+엔티티 양방향 관계의 `Relation<T>` 패턴(`libs/shared/src/entities/post.entity.ts`)과 동일한 이유.
+
+#### 6. Pre-check + 23505 이중 안전망 (CLAUDE.md 정책)
+
+`findByEmail`/`findByProviderId` 등 read 선조회로 사용자에게 친절한 에러를 주고, 동시성 race는 catch + `'23505'` 코드 매핑으로 `ConflictException` 변환. **둘 다 보존한다** — 한쪽만 있으면 결함 시나리오가 남는다.
+
+- 트랜잭션이 부분 실패 시 rollback 담당
+- 23505 catch가 동시성 race 담당
+- pre-check가 race가 아닌 일반 경로의 친절한 메시지 담당
+
+#### 7. Repository 인터페이스 순수성 유지 (CLAUDE.md 정책)
+
+23505 매핑/null 체크/예외 throw는 **핸들러**의 책임. Repository 구현체에 들어가지 않는다. Repository 인터페이스도 도메인 타입(`CreateXxxInput`/`XxxFilter`)만 사용하며, HTTP Request DTO에 의존하지 않는다.
+
 ### DTO Structure
 - `dto/request/` — Request DTOs with `class-validator` decorators
 - `dto/response/` — Response DTOs with static `of(entity)` factory methods
@@ -150,6 +273,13 @@ Before completing any task, verify:
 - [ ] Controller는 CommandBus/QueryBus만 사용하며, 비즈니스 로직 없음
 - [ ] Command/Query는 순수 값 객체 (의존성 없음)
 - [ ] Handler는 `@CommandHandler`/`@QueryHandler` 데코레이터 적용됨
+- [ ] **Handler `execute()`는 호출만** — 검증/조회/조립이 private 메서드로 추출됨
+- [ ] **메서드 네이밍 규약 준수** — `validate*` / `load*OrThrow` / `*OrConflict` / `emit*Event` / `invalidate*Cache`
+- [ ] **try-catch는 단일 write 한 줄만 감쌈** — 이벤트 emit, 캐시 무효화, 추가 write가 try 안에 없음
+- [ ] **`@Transactional()`은 다중 write 묶음 메서드에만** — `execute()` 전체에 달려 있지 않음, read-only 분기는 트랜잭션 밖
+- [ ] **데코레이터 메서드 파라미터 타입은 `import type`** — SWC TS1272 회피
+- [ ] **Pre-check + 23505 이중 안전망 유지** — 한쪽만 있지 않음
+- [ ] Repository는 순수 데이터 접근 — 예외 throw, null 체크, DTO 의존 없음
 - [ ] Module에 `CqrsModule` 임포트 및 Handler 등록 완료
 - [ ] DI is properly configured (especially `useExisting` for repository pattern)
 - [ ] DTOs have validation decorators and Swagger decorators

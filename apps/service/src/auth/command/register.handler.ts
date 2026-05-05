@@ -4,7 +4,10 @@ import { QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { RegisterCommand } from './register.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
-import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
+import {
+  CreateUserInput,
+  IUserWriteRepository,
+} from '@service/auth/interface/user-write-repository.interface';
 
 @CommandHandler(RegisterCommand)
 export class RegisterHandler implements ICommandHandler<RegisterCommand> {
@@ -14,21 +17,25 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
   ) {}
 
   async execute(command: RegisterCommand): Promise<number> {
-    const existing = await this.userReadRepository.findByEmail(command.email);
-    if (existing) {
-      throw new ConflictException(
-        `User with email '${command.email}' already exists`,
-      );
-    }
-
+    await this.validateEmailNotTaken(command.email);
     const hashedPassword = await bcrypt.hash(command.password, 10);
+    return this.createUserOrConflict({
+      email: command.email,
+      password: hashedPassword,
+      name: command.name,
+    });
+  }
 
+  private async validateEmailNotTaken(email: string): Promise<void> {
+    const existing = await this.userReadRepository.findByEmail(email);
+    if (existing) {
+      throw new ConflictException(`User with email '${email}' already exists`);
+    }
+  }
+
+  private async createUserOrConflict(input: CreateUserInput): Promise<number> {
     try {
-      const user = await this.userWriteRepository.create({
-        email: command.email,
-        password: hashedPassword,
-        name: command.name,
-      });
+      const user = await this.userWriteRepository.create(input);
       return user.id;
     } catch (error) {
       if (
@@ -36,7 +43,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
         (error.driverError as { code?: string })?.code === '23505'
       ) {
         throw new ConflictException(
-          `User with email '${command.email}' already exists`,
+          `User with email '${input.email}' already exists`,
         );
       }
       throw error;

@@ -9,6 +9,7 @@ NestJS **모노레포** 기반 Posts CRUD API + Admin Back-Office.
 |------|------|
 | **Posts CRUD** | 게시물 생성/조회/수정/삭제 (Soft Delete) |
 | **Auth** | JWT 기반 회원가입, 로그인, 로그아웃, 토큰 갱신, 프로필 조회 |
+| **Google OAuth 로그인** | Authorization Code Flow + 명시적 계정 link/unlink. 신규 가입 분기는 `@Transactional()`로 원자성 확보, 동시성 race는 23505 catch로 안전망 |
 | **Admin Back-Office** | 별도 서버로 운영되는 관리자 인증 (AdminRole: SUPER, MANAGER) |
 | **Health Check** | `GET /health` — DB + Redis 연결 상태 확인 + Graceful Shutdown |
 | **Rate Limiting** | `@nestjs/throttler` 기반 글로벌 Rate Limiting (login/register 엄격 제한) |
@@ -72,7 +73,7 @@ project-root/
 ├── apps/
 │   ├── service/                     # 사용자 서버 (PORT=3000)
 │   │   └── src/
-│   │       ├── auth/                # 사용자 인증 (JWT, CQRS)
+│   │       ├── auth/                # 사용자 인증 (JWT + Google OAuth, CQRS)
 │   │       └── posts/               # 게시물 CRUD (CQRS)
 │   │
 │   └── back-office/                 # 관리자 서버 (ADMIN_PORT=3001)
@@ -82,7 +83,7 @@ project-root/
 ├── libs/
 │   └── shared/                      # 공유 라이브러리 (@app/shared)
 │       └── src/
-│           ├── entities/            # User, Post, Admin, BaseTimeEntity
+│           ├── entities/            # User, Post, Admin, OAuthAccount, BaseTimeEntity
 │           ├── migrations/          # TypeORM 마이그레이션
 │           ├── database/            # TypeORM 설정
 │           ├── common/              # BaseRepository, DTO, Query
@@ -152,6 +153,8 @@ Controller              ← 라우팅, Command/Query 객체 생성
 | **Query Handler** | 조회 + `PostResponseDto.of()` 변환 | `Promise<DTO>` |
 | **Repository** | 순수 데이터 액세스 (CRUD) | `Promise<Entity>` 또는 `Promise<number>` |
 
+> Handler 본문 구조 규약(메서드 분리, try-catch 범위, `@Transactional` 범위, 23505 매핑 위치 등)은 [CLAUDE.md의 Handler Authoring Rules](./CLAUDE.md)와 [`nestjs-expert` 에이전트](./.claude/agents/nestjs-expert.md)에 정리. 자동 회귀 검증은 [`verify-handler-structure` 스킬](./.claude/skills/verify-handler-structure/SKILL.md).
+
 ### Repository Pattern (ISP 적용)
 
 **목적:** 데이터 액세스 로직을 비즈니스 로직으로부터 분리. **인터페이스 분리 원칙(ISP)** 을 적용하여 읽기/쓰기 인터페이스를 분리한다.
@@ -200,6 +203,12 @@ export const postRepositoryProviders: Provider[] = [
 - `CacheService` — Redis 기반, Cache-Aside 패턴, Fail-Open
 - TTL: 게시물 5분, 목록 3분, 프로필 10분
 - 상세 가이드: [docs/cache-layer-guide.md](./docs/cache-layer-guide.md)
+
+### Transaction Infrastructure
+
+- `typeorm-transactional` 도입 — 다중 테이블 쓰기 원자성이 필요한 Command Handler에 `@Transactional()` 적용 (예: `GoogleLoginHandler` 신규 가입 분기에서 `users` + `oauth_accounts` 동시 insert)
+- 부트스트랩에 `initializeTransactionalContext()` + `addTransactionalDataSource(app.get(DataSource))` 등록 (양쪽 앱)
+- **Pre-check + 23505 이중 안전망 패턴**: `findByEmail`/`findByProviderId` 선조회 후 DB unique 위반(Postgres 23505)을 `ConflictException`으로 매핑. 트랜잭션은 부분 실패 → 자동 rollback, 23505 catch는 동시성 race를 담당
 
 ### Idempotency
 
@@ -293,6 +302,11 @@ Swagger UI: `http://localhost:3000/api`
 | POST | `/v1/auth/refresh` | 토큰 갱신 | X |
 | POST | `/v1/auth/logout` | 로그아웃 | O |
 | GET | `/v1/auth/profile` | 내 프로필 조회 | O |
+| GET | `/v1/auth/google` | Google OAuth 로그인 시작 (동의 화면 redirect) | X |
+| GET | `/v1/auth/google/callback` | Google 콜백 (토큰 발급 후 프론트 redirect) | X |
+| POST | `/v1/auth/google/link` | Google 계정 연결 시작 (`{ authorizationUrl }` 반환) | O |
+| GET | `/v1/auth/google/link/callback` | Google 연결 콜백 (signed state 검증) | state |
+| DELETE | `/v1/auth/google/unlink` | Google 계정 연결 해제 | O |
 | GET | `/v1/posts` | 게시글 페이지네이션 조회 | O |
 | GET | `/v1/posts/:id` | ID로 게시글 조회 | O |
 | POST | `/v1/posts` | 게시글 생성 | O |
@@ -340,7 +354,7 @@ pnpm test:cov                # 커버리지 리포트
 
 단위 테스트(Handler)는 [Suites](https://docs.nestjs.com/recipes/suites)(`TestBed.solitary(...).compile()`)로 작성하여 `unitRef.get(Token)`으로 자동 mock을 회수한다 — `Test.createTestingModule(...)` 보일러플레이트 제거.
 
-통합 테스트는 Testcontainers + `globalSetup` 패턴으로 PostgreSQL/Redis 컨테이너를 자동 관리하며, per-test 트랜잭션 격리를 적용한다.
+통합 테스트는 Testcontainers + `globalSetup` 패턴으로 PostgreSQL/Redis 컨테이너를 자동 관리한다. per-test 격리는 `useTransactionRollback().start()`(beforeEach)에서 **TRUNCATE RESTART IDENTITY CASCADE + Redis FLUSHDB**로 정리. 트랜잭션 기반 격리는 `@Transactional()`(typeorm-transactional)이 별도 커넥션으로 새 트랜잭션을 열어 충돌하므로 사용하지 않는다.
 
 > 별도 e2e 테스트 디렉토리는 두지 않습니다. 통합 테스트가 HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)를 함께 검증하므로 중복을 회피합니다.
 
@@ -378,3 +392,4 @@ GitHub Actions로 코드 품질을 자동 검증한다.
 | [GitHub Actions 가이드](./docs/github-actions-guide.md) | CI/CD 파이프라인 설정 |
 | [Slack 알림 PRD](./docs/slack-notification-prd.md) | Slack 알림 기능 기획 |
 | [로깅 시스템 PRD](./docs/logging-system-prd.md) | 구조화 로깅 시스템 기획 |
+| [Google OAuth PRD](./docs/google-oauth-prd.md) | Google OAuth 로그인 + 계정 link/unlink 설계 |

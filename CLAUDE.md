@@ -72,6 +72,16 @@ NestJS **모노레포** 프로젝트에 **Repository Pattern** + **CQRS Pattern*
 - **Query 객체에 파생 값을 포함하지 않는다.** `skip` 계산은 Repository에서 수행한다.
 - **페이지네이션 Query는 `PaginatedQuery`를 상속**한다. `libs/shared/src/common/query/paginated.query.ts`에 정의된 추상 클래스로, 도메인별 필터를 `filter` 필드로 추가한다.
 
+### Handler Authoring Rules
+
+Service 앱 Command Handler(`apps/service/src/**/command/*.handler.ts`)는 다음 규칙을 따른다. 자동 회귀 검증은 `verify-handler-structure` 스킬, 자세한 코드 예시는 `.claude/agents/nestjs-expert.md`의 "Handler Authoring Rules" 섹션 참고.
+
+- **`execute()`는 호출만** — 검증/조회/조립은 private 메서드로 추출(≤50줄 목표). 검증 R1.
+- **메서드 네이밍** — `validate{Subject}{Predicate}`(검증), `load{Subject}…OrThrow`(조회+null체크+예외), `find{Subject}…`(단순 조회), `create/persist/link…OrConflict`(단일 write + 23505 매핑), `emit{Name}Event`/`invalidate{Name}Cache`(side-effect, try 밖에 위치).
+- **try-catch는 단일 write 1줄만 감싼다** — 이벤트 emit, 캐시 무효화, 추가 write를 try 안에 두지 않는다. 검증 R2.
+- **`@Transactional()`은 다중 write 묶음 메서드에만** — `execute()` 전체에 달지 않으며 read는 항상 트랜잭션 밖. 단일 write 핸들러는 `@Transactional()` 불필요. 검증 R3.
+- **데코레이터 메서드 파라미터 타입은 `import type`** — SWC + `isolatedModules` + `emitDecoratorMetadata` 조합에서 TS1272 회피 (엔티티 양방향 관계 `Relation<T>`와 동일 이유).
+
 ### Request Flow
 
 ```text
@@ -99,6 +109,8 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `@CurrentUser()` 커스텀 데코레이터로 인증된 사용자 정보 주입 (`apps/service/src/auth/decorator/`)
 - User 엔티티와 Post 엔티티는 `userId` FK로 연결 (1:N)
 - Posts와 동일한 Repository Pattern DI 구조 적용 (`IUserReadRepository` / `IUserWriteRepository`)
+- **JWT 발급 헬퍼**: `AuthTokenIssuer` 도메인 서비스(`apps/service/src/auth/auth-token-issuer.service.ts`)가 `accessToken`/`refreshToken` 발급 + `hashedRefreshToken` 저장을 단일화. `LoginHandler`/`RefreshTokenHandler`/`GoogleLoginHandler` 모두 이 서비스를 통해 토큰 발급. JWT secret은 반드시 `configService.getOrThrow<string>('JWT_*_SECRET')`로 로드 (env 누락 시 부팅 실패).
+- **OAuth (Google)**: `oauth_accounts` 테이블(1:N)로 멀티 프로바이더 확장 가능한 스키마. `(provider, providerId)` 및 `(userId, provider)` 부분 unique index. 동일 이메일 비번 사용자가 Google 로그인 시 자동 연결 금지 — `ConflictException(409)` 후 명시적 link 플로우(`POST /v1/auth/google/link`)로만 연결 허용. Link 시작은 redirect가 아닌 JSON `{ authorizationUrl }` 반환(브라우저 navigation에 Bearer 헤더 미지원 회피). Link callback은 백엔드 발행 signed JWT state(`type='google-link-state'`, 5분 만료)로 사용자 식별. 상세 가이드: `docs/google-oauth-prd.md`
 
 ### API Versioning
 
@@ -181,6 +193,14 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `OTEL_ENABLED` 환경변수로 활성화/비활성화 제어
 - `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`으로 trace 수집 대상 설정
 
+### Transaction Infrastructure (typeorm-transactional)
+
+- 다중 테이블 쓰기의 원자성이 필요한 Command Handler는 `@Transactional()` 데코레이터(`typeorm-transactional`) 적용. 메서드 내부의 모든 Repository 호출이 동일 트랜잭션에 자동 참여 — Repository 시그니처 변경 불필요.
+- **부트스트랩 필수**: 양쪽 앱의 `main.ts`에서 `NestFactory.create` 전 `initializeTransactionalContext()` 호출 + 생성 후 `addTransactionalDataSource(app.get(DataSource))` 등록. 미등록 시 `@Transactional()`이 런타임 에러("No data sources defined").
+- **단위 테스트 mock 패턴**: 단위 테스트는 실 DataSource를 부팅하지 않으므로 `@Transactional`이 throw. 데코레이터를 spec 파일 단위로 no-op 처리: `jest.mock('typeorm-transactional', () => ({ Transactional: () => () => undefined }))`. 트랜잭션 의미는 통합 테스트에서 검증.
+- **Pre-check + 23505 이중 안전망**: 본 프로젝트는 `findByEmail`/`findByProviderId` 등 read 선조회 후 DB unique 위반(Postgres 23505)을 `ConflictException`으로 변환하는 패턴을 일관되게 사용한다 (`RegisterHandler`, `GoogleLoginHandler`, `LinkGoogleAccountHandler`). 트랜잭션은 부분 실패 시 자동 rollback을, 23505 catch는 동시성 race를 담당. 둘 다 보존한다 — 한쪽만 있으면 결함 시나리오가 남는다.
+- 자세한 구조는 `docs/google-oauth-prd.md` §2.7 참고.
+
 ### Build Tooling (SWC)
 
 - 빌드는 **webpack + swc-loader**, 단위/통합 테스트는 **`@swc/jest`**. 모노레포 모드는 SWC builder를 직접 지원하지 않으므로 NestJS 공식 권장 경로인 webpack 경유.
@@ -217,6 +237,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 - 코드 변경 후 항상 `pnpm build:all`과 `pnpm test`를 실행한다.
 - auth 관련 파일 변경 시 `pnpm test:e2e`도 실행한다.
+- 테스트 `describe`는 영문 클래스명, `it` 문장은 한국어로 행위와 결과를 진술한다 (전체 spec 일관 규칙).
 - Jest `globalSetup`/`globalTeardown` 파일은 반드시 상대 경로 import를 사용한다 (path alias 금지).
 
 ### 테스트 구조 (Classical School)
@@ -226,9 +247,12 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - **단위 테스트** (`apps/**/*.spec.ts`, `libs/**/*.spec.ts`) — 실제 조건 분기/변환 로직이 있는 레이어만 테스트
   - Handler 단위 테스트는 [Suites](https://docs.nestjs.com/recipes/suites)(`TestBed.solitary(...).compile()`)로 작성하고 `unitRef.get(Token)`으로 자동 mock을 회수한다. `Test.createTestingModule(...)`는 통합 테스트 헬퍼(`createIntegrationApp`)에서만 사용한다. `Mocked<T>` 타입은 루트 `suites.d.ts`의 reference로 활성화되므로 spec에서 `import { TestBed, type Mocked } from '@suites/unit'`만 import하면 된다.
   - **Repository 인터페이스 토큰(abstract class)은 캐스팅 필수**: `IPostReadRepository`처럼 abstract class를 DI 토큰으로 쓰면 `unitRef.get`의 `Type<T>`(non-abstract constructor) 시그니처에 할당되지 못해 `TS2769` 발생. `import type { Type } from '@suites/types.common'`을 추가하고 `unitRef.get<IPostReadRepository>(IPostReadRepository as Type<IPostReadRepository>)` 패턴을 사용한다. `JwtService`/`ConfigService` 등 concrete class 토큰은 캐스팅 불필요. SWC 빌드(`pnpm build:all`)는 spec을 제외하므로 통과하지만 `tsc` strict 체크에서 잡힘.
-  - Handler: DTO 변환 또는 NotFoundException 분기가 있는 Handler만 테스트 (`UpdatePostHandler`, `DeletePostHandler`, `GetPostByIdHandler`, `FindAllPostsPaginatedHandler`). pass-through 성격의 `CreatePostHandler`는 통합 테스트로 커버
+  - Handler: 분기 로직(검증, 23505→`ConflictException` 매핑, `NotFoundException` 분기, DTO 변환 등)이 있는 Handler는 단위 테스트로 커버. 진정한 pass-through(예: `LogoutHandler`처럼 단일 write로 즉시 반환하고 검증 없음)는 통합 테스트로만.
   - DTO: `PostResponseDto.of()`, `PaginatedResponseDto.of()` — 순수 팩토리 함수
-- **통합 테스트** (`test/service/*.integration-spec.ts`, `test/back-office/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp(AppModule)`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 트랜잭션 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+- **통합 테스트** (`test/service/*.integration-spec.ts`, `test/back-office/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL/Redis 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp(AppModule)`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+  - **격리 메커니즘**: `useTransactionRollback().start()`(beforeEach)에서 **TRUNCATE RESTART IDENTITY CASCADE + Redis FLUSHDB**로 매 테스트 직전 정리. `rollback()`(afterEach)는 no-op. `dataSource.manager` override 방식은 `@Transactional()`(typeorm-transactional)이 별도 커넥션으로 새 트랜잭션을 열어 충돌하므로 사용하지 않는다. 첫 테스트 실행 전과 다른 spec 파일 사이에는 새 `createIntegrationApp` 호출이 정리를 보장.
+  - **typeorm-transactional 등록**: `createIntegrationApp` 내부에서 `deleteDataSourceByName('default')` 후 `addTransactionalDataSource(app.get(DataSource))` 호출. spec 파일마다 새 DataSource를 만들므로 매번 재등록 필요.
+  - **Jest setupFiles**: 루트 `jest` 설정과 `test/{service,back-office}/jest-e2e.json`에 `test/setup/jest-setup.ts`가 등록되어 `initializeTransactionalContext()`를 1회 실행.
 - ~~**e2e 테스트**~~ — 제거됨. 통합 테스트가 HTTP 레이어를 포함한 전체 플로우를 검증하므로 별도 e2e 테스트를 유지하지 않음.
 
 ### 작업 완료 후 검증
@@ -252,6 +276,17 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 - 작업 계획 시 사용자가 명시적으로 요청한 범위만으로 제한한다. 요청하지 않은 추가 작업이나 단계를 포함하지 않는다.
 - 범위가 불확실하면 확장하기 전에 먼저 질문한다.
 
+### Sub-Agents
+
+`.claude/agents/`에 정의된 전문 에이전트. 작업 성격에 맞으면 적극 활용한다.
+
+| Agent                    | When to use                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `nestjs-expert`          | NestJS 모듈/Handler/Repository 작성, DI 디버깅, Handler Authoring Rules 적용, CQRS/Repository 전반   |
+| `tdd-test-writer`        | TDD 기반 테스트 작성 (Suites `TestBed.solitary` 단위 테스트, `createIntegrationApp` 통합 테스트)     |
+| `postgres-db-normalizer` | 스키마 설계/정규화 분석, TypeORM 엔티티/마이그레이션 생성                                            |
+| `code-reviewer`          | 작성한 diff/PR을 fresh perspective로 검토 (코드 품질·타입·예외·유지보수성·중복·네이밍). 보안은 `security-review`, 성능은 OTEL에 위임 |
+
 ### Skills
 
 커스텀 검증 및 유지보수 스킬은 `.claude/skills/`에 정의되어 있습니다.
@@ -261,6 +296,9 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 | `verify-implementation` | 프로젝트의 모든 verify 스킬을 순차 실행하여 통합 검증 보고서를 생성합니다       |
 | `manage-skills`         | 세션 변경사항을 분석하고, 검증 스킬을 생성/업데이트하며, CLAUDE.md를 관리합니다 |
 | `verify-restful-api`    | RESTful API 설계 원칙 준수 여부를 검증합니다                                    |
+| `verify-handler-structure` | Service 앱 Command Handler 구조 회귀를 검증합니다 (메서드 분리, try-catch 범위, `@Transactional` 범위, 23505 매핑 위치) |
+| `verify-db-safety`      | TypeORM 마이그레이션의 destructive query, rollback 가능성, NOT NULL 컬럼 추가 시 default 누락 등 DB 안전성을 검증합니다 |
+| `verify-api-compat`     | API 하위 호환성을 검증합니다 (Response DTO `of()` 누락, Request 필수 필드 신규 추가, 라우트 시그니처 변경 등 git diff 기반) |
 | `respond-coderabbit`    | CodeRabbit PR 리뷰 코멘트를 자동 분석하고 응답합니다                            |
 | `commit`                | 검증(`format` → `lint:check` → `build` → `test` → `test:e2e`) 후 한국어 conventional commit 생성 및 푸시 |
 | `create-pr`             | 브랜치 정책에 따라 대상 브랜치(`feature/*`→`dev`, `dev`→`main`)를 판별해 PR 생성 |

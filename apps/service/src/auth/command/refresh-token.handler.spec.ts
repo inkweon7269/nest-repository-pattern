@@ -55,7 +55,7 @@ describe('RefreshTokenHandler', () => {
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
     });
-    configService.get.mockReturnValue(undefined);
+    configService.getOrThrow.mockReturnValue('test-refresh-secret');
   });
 
   it('유효한 refresh token이면 AuthTokenIssuer로 위임하여 새 토큰 쌍을 반환한다', async () => {
@@ -68,7 +68,7 @@ describe('RefreshTokenHandler', () => {
     });
     expect(jwtService.verify).toHaveBeenCalledWith(
       'valid-refresh-token',
-      expect.objectContaining({ secret: undefined }),
+      expect.objectContaining({ secret: 'test-refresh-secret' }),
     );
     expect(userReadRepository.findById).toHaveBeenCalledWith(1);
     const expectedDigest = createHash('sha256')
