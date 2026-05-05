@@ -7,7 +7,13 @@ import * as bcrypt from 'bcrypt';
 import { RefreshTokenCommand } from './refresh-token.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
 import { AuthTokenIssuer } from '@service/auth/auth-token-issuer.service';
-import { AuthTokens } from '@app/shared';
+import { AuthTokens, User } from '@app/shared';
+
+interface RefreshTokenPayload {
+  sub: number;
+  email: string;
+  type?: string;
+}
 
 @CommandHandler(RefreshTokenCommand)
 export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand> {
@@ -19,9 +25,20 @@ export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand>
   ) {}
 
   async execute(command: RefreshTokenCommand): Promise<AuthTokens> {
-    let payload: { sub: number; email: string; type?: string };
+    const payload = this.decodeRefreshPayloadOrUnauthorized(
+      command.refreshToken,
+    );
+    const user = await this.loadUserByIdOrUnauthorized(payload.sub);
+    await this.validateRefreshTokenMatches(command.refreshToken, user);
+    return this.tokenIssuer.issueTokens(user);
+  }
+
+  private decodeRefreshPayloadOrUnauthorized(
+    refreshToken: string,
+  ): RefreshTokenPayload {
+    let payload: RefreshTokenPayload;
     try {
-      payload = this.jwtService.verify(command.refreshToken, {
+      payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
@@ -32,14 +49,26 @@ export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand>
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const user = await this.userReadRepository.findById(payload.sub);
-    if (!user || !user.hashedRefreshToken) {
+    return payload;
+  }
+
+  private async loadUserByIdOrUnauthorized(userId: number): Promise<User> {
+    const user = await this.userReadRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+    return user;
+  }
+
+  private async validateRefreshTokenMatches(
+    refreshToken: string,
+    user: User,
+  ): Promise<void> {
+    if (!user.hashedRefreshToken) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const tokenDigest = createHash('sha256')
-      .update(command.refreshToken)
-      .digest('hex');
+    const tokenDigest = createHash('sha256').update(refreshToken).digest('hex');
     const isRefreshTokenValid = await bcrypt.compare(
       tokenDigest,
       user.hashedRefreshToken,
@@ -47,7 +76,5 @@ export class RefreshTokenHandler implements ICommandHandler<RefreshTokenCommand>
     if (!isRefreshTokenValid) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
-
-    return this.tokenIssuer.issueTokens(user);
   }
 }
