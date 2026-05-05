@@ -7,7 +7,7 @@ import {
   CreateOAuthAccountInput,
   IOAuthAccountWriteRepository,
 } from '@service/auth/interface/oauth-account-write-repository.interface';
-import { GoogleProfilePayload } from '@service/auth/strategy/google-profile.type';
+import type { GoogleProfilePayload } from '@service/auth/strategy/google-profile.type';
 
 @CommandHandler(LinkGoogleAccountCommand)
 export class LinkGoogleAccountHandler implements ICommandHandler<

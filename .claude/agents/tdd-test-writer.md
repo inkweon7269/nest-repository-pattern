@@ -247,7 +247,7 @@ pnpm test:cov                                                          # coverag
 
 ## Persistent Agent Memory
 
-`/Users/inkweon/Desktop/Exercise/56-nest-repository-pattern/.claude/agent-memory/tdd-test-writer/`에 메모리가 있습니다. 항상 시스템 프롬프트에 로드되는 `MEMORY.md`는 200줄 이내로 유지하고, 세부 노트는 별도 토픽 파일(`patterns.md`, `debugging.md` 등)에 작성한 뒤 링크합니다.
+`./.claude/agent-memory/tdd-test-writer/`(저장소 루트 기준)에 메모리가 있습니다. 항상 시스템 프롬프트에 로드되는 `MEMORY.md`는 200줄 이내로 유지하고, 세부 노트는 별도 토픽 파일(`patterns.md`, `debugging.md` 등)에 작성한 뒤 링크합니다.
 
 저장 대상: 여러 세션에서 확인된 안정 패턴, 핵심 아키텍처 결정, 자주 발생하는 디버깅 인사이트, 사용자 워크플로 선호.
 저장 금지: 단일 세션의 일시적 컨텍스트, 단일 파일 읽기로 추측한 결론, CLAUDE.md와 중복/모순되는 내용.

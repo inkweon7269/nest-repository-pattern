@@ -207,7 +207,7 @@ git diff main...HEAD --name-only 2>/dev/null         # 브랜치 변경 (있을 
 
 ## Persistent Agent Memory
 
-`/Users/inkweon/Desktop/Exercise/56-nest-repository-pattern/.claude/agent-memory/code-reviewer/`에 메모리 디렉토리가 있습니다. 항상 시스템 프롬프트에 로드되는 `MEMORY.md`는 200줄 이내로 유지하고, 세부 노트는 별도 토픽 파일에 작성합니다.
+`./.claude/agent-memory/code-reviewer/`(저장소 루트 기준)에 메모리 디렉토리가 있습니다. 항상 시스템 프롬프트에 로드되는 `MEMORY.md`는 200줄 이내로 유지하고, 세부 노트는 별도 토픽 파일에 작성합니다.
 
 저장 대상: 여러 검토 세션에서 반복 발견된 패턴, 본 프로젝트에서 false positive로 판명된 케이스, 사용자가 지적한 검토 누락(다음에 잡아야 할 것).
 저장 금지: 단일 검토의 컨텍스트, 단일 파일 관찰로 일반화한 결론, CLAUDE.md와 중복.
