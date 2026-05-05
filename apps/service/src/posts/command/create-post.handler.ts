@@ -5,8 +5,11 @@ import { QueryFailedError } from 'typeorm';
 import { CreatePostCommand } from './create-post.command';
 import { PostCreatedEvent } from '@service/posts/event/post-created.event';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
-import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
-import { CacheService } from '@app/shared';
+import {
+  CreatePostInput,
+  IPostWriteRepository,
+} from '@service/posts/interface/post-write-repository.interface';
+import { CacheService, Post } from '@app/shared';
 
 @CommandHandler(CreatePostCommand)
 export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
@@ -18,39 +21,59 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
   ) {}
 
   async execute(command: CreatePostCommand): Promise<number> {
+    await this.validateTitleNotDuplicated(command.userId, command.title);
+    const post = await this.persistPostOrConflict({
+      userId: command.userId,
+      title: command.title,
+      content: command.content,
+      isPublished: command.isPublished,
+    });
+    this.emitCreatedEvent(post.id, command.title, command.userId);
+    await this.invalidateUserCache(command.userId);
+    return post.id;
+  }
+
+  private async validateTitleNotDuplicated(
+    userId: number,
+    title: string,
+  ): Promise<void> {
     const existing = await this.postReadRepository.findByUserIdAndTitle(
-      command.userId,
-      command.title,
+      userId,
+      title,
     );
     if (existing) {
-      throw new ConflictException(
-        `Post with title '${command.title}' already exists`,
-      );
+      throw new ConflictException(`Post with title '${title}' already exists`);
     }
+  }
 
+  private async persistPostOrConflict(input: CreatePostInput): Promise<Post> {
     try {
-      const post = await this.postWriteRepository.create({
-        userId: command.userId,
-        title: command.title,
-        content: command.content,
-        isPublished: command.isPublished,
-      });
-      this.eventEmitter.emit(
-        PostCreatedEvent.event,
-        new PostCreatedEvent(post.id, command.title, command.userId),
-      );
-      await this.cacheService.delByPattern(`posts:${command.userId}:*`);
-      return post.id;
+      return await this.postWriteRepository.create(input);
     } catch (error) {
       if (
         error instanceof QueryFailedError &&
         (error.driverError as { code?: string })?.code === '23505'
       ) {
         throw new ConflictException(
-          `Post with title '${command.title}' already exists`,
+          `Post with title '${input.title}' already exists`,
         );
       }
       throw error;
     }
+  }
+
+  private emitCreatedEvent(
+    postId: number,
+    title: string,
+    userId: number,
+  ): void {
+    this.eventEmitter.emit(
+      PostCreatedEvent.event,
+      new PostCreatedEvent(postId, title, userId),
+    );
+  }
+
+  private async invalidateUserCache(userId: number): Promise<void> {
+    await this.cacheService.delByPattern(`posts:${userId}:*`);
   }
 }
