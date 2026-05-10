@@ -192,6 +192,18 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `libs/shared/src/instrumentation.ts` — OTEL SDK 자동 계측 초기화 (양쪽 앱의 `main.ts`에서 import)
 - `OTEL_ENABLED` 환경변수로 활성화/비활성화 제어
 - `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`으로 trace 수집 대상 설정
+- `OTEL_SERVICE_NAME`은 `package.json` start 스크립트에서 앱별로 강제(service / back-office) — 환경변수 미설정 시 두 앱이 같은 식별자로 보고됨
+
+### Slow Query Slack Alert (OTEL 기반)
+
+외부 OTEL 백엔드 없이도 단일 PostgreSQL 쿼리가 임계값을 넘으면 Slack 채널로 알림을 보내는 인앱 후크. 코드는 `libs/shared/src/otel/` + `libs/shared/src/instrumentation.ts` + `libs/shared/src/slack/slack.service.ts`(sendSlowQueryAlert).
+
+- 데이터 흐름: pg 자동 계측 → `SlowQuerySpanProcessor` → 모듈 레벨 callback registry → `SlowQueryAlertHandler` (NestJS DI) → `SlackService.sendSlowQueryAlert` → `#prod-slow-query` / `#dev-slow-query` 채널
+- Boot-time SpanProcessor와 NestJS DI 사이 연결: 모듈 레벨 callback + buffer(BUFFER_CAP=100건) 패턴. EventEmitter는 back-office에 미등록되어 있어 사용 안 함.
+- Dedup: SQL 본문 SHA-1 앞 16자를 키로 60초 TTL Redis 중복 제거 (분산 환경 모든 인스턴스 공유). `CacheService` Fail-Open이라 Redis 장애 시 dedup 효과만 사라지고 알림 자체는 계속 발사
+- 환경변수: `SLOW_QUERY_THRESHOLD_MS`(기본 5000, NaN/음수면 폴백), `SLACK_BOT_TOKEN` 미설정 시 silent skip
+- 양쪽 앱 활성화: 각 AppModule이 `OtelAlertingModule` import 필수
+- 민감 정보 보호: pg 자동 계측의 `enhancedDatabaseReporting` 기본값 `false` 유지로 SQL 파라미터 값(비밀번호 등) 캡처 안 됨
 
 ### Transaction Infrastructure (typeorm-transactional)
 

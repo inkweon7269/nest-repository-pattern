@@ -8,6 +8,7 @@ import {
   LoggingModule,
   IdempotencyModule,
   HealthModule,
+  OtelAlertingModule,
 } from '@app/shared';
 import { AdminModule } from './auth/admin.module';
 
@@ -37,6 +38,7 @@ const nodeEnv = process.env.NODE_ENV || 'local';
     }),
     AdminModule,
     HealthModule,
+    OtelAlertingModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
