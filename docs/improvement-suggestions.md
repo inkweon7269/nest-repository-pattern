@@ -1,6 +1,6 @@
 # NestJS 프로젝트 개선 제안
 
-현재 프로젝트 분석 결과를 기반으로, 서버 개발 역량을 더 키울 수 있는 기술/패턴들을 난이도와 학습 가치 기준으로 정리한 문서입니다.
+현재 프로젝트 분석 결과를 기반으로, 서버 개발 역량을 더 키울 수 있는 기술/패턴 중 **아직 적용되지 않았거나 부분 구현 상태인 항목**만 정리한 문서입니다. 이미 완료된 항목은 본 문서에서 제거되었습니다.
 
 ## 현재 프로젝트 현황
 
@@ -8,7 +8,7 @@
 
 - Repository Pattern (ISP 적용, Read/Write 분리)
 - CQRS Pattern (Command/Query Bus)
-- JWT 인증 (Access + Refresh Token)
+- JWT 인증 (Access + Refresh Token, OAuth 연동 포함)
 - 이벤트 기반 Slack 알림 (EventEmitter)
 - 멱등성 처리 (Redis 기반)
 - 구조화 로깅 (pino-http)
@@ -17,166 +17,18 @@
 - 통합 테스트 (Testcontainers)
 - Swagger API 문서화
 - TypeORM Migration 관리
+- Health Check + Graceful Shutdown (`@nestjs/terminus` + `enableShutdownHooks()`)
+- Rate Limiting (`@nestjs/throttler`, named throttlers)
+- Cache Layer (`CacheService` + Redis Fail-Open)
+- OpenTelemetry (auto-instrumentation + Slow Query Slack Alert)
+- API Versioning (URI, `defaultVersion: '1'`)
+- CI/CD 파이프라인 (`.github/workflows/`에 ci, coverage, dependency-audit, migration-safety, pr-auto-label, typescript-strict)
 
 ---
 
 ## 제안 목록
 
-### 1. Health Check & Graceful Shutdown
-
-**난이도**: 낮음
-
-**개요**
-
-- `@nestjs/terminus`로 `/health` 엔드포인트 추가 (DB, Redis 연결 상태 확인)
-- `app.enableShutdownHooks()`로 SIGTERM/SIGINT 시 진행 중인 요청 완료 후 종료
-
-**학습 포인트**
-
-- 프로덕션 배포의 기본 -- K8s liveness/readiness probe, 무중단 배포의 기초
-
-**관련 패키지**
-
-- `@nestjs/terminus`
-- `@godaddy/terminus` (내부 의존)
-
----
-
-### 2. Rate Limiting
-
-**난이도**: 낮음
-
-**개요**
-
-- `@nestjs/throttler`로 API 요청 제한 (예: 로그인 시도 분당 5회)
-- Redis 기반 분산 rate limiting으로 확장 가능
-
-**학습 포인트**
-
-- 서비스 보호, DDoS 방어의 첫 단계
-
-**관련 패키지**
-
-- `@nestjs/throttler`
-
----
-
-### 3. Cache Layer
-
-**난이도**: 중간
-
-**개요**
-
-- 이미 Redis(ioredis)가 있으니 `@nestjs/cache-manager`로 읽기 캐싱 적용
-- CQRS와 자연스럽게 맞물림 -- Query에 캐시 적용, Command 실행 시 캐시 무효화
-
-**학습 포인트**
-
-- Cache-Aside, Write-Through 패턴
-- 캐시 일관성 전략 (TTL, 무효화 시점)
-
-**관련 패키지**
-
-- `@nestjs/cache-manager`
-- `cache-manager-ioredis-yet`
-
----
-
-### 4. Bull/BullMQ 기반 비동기 Job Queue
-
-**난이도**: 중간
-
-**개요**
-
-- 현재 Slack 알림이 EventEmitter(in-process)로 동작 -- 서버 재시작 시 유실됨
-- `@nestjs/bullmq` + Redis로 영속적 비동기 작업 큐 전환
-- 재시도, 지연 실행, 우선순위 큐, Dead Letter Queue 구현
-
-**학습 포인트**
-
-- 메시지 큐 패턴, 장애 복구, 백그라운드 처리
-- 실무에서 가장 많이 쓰는 비동기 처리 패턴 중 하나
-
-**관련 패키지**
-
-- `@nestjs/bullmq`
-- `bullmq`
-
----
-
-### 5. Role-Based Access Control (RBAC)
-
-**난이도**: 중간
-
-**개요**
-
-- 현재 인증(Authentication)만 있고 인가(Authorization)가 없음
-- Custom `@Roles()` 데코레이터 + `RolesGuard` 구현
-- 예: 작성자만 자기 게시물 수정/삭제 가능 (현재는 userId 체크 없음)
-
-**학습 포인트**
-
-- Guard 체이닝, 메타데이터 리플렉션
-- 도메인 수준 권한 설계
-
-**구현 방향**
-
-- User 엔티티에 `role` 필드 추가 (enum: USER, ADMIN)
-- `@Roles('ADMIN')` 데코레이터 + `RolesGuard`
-- 리소스 소유권 검증: 게시물 수정/삭제 시 `post.userId === currentUser.id` 확인
-
----
-
-### 6. OpenTelemetry 분산 추적
-
-**난이도**: 중간~높음
-
-**개요**
-
-- `@opentelemetry/sdk-node` + NestJS 통합
-- 요청 -> Handler -> Repository -> DB 전체 trace 추적
-- Jaeger 또는 Zipkin으로 시각화
-
-**학습 포인트**
-
-- Observability 3대 축(Logs, Metrics, Traces) 완성
-- 로깅은 이미 있으니 트레이싱을 추가하여 요청 전체 흐름 파악
-
-**관련 패키지**
-
-- `@opentelemetry/sdk-node`
-- `@opentelemetry/auto-instrumentations-node`
-- `@opentelemetry/exporter-jaeger`
-
----
-
-### 7. API Versioning
-
-**난이도**: 낮음
-
-**개요**
-
-- NestJS 내장 `app.enableVersioning()` 활용 (URI, Header, Media Type 방식)
-- 예: `/v1/posts`, `/v2/posts`
-
-**학습 포인트**
-
-- 하위 호환성 유지 전략
-- API 진화 관리
-
-**구현 방향**
-
-```typescript
-// main.ts
-app.enableVersioning({
-  type: VersioningType.URI,
-  defaultVersion: '1',
-});
-```
-
----
-
-### 8. Custom Exception Hierarchy
+### 1. Custom Exception Hierarchy
 
 **난이도**: 낮음~중간
 
@@ -209,45 +61,107 @@ const EXCEPTION_STATUS_MAP = {
 
 ---
 
-### 9. Docker Compose + CI/CD 파이프라인 강화
+### 2. RBAC 보강 (Role-Based Access Control)
+
+**난이도**: 중간
+
+**현재 상태**
+
+- Back-office: `Admin.role` 컬럼(AdminRole enum) 존재 — 부분 인가 기반 마련됨
+- Service 앱: `User`에 `role` 컬럼 없음
+- `@Roles()` 데코레이터 / `RolesGuard` / 리소스 소유권 가드 모두 미구현
+- 현재는 핸들러에서 `userId === currentUser.id` 검증으로 소유권 처리 중
+
+**잔여 작업**
+
+- `User.role` 컬럼 추가 + 마이그레이션 (`USER` / `ADMIN`)
+- `@Roles()` 커스텀 데코레이터 + `RolesGuard` 구현 (메타데이터 리플렉션)
+- 리소스 소유권 검증을 가드 또는 공통 유틸로 일원화 (게시물 수정/삭제 시 `post.userId === currentUser.id`)
+
+**학습 포인트**
+
+- Guard 체이닝, 메타데이터 리플렉션
+- 도메인 수준 권한 설계 (역할 기반 + 리소스 소유권 분리)
+
+---
+
+### 3. BullMQ 기반 비동기 Job Queue
 
 **난이도**: 중간
 
 **개요**
 
-- `docker-compose.yml`로 App + PostgreSQL + Redis 통합 실행 환경
-- GitHub Actions에 빌드 -> 린트 -> 테스트 -> Docker 이미지 빌드 파이프라인
+- 현재 Slack 알림이 EventEmitter(in-process)로 동작 -- 서버 재시작 시 유실됨
+- `@nestjs/bullmq` + Redis로 영속적 비동기 작업 큐 전환
+- 재시도, 지연 실행, 우선순위 큐, Dead Letter Queue 구현
+- 이미 `ioredis`가 있으니 동일 Redis 인스턴스 재사용 가능
 
 **학습 포인트**
 
-- 컨테이너화, 인프라 코드화
-- 서버 개발자 필수 역량
+- 메시지 큐 패턴, 장애 복구, 백그라운드 처리
+- 실무에서 가장 많이 쓰는 비동기 처리 패턴 중 하나
+
+**관련 패키지**
+
+- `@nestjs/bullmq`
+- `bullmq`
+
+---
+
+### 4. Docker Compose 보강
+
+**난이도**: 낮음~중간
+
+**현재 상태**
+
+- `docker-compose.yml`에 postgres / redis / jaeger만 정의
+- 각 서비스에 healthcheck 블록 없음
+- 앱(`service`, `back-office`) 자체는 compose에 포함되지 않음 (로컬에서 `pnpm start:local`로 실행)
+- CI/CD 파이프라인은 `.github/workflows/`에 6개 워크플로로 충분히 구성됨
+
+**잔여 작업**
+
+- `postgres` healthcheck 추가 (`pg_isready -U $POSTGRES_USER`)
+- `redis` healthcheck 추가 (`redis-cli ping`)
+- (선택) `service` / `back-office` 앱 서비스를 compose에 추가하고 `depends_on: condition: service_healthy`로 단일 명령 기동 지원
+
+**학습 포인트**
+
+- 컨테이너 의존성 관리 (start-up race 회피)
+- 인프라 코드화
 
 **구현 방향**
 
 ```yaml
-# docker-compose.yml
 services:
-  app:
-    build: .
-    ports: ['3000:3000']
-    depends_on: [postgres, redis]
   postgres:
     image: postgres:17-alpine
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U local_user -d nest_repository']
+      interval: 5s
+      timeout: 3s
+      retries: 5
   redis:
     image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
 ```
 
 ---
 
-### 10. Outbox Pattern + Event 신뢰성
+### 5. Outbox Pattern + Event 신뢰성
 
 **난이도**: 높음
 
 **개요**
 
-- 현재 이벤트가 트랜잭션과 분리되어 있어 DB 커밋 후 이벤트 유실 가능
+- 현재 EventEmitter 이벤트가 DB 트랜잭션과 분리되어 있어 DB 커밋 후 이벤트 유실 가능
 - Outbox 테이블에 이벤트를 함께 커밋 -> 별도 프로세스가 발행
+- 이미 `typeorm-transactional` 인프라가 있어 트랜잭션 통합 비용 낮음
+- BullMQ(#3)와 자연스럽게 시너지 (Outbox publisher를 BullMQ scheduler로 구성 가능)
 
 **학습 포인트**
 
@@ -267,15 +181,10 @@ services:
 
 실무 영향도와 학습 곡선을 고려한 순서:
 
-| 순서 | 항목                             | 이유                                  |
-| ---- | -------------------------------- | ------------------------------------- |
-| 1    | Health Check + Graceful Shutdown | 바로 적용 가능, 프로덕션 기본기       |
-| 2    | Rate Limiting                    | 간단하지만 보안 필수                  |
-| 3    | RBAC                             | 현재 프로젝트에 가장 자연스러운 확장  |
-| 4    | BullMQ Job Queue                 | 비동기 처리 패턴 학습 가치 높음       |
-| 5    | Cache Layer                      | CQRS와의 시너지 체험                  |
-| 6    | Custom Exception Hierarchy       | 코드 품질 향상                        |
-| 7    | API Versioning                   | API 설계 성숙도 향상                  |
-| 8    | Docker Compose + CI/CD           | 인프라 역량 확장                      |
-| 9    | OpenTelemetry                    | Observability 완성                    |
-| 10   | Outbox Pattern                   | 분산 시스템 심화                      |
+| 순서 | 항목                       | 이유                                                       |
+| ---- | -------------------------- | ---------------------------------------------------------- |
+| 1    | Custom Exception Hierarchy | 작은 변경량, 즉시 코드 품질 향상                           |
+| 2    | RBAC 보강                  | 현재 프로젝트의 자연스런 확장 (마이그레이션 1개)           |
+| 3    | BullMQ Job Queue           | 실무 가치 높음. Outbox publisher로 재사용 가능             |
+| 4    | Docker Compose 보강        | 빠르게 끝남. 인프라 안정성 향상                            |
+| 5    | Outbox Pattern             | BullMQ 인프라 위에서 구현. 분산 시스템 심화 학습 마무리    |
