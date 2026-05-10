@@ -51,10 +51,24 @@ export class SlackService {
     const safeForCodeBlock = truncated.replace(/```/g, '`​`​`');
 
     const durationSec = (info.durationMs / 1000).toFixed(3);
-    const text = [
+    const lines = [
       `*[${durationSec}s 초과 실행된 쿼리]*`,
       `Time     : ${info.occurredAt.toISOString()}`,
       `Service  : ${info.serviceName}`,
+    ];
+
+    // HTTP 컨텍스트는 인증된 endpoint 등 조건부로만 채워지므로 옵셔널 라인으로 처리.
+    // 비-HTTP 컨텍스트(cron, 마이그레이션)에서 발생한 쿼리에선 셋 다 생략된다.
+    if (info.httpMethod || info.httpRoute) {
+      lines.push(
+        `HTTP     : ${info.httpMethod ?? '-'} ${info.httpRoute ?? '-'}`,
+      );
+    }
+    if (info.userId !== undefined) {
+      lines.push(`UserId   : ${info.userId}`);
+    }
+
+    lines.push(
       `Duration : ${durationSec}s`,
       `DB       : ${info.dbName ?? '-'}`,
       `Operation: ${info.operation ?? '-'}`,
@@ -65,7 +79,9 @@ export class SlackService {
       '```',
       safeForCodeBlock,
       '```',
-    ].join('\n');
+    );
+
+    const text = lines.join('\n');
 
     await this.send(SLACK_CHANNELS.SLOW_QUERY, text);
   }

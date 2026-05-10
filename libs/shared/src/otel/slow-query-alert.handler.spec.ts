@@ -133,5 +133,23 @@ describe('SlowQueryAlertHandler', () => {
 
       expect(slackService.sendSlowQueryAlert).toHaveBeenCalledWith(mockInfo);
     });
+
+    it('SlowQueryInfo의 HTTP 컨텍스트(httpMethod/httpRoute/userId)는 SlackService에 그대로 전달된다', async () => {
+      cacheService.get.mockResolvedValue(undefined);
+
+      const infoWithHttpContext: SlowQueryInfo = {
+        ...mockInfo,
+        httpMethod: 'POST',
+        httpRoute: '/v1/posts/:id',
+        userId: 7,
+      };
+
+      registeredCallback(infoWithHttpContext);
+      await flushMicrotasks();
+
+      expect(slackService.sendSlowQueryAlert).toHaveBeenCalledWith(
+        infoWithHttpContext,
+      );
+    });
   });
 });

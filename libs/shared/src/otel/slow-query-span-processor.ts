@@ -32,6 +32,7 @@
  */
 
 import { tracing, core } from '@opentelemetry/sdk-node';
+import { getHttpContext } from './http-context-registry';
 
 /**
  * 슬로우 쿼리 한 건을 알림으로 보낼 때 필요한 모든 정보를 담는 객체.
@@ -48,6 +49,12 @@ export interface SlowQueryInfo {
   spanId: string;
   serviceName: string;
   occurredAt: Date;
+  /** HTTP 메서드(예: POST). 비-HTTP 컨텍스트(cron 등)에선 undefined. */
+  httpMethod?: string;
+  /** 파라미터화된 라우트 경로(예: `/v1/posts/:id`). 컨트롤러 매칭 전이거나 비-HTTP면 undefined. */
+  httpRoute?: string;
+  /** 인증된 사용자 ID. 비인증 endpoint거나 비-HTTP면 undefined. */
+  userId?: number;
 }
 
 export type SlowQueryHandler = (info: SlowQueryInfo) => void;
@@ -130,6 +137,12 @@ export class SlowQuerySpanProcessor implements tracing.SpanProcessor {
     const durationMs = core.hrTimeToMilliseconds(span.duration);
     if (durationMs < this.thresholdMs) return;
 
+    const traceId = span.spanContext().traceId;
+    // 같은 traceId로 LoggingInterceptor가 push해둔 HTTP 컨텍스트를 합친다.
+    // 비-HTTP 컨텍스트(cron, 마이그레이션)에선 entry가 없어 undefined이며,
+    // SlowQueryInfo의 httpMethod/httpRoute/userId가 undefined로 유지된다.
+    const httpCtx = getHttpContext(traceId);
+
     const info: SlowQueryInfo = {
       durationMs,
       dbSystem,
@@ -141,10 +154,13 @@ export class SlowQuerySpanProcessor implements tracing.SpanProcessor {
         ((attrs['db.statement'] ?? attrs['db.query.text']) as
           | string
           | undefined) ?? '',
-      traceId: span.spanContext().traceId,
+      traceId,
       spanId: span.spanContext().spanId,
       serviceName: this.serviceName,
       occurredAt: new Date(),
+      httpMethod: httpCtx?.method,
+      httpRoute: httpCtx?.route,
+      userId: httpCtx?.userId,
     };
 
     if (registered) {

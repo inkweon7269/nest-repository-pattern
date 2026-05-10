@@ -7,7 +7,13 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Observable, tap } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { PinoLogger } from 'nestjs-pino';
+import { context as otelContext, trace } from '@opentelemetry/api';
+import {
+  pushHttpContext,
+  clearHttpContext,
+} from '../otel/http-context-registry';
 
 const SENSITIVE_FIELDS = new Set([
   'password',
@@ -70,7 +76,31 @@ export class LoggingInterceptor implements NestInterceptor {
     const body = sanitizeBody(req.body as Record<string, unknown>);
     const startTime = Date.now();
 
+    // OTEL active span의 traceId를 키로 HTTP 컨텍스트를 모듈 레벨 Map에 push.
+    // 같은 요청 내에서 발생한 PG slow query span이 SlowQuerySpanProcessor.onEnd에서
+    // 동일 traceId로 lookup해 알림 메시지에 합칠 수 있도록 한다.
+    // OTEL 비활성화(OTEL_ENABLED=false) 환경에선 traceId가 없어 push가 스킵된다.
+    const traceId = trace.getSpan(otelContext.active())?.spanContext().traceId;
+
+    if (traceId) {
+      // Express는 컨트롤러 매칭 후 req.route.path에 파라미터화된 경로(/v1/posts/:id)를 채운다.
+      // express의 Request 타입에 route가 명시돼 있지 않아 별도 타입 가드로 안전하게 꺼낸다.
+      const expressRoute = (req as unknown as { route?: { path?: string } })
+        .route;
+      const userId = (req.user as { id?: number } | undefined)?.id;
+
+      pushHttpContext(traceId, {
+        method: req.method,
+        route: expressRoute?.path,
+        userId,
+      });
+    }
+
     return next.handle().pipe(
+      // 요청 종료 시점(정상/예외 무관)에 Map entry 정리. 누적 메모리 leak 방지.
+      finalize(() => {
+        if (traceId) clearHttpContext(traceId);
+      }),
       tap({
         next: () => {
           const duration = Date.now() - startTime;
