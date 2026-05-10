@@ -57,6 +57,10 @@ export class SlowQueryAlertHandler implements OnModuleInit {
    * 16자(64비트)면 충돌 확률이 사실상 0이라 dedup 정확도에 문제 없다.
    *
    * 같은 SQL이 60초 안에 다시 슬로우로 잡히면 키가 이미 존재해 Slack 발송을 건너뛴다.
+   *
+   * cache 호출은 try 블록 안에서만 수행한다(방어 깊이). CacheService 자체가 Fail-Open
+   * 이라 실제로는 throw가 안 일어나지만, 만약 throw가 발생해도 dedup 효과만 사라지고
+   * Slack 발송은 catch 밖에서 무조건 진행되도록 보장한다.
    */
   private async handle(info: SlowQueryInfo): Promise<void> {
     const dedupKey = `slow-query:${createHash('sha1')
@@ -64,10 +68,21 @@ export class SlowQueryAlertHandler implements OnModuleInit {
       .digest('hex')
       .slice(0, DEDUP_KEY_HASH_LENGTH)}`;
 
-    const exists = await this.cacheService.get<string>(dedupKey);
-    if (exists) return;
+    let alreadySent = false;
+    try {
+      const exists = await this.cacheService.get<string>(dedupKey);
+      if (exists) {
+        alreadySent = true;
+      } else {
+        await this.cacheService.set(dedupKey, '1', DEDUP_TTL_SECONDS);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Slow query dedup cache failed (continuing with alert): ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    if (alreadySent) return;
 
-    await this.cacheService.set(dedupKey, '1', DEDUP_TTL_SECONDS);
     await this.slackService.sendSlowQueryAlert(info);
   }
 }

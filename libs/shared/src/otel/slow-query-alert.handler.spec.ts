@@ -113,5 +113,25 @@ describe('SlowQueryAlertHandler', () => {
         `slow-query:${sha1Prefix(otherInfo.statement)}`,
       );
     });
+
+    it('cacheService.get이 throw해도 Slack 알림은 정상 발송된다 (Fail-Open)', async () => {
+      cacheService.get.mockRejectedValue(new Error('Redis connection failed'));
+
+      registeredCallback(mockInfo);
+      await flushMicrotasks();
+
+      expect(cacheService.set).not.toHaveBeenCalled();
+      expect(slackService.sendSlowQueryAlert).toHaveBeenCalledWith(mockInfo);
+    });
+
+    it('cacheService.set이 throw해도 Slack 알림은 정상 발송된다 (Fail-Open)', async () => {
+      cacheService.get.mockResolvedValue(undefined);
+      cacheService.set.mockRejectedValue(new Error('Redis write failed'));
+
+      registeredCallback(mockInfo);
+      await flushMicrotasks();
+
+      expect(slackService.sendSlowQueryAlert).toHaveBeenCalledWith(mockInfo);
+    });
   });
 });

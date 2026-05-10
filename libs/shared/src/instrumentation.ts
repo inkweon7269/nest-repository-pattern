@@ -18,7 +18,8 @@ function readSlowQueryThresholdMs(): number {
   const raw = process.env.SLOW_QUERY_THRESHOLD_MS;
   if (raw === undefined || raw === '') return DEFAULT_SLOW_QUERY_THRESHOLD_MS;
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0)
+  // 0 이하 값(0/음수)도 폴백: 0ms 임계값은 모든 쿼리 = 알림 폭주.
+  if (!Number.isFinite(parsed) || parsed <= 0)
     return DEFAULT_SLOW_QUERY_THRESHOLD_MS;
   return parsed;
 }

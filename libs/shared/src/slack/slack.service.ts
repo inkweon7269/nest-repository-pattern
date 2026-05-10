@@ -52,7 +52,7 @@ export class SlackService {
 
     const durationSec = (info.durationMs / 1000).toFixed(3);
     const text = [
-      `*[${durationSec}s 이상 실행된 쿼리]*`,
+      `*[${durationSec}s 초과 실행된 쿼리]*`,
       `Time     : ${info.occurredAt.toISOString()}`,
       `Service  : ${info.serviceName}`,
       `Duration : ${durationSec}s`,
