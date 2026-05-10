@@ -55,6 +55,11 @@ export { RedisHealthIndicator } from './health/redis-health.indicator';
 // Instrumentation
 export {} from './instrumentation';
 
+// OTEL Alerting
+export { OtelAlertingModule } from './otel/otel-alerting.module';
+export { SlowQueryAlertHandler } from './otel/slow-query-alert.handler';
+export type { SlowQueryInfo } from './otel/slow-query-span-processor';
+
 // Bootstrap - Security
 export {
   applySecurityMiddleware,
