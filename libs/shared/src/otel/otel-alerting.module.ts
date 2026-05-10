@@ -4,11 +4,18 @@ import { SlackModule } from '../slack/slack.module';
 import { SlowQueryAlertHandler } from './slow-query-alert.handler';
 
 /**
- * OTEL 기반 운영 알림(현재는 슬로우 쿼리)을 NestJS DI 컨테이너에 wire-up하는 모듈.
- * SlackService(알림 발사)와 CacheService(dedup)를 의존하며, 양쪽 앱(service / back-office)
- * 의 AppModule이 본 모듈을 import해야 SlowQueryAlertHandler가 OnModuleInit으로 등록된다.
+ * OpenTelemetry trace 기반 운영 알림(현재는 슬로우 쿼리만)을 NestJS DI 컨테이너에
+ * 등록하는 모듈.
  *
- * REDIS_CLIENT는 IdempotencyModule(@Global)이 이미 전역 제공하므로 별도 import 불필요.
+ * - 알림 발송에 필요한 `SlackService`와 중복 제거에 필요한 `CacheService`를
+ *   각각 `SlackModule` / `AppCacheModule`로 import한다.
+ * - 실제 알림 처리기인 `SlowQueryAlertHandler`를 provider로 등록한다.
+ *
+ * service 와 back-office 양쪽 AppModule이 이 모듈을 import해야
+ * `OnModuleInit` 후크가 실행되어 알림 기능이 동작하기 시작한다.
+ *
+ * `CacheService`가 내부에서 의존하는 `REDIS_CLIENT` 토큰은
+ * `IdempotencyModule`이 `@Global`로 전역 등록하므로 여기서 추가 import할 필요는 없다.
  */
 @Module({
   imports: [SlackModule, AppCacheModule],

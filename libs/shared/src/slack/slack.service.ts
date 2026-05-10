@@ -29,9 +29,15 @@ export class SlackService {
   }
 
   /**
-   * SLOW_QUERY_THRESHOLD_MS 초과한 PostgreSQL 쿼리 1건에 대해 Slack 알림을 발송한다.
-   * SlowQuerySpanProcessor → SlowQueryAlertHandler → 본 메서드로 흐름이 이어진다.
-   * SQL 본문은 너무 길 경우 잘라서 표시(파라미터 값은 OTEL 측에서 이미 제외된 상태).
+   * `SLOW_QUERY_THRESHOLD_MS`(기본 5000ms)를 넘긴 PostgreSQL 쿼리 한 건을
+   * Slack 채널(`SLOW_QUERY`)에 보고한다.
+   *
+   * 호출 흐름:
+   *   OTEL pg 자동 계측 → SlowQuerySpanProcessor → SlowQueryAlertHandler → 이 메서드
+   *
+   * SQL 본문이 1000자를 넘으면 뒷부분을 잘라서 표시한다(메시지 길이 제한 + 가독성).
+   * 파라미터 값은 OTEL 자동 계측 단계에서 이미 제외되어 있어 비밀번호 같은
+   * 민감 정보가 슬랙으로 새어나가지 않는다.
    */
   async sendSlowQueryAlert(info: SlowQueryInfo): Promise<void> {
     const truncated =

@@ -1,18 +1,42 @@
 /**
- * OTEL SDK는 NestJS DI 컨테이너 부팅 전에 시작되므로 SpanProcessor는 SlackService를
- * 직접 주입받을 수 없다. 본 파일은 boot-time SpanProcessor와 NestJS 측 핸들러를
- * 잇는 모듈 레벨 callback registry + buffer를 제공한다.
+ * 슬로우 쿼리 알림의 핵심 부품 두 가지를 한 파일에 모아둔다.
  *
- * - 부팅 흐름: instrumentation.ts → NodeSDK 생성 시 SlowQuerySpanProcessor 등록
- * - 핸들러 등록 흐름: NestJS OnModuleInit 시점에 registerSlowQueryHandler() 호출
- * - 등록 이전에 발생한 슬로우 쿼리는 BUFFER_CAP 한도에서 임시 보관 후 등록 시점에 drain
+ * 1. `SlowQuerySpanProcessor` — OpenTelemetry가 만드는 모든 trace span 중에서
+ *    PostgreSQL 쿼리 span만 골라, 실행 시간이 임계값(예: 5초)을 넘으면
+ *    알림 정보(SlowQueryInfo)를 만들어 전달한다.
+ * 2. `registerSlowQueryHandler` — 위 알림 정보를 실제로 받아 처리할 함수를
+ *    등록하는 통로(슬랙 발송 같은 후속 처리는 NestJS 측 핸들러가 담당).
+ *
+ * --- 왜 이런 구조인가? ---
+ *
+ * OpenTelemetry SDK는 NestJS 앱이 시작되기 *전에* 동작을 시작해야
+ * pg/HTTP/Redis 같은 라이브러리에 자동 후크를 걸 수 있다. 이 시점에는 아직
+ * NestJS DI 컨테이너가 만들어지지 않아 SpanProcessor가 SlackService를
+ * 바로 주입받을 수 없다. 그래서 부팅 흐름이 두 단계로 나뉜다.
+ *
+ *   [ 1단계 — NestJS 부팅 전 ]
+ *   instrumentation.ts
+ *     └─ new SlowQuerySpanProcessor(...) 등록
+ *           이 시점부터 슬로우 쿼리 감지가 시작된다.
+ *           아직 핸들러가 없으면 알림 정보를 buffer에 임시 보관한다.
+ *
+ *   [ 2단계 — NestJS 부팅 후 ]
+ *   AppModule이 OtelAlertingModule을 import
+ *     └─ SlowQueryAlertHandler.onModuleInit()
+ *           └─ registerSlowQueryHandler(콜백) 호출
+ *                 buffer에 쌓여 있던 알림을 즉시 꺼내서 처리하고,
+ *                 이후 발생하는 모든 알림은 콜백으로 바로 전달된다.
+ *
+ * BUFFER_CAP은 핸들러 등록 이전에 비정상적으로 많은 슬로우 쿼리가 발생해도
+ * 메모리가 무한정 늘어나지 않도록 100건으로 상한을 둔 것이다(초과분은 버린다).
  */
 
 import { tracing, core } from '@opentelemetry/sdk-node';
 
 /**
- * 슬로우 쿼리 1건에 대한 알림 페이로드. SpanProcessor가 OTEL span 속성에서
- * 발췌해 채우고, NestJS 핸들러(SlackService 등)가 메시지 포맷에 사용한다.
+ * 슬로우 쿼리 한 건을 알림으로 보낼 때 필요한 모든 정보를 담는 객체.
+ * SpanProcessor가 OTEL trace span의 속성에서 값을 꺼내 채우고,
+ * 이후 SlackService 같은 핸들러가 이 객체를 읽어 메시지를 만든다.
  */
 export interface SlowQueryInfo {
   durationMs: number;
@@ -33,10 +57,13 @@ const BUFFER_CAP = 100;
 let registered: SlowQueryHandler | null = null;
 
 /**
- * NestJS OnModuleInit 시점에 호출된다. 핸들러를 모듈 레벨에 등록하고,
- * 등록 전 SpanProcessor가 buffer에 쌓아둔 이벤트를 즉시 drain한다.
+ * 슬로우 쿼리 알림을 처리할 함수를 한 개 등록한다.
+ * NestJS 부팅이 끝난 시점(OnModuleInit)에서 호출하는 것을 전제로 한다.
  *
- * 동일 핸들러는 마지막 호출이 우선한다(과거 핸들러는 자동 폐기).
+ * 등록 이전에 SpanProcessor가 buffer에 쌓아둔 알림이 있다면 곧바로 꺼내
+ * 새 핸들러로 전달한다(즉, 핸들러가 없을 때 발생한 슬로우 쿼리도 누락되지 않는다).
+ *
+ * 같은 함수가 두 번 등록되면 마지막 호출된 것만 남고 이전 것은 무시된다.
  */
 export function registerSlowQueryHandler(handler: SlowQueryHandler): void {
   registered = handler;
@@ -47,8 +74,9 @@ export function registerSlowQueryHandler(handler: SlowQueryHandler): void {
 }
 
 /**
- * 단위 테스트 전용 reset. 이전 테스트가 등록한 핸들러와 buffer 잔존 이벤트를 비워
- * 테스트 간 격리를 보장한다. 프로덕션 코드에서 호출하지 않는다.
+ * 단위 테스트 사이에 모듈 상태를 깨끗이 비우는 헬퍼.
+ * 이전 테스트가 등록한 핸들러나 아직 처리 안 된 알림이 다음 테스트로
+ * 새어나가지 않도록 모두 초기화한다. 프로덕션 코드에서 호출하면 안 된다.
  */
 export function resetSlowQueryHandlerForTest(): void {
   registered = null;
@@ -56,11 +84,12 @@ export function resetSlowQueryHandlerForTest(): void {
 }
 
 /**
- * OTEL SpanProcessor 구현. 모든 span 종료 시점(onEnd)에서 PostgreSQL DB span 중
- * thresholdMs 이상 걸린 것만 골라 SlowQueryInfo로 변환한 뒤 모듈 레벨 콜백
- * (또는 미등록 시 buffer)으로 전달한다.
+ * OpenTelemetry SDK가 노출하는 `SpanProcessor` 인터페이스를 구현해,
+ * 매 span이 끝날 때마다 `onEnd` 후크가 호출된다. 우리는 PostgreSQL 쿼리 span 중
+ * 실행 시간이 `thresholdMs` 이상인 것만 골라 `SlowQueryInfo`로 만들어 전달한다.
  *
- * 외부 OTEL 백엔드(SigNoz, Tempo 등) 없이도 슬로우 쿼리 알림을 발사하기 위한 후크.
+ * SigNoz/Grafana Tempo 같은 외부 OTEL 백엔드를 연결하지 않아도 슬로우 쿼리
+ * 알림이 동작하도록 만들어주는 핵심 컴포넌트다.
  */
 export class SlowQuerySpanProcessor implements tracing.SpanProcessor {
   constructor(
@@ -69,19 +98,27 @@ export class SlowQuerySpanProcessor implements tracing.SpanProcessor {
   ) {}
 
   /**
-   * 본 프로세서는 종료 시점만 사용하므로 시작 후크는 비워둔다(SpanProcessor 인터페이스 충족용).
+   * 이 프로세서는 span '종료' 시점만 사용하므로 '시작' 후크는 빈 함수로 둔다.
+   * SpanProcessor 인터페이스가 onStart 구현을 요구하기 때문에 형식만 맞춘 것.
    */
   onStart(): void {
-    // no-op
+    // 아무 동작도 하지 않음
   }
 
   /**
-   * span 종료 시 호출된다. PostgreSQL이 아닌 span(예: Redis, HTTP outgoing)과
-   * 임계값 미만 span을 빠르게 필터링한 뒤, 임계값 초과 시에만 SlowQueryInfo를
-   * 구성해 등록 핸들러로 전달하거나 buffer에 적재한다.
+   * span 하나가 종료될 때마다 OTEL이 호출한다. 다음 순서로 빠르게 걸러낸다.
    *
-   * pg 자동 계측 attribute는 신구 semconv를 모두 다룬다(`db.system` 또는 `db.system.name`).
-   * SQL 본문은 `enhancedDatabaseReporting` 기본값(false)에 따라 파라미터 값이 제외된 형태다.
+   *   (1) PostgreSQL 쿼리가 아니면 무시 (예: Redis, 외부 HTTP 호출)
+   *   (2) 실행 시간이 임계값보다 짧으면 무시
+   *   (3) 둘 다 통과하면 SlowQueryInfo를 만들어
+   *        - 등록된 핸들러가 있으면 그 함수에 전달하고
+   *        - 핸들러가 아직 없으면 buffer에 임시 보관한다(BUFFER_CAP 초과 시 드랍)
+   *
+   * pg 자동 계측은 OTEL 표준 속성 이름이 버전에 따라 두 가지로 갈린다
+   * (`db.system` 구버전, `db.system.name` 신버전). 양쪽 모두 확인해 호환한다.
+   *
+   * SQL 문장(db.statement)에는 파라미터 값이 포함되지 않아 비밀번호 같은
+   * 민감 정보가 노출되지 않는다(`enhancedDatabaseReporting` 옵션을 켜지 않은 기본 동작).
    */
   onEnd(span: tracing.ReadableSpan): void {
     const attrs = span.attributes;
@@ -118,14 +155,16 @@ export class SlowQuerySpanProcessor implements tracing.SpanProcessor {
   }
 
   /**
-   * 본 프로세서는 자체 비동기 큐가 없으므로 flush 대상이 없다(SpanProcessor 인터페이스 충족용).
+   * 이 프로세서는 자체 비동기 큐를 갖지 않아 강제로 비울 대상이 없다.
+   * SpanProcessor 인터페이스 형식만 맞춘 빈 메서드.
    */
   forceFlush(): Promise<void> {
     return Promise.resolve();
   }
 
   /**
-   * 본 프로세서는 외부 리소스(소켓·파일 등)를 보유하지 않아 정리할 대상이 없다(SpanProcessor 인터페이스 충족용).
+   * 이 프로세서는 외부 리소스(네트워크 소켓·파일 핸들 등)를 갖고 있지 않아
+   * 종료 시 정리할 대상이 없다. SpanProcessor 인터페이스 형식만 맞춘 빈 메서드.
    */
   shutdown(): Promise<void> {
     return Promise.resolve();
