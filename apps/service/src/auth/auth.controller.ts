@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -29,10 +30,12 @@ import { RegisterCommand } from './command/register.command';
 import { LoginCommand } from './command/login.command';
 import { RefreshTokenCommand } from './command/refresh-token.command';
 import { LogoutCommand } from './command/logout.command';
+import { UpdateProfileCommand } from './command/update-profile.command';
 import { GetProfileQuery } from './query/get-profile.query';
 import { RegisterRequestDto } from './dto/request/register.request.dto';
 import { LoginRequestDto } from './dto/request/login.request.dto';
 import { RefreshTokenRequestDto } from './dto/request/refresh-token.request.dto';
+import { UpdateProfileRequestDto } from './dto/request/update-profile.request.dto';
 import { RegisterResponseDto } from './dto/response/register.response.dto';
 import { AuthTokensResponseDto } from './dto/response/auth-tokens.response.dto';
 import { ProfileResponseDto } from './dto/response/profile.response.dto';
@@ -55,6 +58,21 @@ export class AuthController {
   @ApiNotFoundResponse({ description: '사용자를 찾을 수 없음' })
   async getProfile(@CurrentUser() user: AuthUser): Promise<ProfileResponseDto> {
     return this.queryBus.execute(new GetProfileQuery(user.id));
+  }
+
+  @Patch('profile')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '내 프로필 수정' })
+  @ApiNoContentResponse({ description: '프로필 수정 성공' })
+  @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검증 실패)' })
+  @ApiUnauthorizedResponse({ description: '인증 실패' })
+  async updateProfile(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateProfileRequestDto,
+  ): Promise<void> {
+    await this.commandBus.execute(new UpdateProfileCommand(user.id, dto.name));
   }
 
   @Post('register')

@@ -68,7 +68,7 @@ This project is a NestJS monorepo with **CQRS + Repository Pattern (ISP)** + Typ
 
 ### 3. 예외 처리 정확성
 - `NotFoundException` vs `UnauthorizedException` vs `ConflictException` 의미 일치
-- 메시지에 사용자 입력 노출 여부 (예: `\`${email}\`` 노출은 본 프로젝트 컨벤션, 비밀번호 노출은 금지)
+- 메시지에 사용자 입력 노출 여부 (예: `\`${email}\`` 노출은 이 프로젝트 컨벤션, 비밀번호 노출은 금지)
 - 검증은 핸들러, 매핑은 `*OrConflict` 같은 private 메서드, Repository는 raw 에러 그대로
 
 ### 4. CQRS / Repository / Handler 규칙 준수
@@ -155,7 +155,7 @@ git diff main...HEAD --name-only 2>/dev/null         # 브랜치 변경 (있을 
 **Suggestion**: 구체적 코드 또는 패턴
 ```
 
-각 발견은 본 코드베이스의 맥락(CLAUDE.md 규칙, 다른 파일의 일관 패턴)을 근거로 한다. **일반론 베스트 프랙티스만으로는 발견을 만들지 않는다.**
+각 발견은 이 코드베이스의 맥락(CLAUDE.md 규칙, 다른 파일의 일관 패턴)을 근거로 한다. **일반론 베스트 프랙티스만으로는 발견을 올리지 않는다.**
 
 ### Step 4: 보고
 
@@ -203,13 +203,13 @@ git diff main...HEAD --name-only 2>/dev/null         # 브랜치 변경 (있을 
 - ❌ **전체 코드베이스 재설계 제안 금지** — 변경 범위에서 벗어난 큰 그림 제안은 보고서 끝 "범위 외 관찰"에 1-2줄만.
 - ❌ **보안 코멘트 금지** (인증/인가, secret, SQL injection, XSS 등) — `security-review` 스킬로 안내.
 - ❌ **성능 추정 금지** (N+1, 느린 쿼리 등) — 정적 분석으로 정확도 낮음. OTEL/통합 테스트로 안내.
-- ❌ **일반론 best-practice 발견 금지** — 본 코드베이스 컨텍스트로 정당화되어야 함.
+- ❌ **일반론 best-practice 발견 금지** — 이 코드베이스 컨텍스트로 정당화되어야 함.
 
 ## Persistent Agent Memory
 
 `./.claude/agent-memory/code-reviewer/`(저장소 루트 기준)에 메모리 디렉토리가 있습니다. 항상 시스템 프롬프트에 로드되는 `MEMORY.md`는 200줄 이내로 유지하고, 세부 노트는 별도 토픽 파일에 작성합니다.
 
-저장 대상: 여러 검토 세션에서 반복 발견된 패턴, 본 프로젝트에서 false positive로 판명된 케이스, 사용자가 지적한 검토 누락(다음에 잡아야 할 것).
+저장 대상: 여러 검토 세션에서 반복 발견된 패턴, 이 프로젝트에서 false positive로 판명된 케이스, 사용자가 지적한 검토 누락(다음에 잡아야 할 것).
 저장 금지: 단일 검토의 컨텍스트, 단일 파일 관찰로 일반화한 결론, CLAUDE.md와 중복.
 
 명시 요청 처리: 사용자가 "기억해줘"라고 하면 즉시 저장. "잊어줘"라고 하면 해당 항목을 찾아 제거. 이 메모리는 프로젝트 단위로 팀과 공유됩니다.

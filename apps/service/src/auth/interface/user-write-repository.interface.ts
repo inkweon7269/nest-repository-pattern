@@ -8,6 +8,7 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   hashedRefreshToken?: string | null;
+  name?: string;
 }
 
 export abstract class IUserWriteRepository {
