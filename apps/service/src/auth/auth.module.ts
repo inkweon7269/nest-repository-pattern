@@ -11,6 +11,7 @@ import { LogoutHandler } from './command/logout.handler';
 import { GoogleLoginHandler } from './command/google-login.handler';
 import { LinkGoogleAccountHandler } from './command/link-google-account.handler';
 import { UnlinkGoogleAccountHandler } from './command/unlink-google-account.handler';
+import { UpdateProfileHandler } from './command/update-profile.handler';
 import { userRepositoryProviders } from './user-repository.provider';
 import { oauthAccountRepositoryProviders } from './oauth-account-repository.provider';
 import { JwtStrategy } from './strategy/jwt.strategy';
@@ -30,6 +31,7 @@ const commandHandlers = [
   GoogleLoginHandler,
   LinkGoogleAccountHandler,
   UnlinkGoogleAccountHandler,
+  UpdateProfileHandler,
 ];
 const queryHandlers = [GetProfileHandler];
 

@@ -293,6 +293,72 @@ describe('Auth (integration)', () => {
   });
 
   // ============================================================
+  // PATCH /auth/profile
+  // ============================================================
+  describe('PATCH /auth/profile', () => {
+    it('토큰 없이 PATCH 시 401을 반환한다', () => {
+      return request(app.getHttpServer())
+        .patch('/v1/auth/profile')
+        .send({ name: '새이름' })
+        .expect(401);
+    });
+
+    it('name을 수정하면 204를 반환하고 이후 GET에서 변경이 반영된다', async () => {
+      const { accessToken } = await registerAndLogin();
+
+      await request(app.getHttpServer())
+        .patch('/v1/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: '변경된이름' })
+        .expect(204);
+
+      const profileRes = await request(app.getHttpServer())
+        .get('/v1/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(profileRes.body.name).toBe('변경된이름');
+    });
+
+    it('현재 name과 동일한 값으로 PATCH 해도 204를 반환한다 (멱등성)', async () => {
+      const { accessToken } = await registerAndLogin();
+
+      await request(app.getHttpServer())
+        .patch('/v1/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: defaultUser.name })
+        .expect(204);
+
+      const profileRes = await request(app.getHttpServer())
+        .get('/v1/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(profileRes.body.name).toBe(defaultUser.name);
+    });
+
+    it('name이 빈 문자열이면 400을 반환한다', async () => {
+      const { accessToken } = await registerAndLogin();
+
+      return request(app.getHttpServer())
+        .patch('/v1/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: '' })
+        .expect(400);
+    });
+
+    it('name이 31자이면 400을 반환한다', async () => {
+      const { accessToken } = await registerAndLogin();
+
+      return request(app.getHttpServer())
+        .patch('/v1/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'a'.repeat(31) })
+        .expect(400);
+    });
+  });
+
+  // ============================================================
   // POST /auth/logout
   // ============================================================
   describe('POST /auth/logout', () => {
