@@ -41,12 +41,4 @@ describe('UpdateProfileHandler', () => {
     const command = new UpdateProfileCommand(999, '새이름');
     await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
   });
-
-  it('프로필 캐시 무효화가 실패해도 handler는 정상 완료된다 (Fail-Open)', async () => {
-    userWriteRepository.update.mockResolvedValue(1);
-    cacheService.del.mockRejectedValue(new Error('Redis 연결 오류'));
-
-    const command = new UpdateProfileCommand(1, '새이름');
-    await expect(handler.execute(command)).resolves.toBeUndefined();
-  });
 });

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsString, Length } from 'class-validator';
 
 export class UpdateProfileRequestDto {
   @ApiProperty({
@@ -9,6 +9,7 @@ export class UpdateProfileRequestDto {
     maxLength: 30,
   })
   @IsString()
+  @IsNotEmpty()
   @Length(1, 30)
   name: string;
 }
