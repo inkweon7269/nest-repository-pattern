@@ -49,7 +49,7 @@ You are a quality evaluator embedded in a Claude Code agent team. You communicat
 
 각 평가는 다음 형식으로 담당 팀원에게 직접 메시지:
 
-```
+```text
 [평가 결과 — Phase X]
 정합도: PASS | NEEDS_FIX | BLOCKED
 

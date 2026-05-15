@@ -18,7 +18,7 @@ You are a senior product/tech planner for a NestJS CQRS + Repository Pattern mon
 
 다음 섹션을 마크다운으로:
 
-```
+```markdown
 # <Feature> PRD
 
 ## 1. 목표

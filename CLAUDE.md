@@ -128,7 +128,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 - **코드는 camelCase, DB 컬럼은 snake_case**. `typeorm-naming-strategies`의 `SnakeNamingStrategy`를 `DataSourceOptions.namingStrategy`로 적용 (`libs/shared/src/database/typeorm.config.ts`). 엔티티 프로퍼티가 `createdAt`/`userId`/`hashedRefreshToken`이면 DB 컬럼은 자동으로 `created_at`/`user_id`/`hashed_refresh_token`으로 매핑됨
 - 새 엔티티 추가 시 `@Column()`에 별도 옵션 없이 자동 변환됨. `@Column({ name: 'snake_case' })`로 수동 명명하지 않는다 (strategy와 중복)
-- `@JoinColumn`에 `name` 인자를 박지 않는다 — 하드코딩하면 strategy를 우회하여 camelCase 컬럼이 생성됨. 인자 없이 `@JoinColumn()`만 사용
+- `@JoinColumn`에 `name` 인자를 붙이지 않는다 — 하드코딩하면 strategy를 우회하여 camelCase 컬럼이 생성됨. 인자 없이 `@JoinColumn()`만 사용
 - **DB 제약은 엔티티에 선언**한다 — raw migration에만 박으면 다음 번 `migration:generate` 시 누락되어 회귀 발생. partial unique index는 `@Index('UQ_xxx', ['propA', 'propB'], { unique: true, where: '"snake_case_col" IS NULL' })`, FK ON DELETE 동작은 `@ManyToOne(() => X, { onDelete: 'CASCADE' })`로 엔티티가 단일 진실 원천이 되도록 한다 (`libs/shared/src/entities/post.entity.ts` 참고)
 
 ### Health Check & Graceful Shutdown

@@ -11,7 +11,7 @@ metadata:
 
 **How to apply:**
 - 새 컬럼 추가 시 `@Column({ ... 다른 옵션만 ... })` 형태로 두고 프로퍼티명만 camelCase로 선언한다.
-- `@JoinColumn`에도 `name` 인자를 박지 않는다 — 하드코딩하면 strategy를 우회해 camelCase 컬럼이 생성된다. 인자 없이 `@JoinColumn()`만 사용.
+- `@JoinColumn`에도 `name` 인자를 붙이지 않는다 — 하드코딩하면 strategy를 우회해 camelCase 컬럼이 생성된다. 인자 없이 `@JoinColumn()`만 사용.
 - 매핑 예: `createdAt` → `created_at`, `userId` → `user_id`, `hashedRefreshToken` → `hashed_refresh_token`.
 - 참고: `libs/shared/src/database/typeorm.config.ts`에서 전략이 적용된 위치를 확인할 수 있다.
 
