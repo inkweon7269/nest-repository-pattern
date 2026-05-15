@@ -128,7 +128,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 - **코드는 camelCase, DB 컬럼은 snake_case**. `typeorm-naming-strategies`의 `SnakeNamingStrategy`를 `DataSourceOptions.namingStrategy`로 적용 (`libs/shared/src/database/typeorm.config.ts`). 엔티티 프로퍼티가 `createdAt`/`userId`/`hashedRefreshToken`이면 DB 컬럼은 자동으로 `created_at`/`user_id`/`hashed_refresh_token`으로 매핑됨
 - 새 엔티티 추가 시 `@Column()`에 별도 옵션 없이 자동 변환됨. `@Column({ name: 'snake_case' })`로 수동 명명하지 않는다 (strategy와 중복)
-- `@JoinColumn`에 `name` 인자를 붙이지 않는다 — 하드코딩하면 strategy를 우회하여 camelCase 컬럼이 생성됨. 인자 없이 `@JoinColumn()`만 사용
+- `@JoinColumn`에 `name` 인자를 지정하지 않는다 — 하드코딩하면 strategy를 우회하여 camelCase 컬럼이 생성됨. 인자 없이 `@JoinColumn()`만 사용
 - **DB 제약은 엔티티에 선언**한다 — raw migration에만 박으면 다음 번 `migration:generate` 시 누락되어 회귀 발생. partial unique index는 `@Index('UQ_xxx', ['propA', 'propB'], { unique: true, where: '"snake_case_col" IS NULL' })`, FK ON DELETE 동작은 `@ManyToOne(() => X, { onDelete: 'CASCADE' })`로 엔티티가 단일 진실 원천이 되도록 한다 (`libs/shared/src/entities/post.entity.ts` 참고)
 
 ### Health Check & Graceful Shutdown
@@ -200,7 +200,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 - 데이터 흐름: pg 자동 계측 → `SlowQuerySpanProcessor` → 모듈 레벨 callback registry → `SlowQueryAlertHandler` (NestJS DI) → `SlackService.sendSlowQueryAlert` → `#prod-slow-query` / `#dev-slow-query` 채널
 - Boot-time SpanProcessor와 NestJS DI 사이 연결: 모듈 레벨 callback + buffer(BUFFER_CAP=100건) 패턴. EventEmitter는 back-office에 미등록되어 있어 사용 안 함.
-- Dedup: SQL 본문 SHA-1 앞 16자를 키로 60초 TTL Redis 중복 제거 (분산 환경 모든 인스턴스 공유). `CacheService` Fail-Open이라 Redis 장애 시 dedup 효과만 사라지고 알림 자체는 계속 발사
+- Dedup: SQL 본문 SHA-1 앞 16자를 키로 60초 TTL Redis 중복 제거 (분산 환경 모든 인스턴스 공유). `CacheService` Fail-Open이라 Redis 장애 시 dedup 효과만 사라지고 알림 자체는 계속 전송
 - 환경변수: `SLOW_QUERY_THRESHOLD_MS`(기본 5000, NaN/음수면 폴백), `SLACK_BOT_TOKEN` 미설정 시 silent skip
 - 양쪽 앱 활성화: 각 AppModule이 `OtelAlertingModule` import 필수
 - 민감 정보 보호: pg 자동 계측의 `enhancedDatabaseReporting` 기본값 `false` 유지로 SQL 파라미터 값(비밀번호 등) 캡처 안 됨
@@ -210,7 +210,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - 다중 테이블 쓰기의 원자성이 필요한 Command Handler는 `@Transactional()` 데코레이터(`typeorm-transactional`) 적용. 메서드 내부의 모든 Repository 호출이 동일 트랜잭션에 자동 참여 — Repository 시그니처 변경 불필요.
 - **부트스트랩 필수**: 양쪽 앱의 `main.ts`에서 `NestFactory.create` 전 `initializeTransactionalContext()` 호출 + 생성 후 `addTransactionalDataSource(app.get(DataSource))` 등록. 미등록 시 `@Transactional()`이 런타임 에러("No data sources defined").
 - **단위 테스트 mock 패턴**: 단위 테스트는 실 DataSource를 부팅하지 않으므로 `@Transactional`이 throw. 데코레이터를 spec 파일 단위로 no-op 처리: `jest.mock('typeorm-transactional', () => ({ Transactional: () => () => undefined }))`. 트랜잭션 의미는 통합 테스트에서 검증.
-- **Pre-check + 23505 이중 안전망**: 본 프로젝트는 `findByEmail`/`findByProviderId` 등 read 선조회 후 DB unique 위반(Postgres 23505)을 `ConflictException`으로 변환하는 패턴을 일관되게 사용한다 (`RegisterHandler`, `GoogleLoginHandler`, `LinkGoogleAccountHandler`). 트랜잭션은 부분 실패 시 자동 rollback을, 23505 catch는 동시성 race를 담당. 둘 다 보존한다 — 한쪽만 있으면 결함 시나리오가 남는다.
+- **Pre-check + 23505 이중 안전망**: 이 프로젝트는 `findByEmail`/`findByProviderId` 등 read 선조회 후 DB unique 위반(Postgres 23505)을 `ConflictException`으로 변환하는 패턴을 일관되게 사용한다 (`RegisterHandler`, `GoogleLoginHandler`, `LinkGoogleAccountHandler`). 트랜잭션은 부분 실패 시 자동 rollback을, 23505 catch는 동시성 race를 담당. 둘 다 보존한다 — 한쪽만 있으면 결함 시나리오가 남는다.
 - 자세한 구조는 `docs/google-oauth-prd.md` §2.7 참고.
 
 ### Build Tooling (SWC)

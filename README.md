@@ -195,7 +195,7 @@ export const postRepositoryProviders: Provider[] = [
 
 - 코드는 **camelCase**, DB 컬럼은 **snake_case**. `typeorm-naming-strategies`의 `SnakeNamingStrategy`를 `DataSourceOptions.namingStrategy`로 적용 (`libs/shared/src/database/typeorm.config.ts`)
 - 새 엔티티 추가 시 `@Column()`에 별도 옵션 없이 자동 매핑 (예: `createdAt` → `created_at`, `userId` → `user_id`, `hashedRefreshToken` → `hashed_refresh_token`)
-- `@JoinColumn`에 `name` 인자를 박지 않는다 — strategy를 우회시켜 camelCase 컬럼이 생성됨
+- `@JoinColumn`에 `name` 인자를 지정하지 않는다 — strategy를 우회하여 camelCase 컬럼이 생성됨
 - DB 제약(`@Index('UQ_xxx', [...], { unique, where })`, `@ManyToOne(() => X, { onDelete: 'CASCADE' })`)은 엔티티에 선언 — raw migration에만 박으면 향후 `migration:generate` 시 누락되어 회귀
 
 ### Cache Layer
