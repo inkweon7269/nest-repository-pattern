@@ -78,7 +78,7 @@ Service 앱 Command Handler(`apps/service/src/**/command/*.handler.ts`)는 다�
 
 - **`execute()`는 호출만** — 검증/조회/조립은 private 메서드로 추출(≤50줄 목표). 검증 R1.
 - **메서드 네이밍** — `validate{Subject}{Predicate}`(검증), `load{Subject}…OrThrow`(조회+null체크+예외), `find{Subject}…`(단순 조회), `create/persist/link…OrConflict`(단일 write + 23505 매핑), `emit{Name}Event`/`invalidate{Name}Cache`(side-effect, try 밖에 위치).
-- **try-catch는 단일 write 1줄만 감싼다** — 이벤트 emit, 캐시 무효화, 추가 write를 try 안에 두지 않는다. 검증 R2.
+- **try-catch는 단일 write 1줄만 감싼다** — 이벤트 emit, 캐시 무효화, 추가 write를 try 안에 두지 않는다. 또한 `cacheService.{get,set,del,delByPattern}` 호출을 별도 try/catch로 다시 감싸지 않는다 — `CacheService` 자체가 Fail-Open이라 dead code가 된다(Cache Layer 항목 참고). 검증 R2.
 - **`@Transactional()`은 다중 write 묶음 메서드에만** — `execute()` 전체에 달지 않으며 read는 항상 트랜잭션 밖. 단일 write 핸들러는 `@Transactional()` 불필요. 검증 R3.
 - **데코레이터 메서드 파라미터 타입은 `import type`** — SWC + `isolatedModules` + `emitDecoratorMetadata` 조합에서 TS1272 회피 (엔티티 양방향 관계 `Relation<T>`와 동일 이유).
 
@@ -162,7 +162,8 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 - `CacheService` (`libs/shared/src/cache/`) — 기존 `REDIS_CLIENT`(ioredis)를 재사용한 캐시 유틸리티. 추가 패키지 없음
 - **CQRS 정합**: Query Handler에서 캐시 읽기/저장, Command Handler에서 캐시 무효화
-- **Fail-Open 패턴**: 모든 Redis 연산을 try/catch로 감싸 Redis 장애 시 DB fallback. 캐시 장애가 서비스 가용성에 영향을 미치지 않음
+- **Fail-Open 패턴**: 모든 Redis 연산을 `CacheService` 내부에서 try/catch로 감싸 Redis 장애 시 DB fallback. 캐시 장애가 서비스 가용성에 영향을 미치지 않음
+- **핸들러 레벨 wrap 금지**: `CacheService.{get,set,del,delByPattern}` 호출은 Handler에서 다시 `try/catch`로 감싸지 않는다. `CacheService` 자체가 Redis 에러를 swallow하고 rethrow하지 않으므로 wrap하면 dead catch + 중복 warn 로그가 된다. `await this.cacheService.del(...)` 한 줄로만 호출한다. 동일 영역의 `CreatePostHandler`/`UpdatePostHandler`/`DeletePostHandler`가 기준 패턴.
 - **사용자 격리**: 모든 캐시 키에 `userId` 포함 (예: `post:{userId}:{postId}`)
 - 캐시 히트/미스/SET/DEL을 `debug` 레벨로 로깅, 장애 시 `warn` 레벨 로깅
 - 상세 가이드: `docs/cache-layer-guide.md`

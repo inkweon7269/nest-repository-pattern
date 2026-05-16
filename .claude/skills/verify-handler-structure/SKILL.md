@@ -1,6 +1,6 @@
 ---
 name: verify-handler-structure
-description: Service 앱 Command Handler의 구조 규칙(메서드 책임 분리, try-catch 범위, @Transactional 범위, 23505 매핑 위치) 회귀를 검증합니다. 핸들러 추가/수정 후 사용.
+description: Service 앱 Command Handler의 구조 규칙(메서드 책임 분리, try-catch 범위, @Transactional 범위, 23505 매핑 위치, cacheService wrap 금지) 회귀를 검증합니다. 핸들러 추가/수정 후 사용.
 ---
 
 # Command Handler 구조 검증
@@ -13,6 +13,7 @@ description: Service 앱 Command Handler의 구조 규칙(메서드 책임 분�
 2. **R2: try 블록 책임 단일화** — `try { ... }` 안에 `await` 호출이 2개 이상이면 경고. 단일 write 한 줄만 감싸야 함 (이벤트 emit, 캐시 무효화, 추가 write 금지).
 3. **R3: `@Transactional()` 안 read 금지** — `@Transactional()` 데코레이터가 붙은 메서드 본문에 `Read` 또는 `findBy` 호출이 있으면 경고. 트랜잭션 안에 read를 넣어 불필요한 락이 잡히는 것을 방지.
 4. **R4 (soft, 정보성): `execute()` 본문의 23505 매핑** — `execute()` 본문 안에 `QueryFailedError` 또는 `'23505'` 문자열이 직접 등장하면 경고. 추출된 private 메서드(예: `*OrConflict`) 안에 위치하도록 유도.
+5. **R5: `cacheService` 호출의 핸들러 측 wrap 금지** — `try` 블록 안에 `cacheService.{get,set,del,delByPattern}` 호출이 등장하면 경고. `CacheService`가 내부에서 Redis 에러를 swallow하므로 핸들러 측 try/catch는 dead catch + 중복 warn 로그가 된다.
 
 ## When to Run
 
@@ -302,6 +303,70 @@ done
 
 ---
 
+### Step 6: R5 — `cacheService` 호출의 핸들러 측 wrap 금지
+
+**도구:** Bash, Read
+
+**검사:** `try { ... }` 블록 안에 `cacheService.{get,set,del,delByPattern}` 호출이 등장하는지 확인합니다. `CacheService`가 이미 내부에서 Fail-Open으로 Redis 에러를 swallow하므로, 핸들러에서 다시 try/catch로 감싸면 dead catch + 중복 warn 로그가 발생합니다.
+
+```bash
+for f in $(find apps/service/src -path "*/command/*.handler.ts" -not -name "*.spec.ts"); do
+  awk '
+    /try[[:space:]]*\{/ { in_try = 1; depth = 0; start = NR }
+    in_try {
+      line = $0
+      if (NR == start) {
+        sub(/.*try[[:space:]]*\{/, "", line)
+      }
+      n = split(line, chars, "")
+      for (i = 1; i <= n; i++) {
+        c = chars[i]
+        if (c == "{") depth++
+        else if (c == "}") {
+          if (depth == 0) {
+            in_try = 0
+            break
+          }
+          depth--
+        }
+      }
+      if (in_try && line ~ /cacheService\.(get|set|del|delByPattern)\b/) {
+        printf "%s:%d try block wraps cacheService call: %s\n", FILENAME, NR, $0
+      }
+    }
+  ' "$f"
+done
+```
+
+**PASS 기준:**
+- `try` 블록 안에 `cacheService.{get,set,del,delByPattern}` 호출이 없음
+
+**FAIL 기준 (경고):**
+- `try` 블록 안에 `cacheService` 호출 발견 — `CacheService`가 이미 Fail-Open이라 dead code. 핸들러 측 wrap 제거 후 `await this.cacheService.del(...)` 한 줄로 단순화 권장.
+
+**수정 권장:**
+
+```ts
+// ❌ 핸들러에서 cacheService.del을 다시 try/catch로 감싼다
+private async invalidateProfileCache(userId: number): Promise<void> {
+  try {
+    await this.cacheService.del(`profile:${userId}`);
+  } catch (error) {
+    this.logger.warn(`Profile cache invalidation failed for userId=${userId}`, (error as Error).message);
+  }
+}
+
+// ✅ CacheService가 이미 Fail-Open이라 wrap 불필요
+async execute(command: UpdateProfileCommand): Promise<void> {
+  await this.updateNameOrThrow(command.userId, command.name);
+  await this.cacheService.del(`profile:${command.userId}`);
+}
+```
+
+기준 패턴: `CreatePostHandler`/`UpdatePostHandler`/`DeletePostHandler`는 `cacheService.{del,delByPattern}` 호출을 wrap 없이 직접 사용합니다.
+
+---
+
 ## Output Format
 
 ```markdown
@@ -313,6 +378,7 @@ done
 | 2   | R2   | `apps/service/src/posts/command/create-post.handler.ts`  | PASS | try 블록 모두 await 1개                             |
 | 3   | R3   | `apps/service/src/auth/command/google-login.handler.ts`  | PASS | @Transactional 안 read 없음 (read는 execute에 있음) |
 | 4   | R4   | (전체)                                                   | PASS | execute()에 23505 직접 등장 없음                    |
+| 5   | R5   | `apps/service/src/posts/command/update-post.handler.ts`  | PASS | try 블록 안 cacheService 호출 없음                  |
 | ... | ...  | ...                                                      | ...  | ...                                                 |
 
 **총 검사: N개 | PASS: X개 | FAIL: Y개 | 경고(soft): Z개**
@@ -326,8 +392,9 @@ done
 2. **단일 write 핸들러의 `@Transactional()` 미사용** — write가 1개라 트랜잭션이 불필요한 핸들러는 R3 검사 대상에서 제외 (메서드에 데코레이터가 없으면 검사 안 함).
 3. **`try` 블록 안 `await`가 1개인 경우** — `await this.userWriteRepository.create(...)`처럼 단일 write를 감싼 정상 패턴. R2는 ≥2개만 경고.
 4. **`finally` 블록의 cleanup `await`** — 본 프로젝트의 핸들러에는 일반적으로 없지만, `try { write }` + `finally { cleanup }` 구조에서 `finally`의 `await`는 R2 카운트에 포함하지 않음 (정리 책임은 catch와 분리됨).
-5. **back-office 앱 핸들러** — 본 스킬의 검사 범위(`apps/service/src/**/command/*.handler.ts`)에 포함되지 않음. back-office는 별도 리팩터링 스코프.
+5. **back-office 앱 핸들러** — 이 스킬의 검사 범위(`apps/service/src/**/command/*.handler.ts`)에 포함되지 않음. back-office는 별도 리팩터링 스코프.
 6. **R4의 정보성 경고** — `QueryFailedError`/`'23505'`가 `execute()` 본문에 등장해도 동작상 문제는 아님. 가독성/책임 분리를 위한 권장사항.
+7. **R5의 `try` 밖 `cacheService` 호출** — `await this.cacheService.del(...)`처럼 `try` 블록 밖에서 직접 호출하는 것이 정상 패턴. R5는 `try` 블록 안에 들어간 경우만 경고.
 
 ## Related Skills
 
