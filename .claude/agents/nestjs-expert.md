@@ -92,6 +92,8 @@ async execute(command: GoogleLoginCommand): Promise<AuthTokens> {
 
 `try` 블록 안에 이벤트 emit, 캐시 무효화, 추가 write를 함께 두지 않는다. catch 책임이 모호해지고 부분 실패 의미가 흐려진다.
 
+또한 **`cacheService.{get,set,del,delByPattern}` 호출 자체를 다시 `try/catch`로 감싸지 않는다.** `CacheService`가 내부적으로 Redis 에러를 swallow하므로 핸들러 측 wrap은 dead catch + 중복 warn 로그가 되고, `verify-handler-structure` R5에 의해 경고가 발생한다. `await this.cacheService.del(...)` 한 줄로만 호출한다.
+
 ```ts
 // ✅ Good — try는 write 한 줄만
 private async createUserOrConflict(input: CreateUserInput): Promise<User> {
@@ -275,7 +277,7 @@ Before completing any task, verify:
 - [ ] Handler는 `@CommandHandler`/`@QueryHandler` 데코레이터 적용됨
 - [ ] **Handler `execute()`는 호출만** — 검증/조회/조립이 private 메서드로 추출됨
 - [ ] **메서드 네이밍 규약 준수** — `validate*` / `load*OrThrow` / `*OrConflict` / `emit*Event` / `invalidate*Cache`
-- [ ] **try-catch는 단일 write 한 줄만 감쌈** — 이벤트 emit, 캐시 무효화, 추가 write가 try 안에 없음
+- [ ] **try-catch는 단일 write 한 줄만 감쌈** — 이벤트 emit, 캐시 무효화, 추가 write가 try 안에 없음. `cacheService.{get,set,del,delByPattern}` 호출에 핸들러 측 try/catch 없음 (CacheService가 이미 Fail-Open)
 - [ ] **`@Transactional()`은 다중 write 묶음 메서드에만** — `execute()` 전체에 달려 있지 않음, read-only 분기는 트랜잭션 밖
 - [ ] **데코레이터 메서드 파라미터 타입은 `import type`** — SWC TS1272 회피
 - [ ] **Pre-check + 23505 이중 안전망 유지** — 한쪽만 있지 않음

@@ -213,6 +213,41 @@ describe('Posts (integration)', () => {
 });
 ```
 
+### 필수 필드 통합 테스트 — 3종 케이스 모두 커버
+
+`@IsString()` + `@IsNotEmpty()` + `@Length(min, max)`가 걸린 필수 필드는 통합 테스트에서 **빈 문자열 / 길이 초과 / 키 자체 부재** 3종을 각각 별도의 `it`으로 검증한다. 길이만 검증하면 `{}` 본문이 통과해도 회귀를 잡지 못한다 (PR #60 CodeRabbit 리뷰 학습).
+
+```ts
+it('name이 빈 문자열이면 400을 반환한다', async () => {
+  const { accessToken } = await registerAndLogin();
+  return request(app.getHttpServer())
+    .patch('/v1/auth/profile')
+    .set('Authorization', `Bearer ${accessToken}`)
+    .send({ name: '' })
+    .expect(400);
+});
+
+it('name 필드가 누락되면 400을 반환한다', async () => {
+  const { accessToken } = await registerAndLogin();
+  return request(app.getHttpServer())
+    .patch('/v1/auth/profile')
+    .set('Authorization', `Bearer ${accessToken}`)
+    .send({})
+    .expect(400);
+});
+
+it('name이 31자이면 400을 반환한다', async () => {
+  const { accessToken } = await registerAndLogin();
+  return request(app.getHttpServer())
+    .patch('/v1/auth/profile')
+    .set('Authorization', `Bearer ${accessToken}`)
+    .send({ name: 'a'.repeat(31) })
+    .expect(400);
+});
+```
+
+선택 필드(`@IsOptional()`)는 키 부재 케이스를 200/204로 검증하고, 빈 문자열/길이 초과만 400으로 분리한다.
+
 ## Quality Checks (작성 전후)
 
 1. ✅ 대상 레이어가 단위 테스트 대상인가? (pass-through면 통합으로 이동)
