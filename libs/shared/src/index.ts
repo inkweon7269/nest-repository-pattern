@@ -66,3 +66,9 @@ export {
   type CorsOriginEnvKey,
   type SecurityOptions,
 } from './bootstrap/security';
+
+// Bootstrap - Compression
+export {
+  applyCompressionMiddleware,
+  type CompressionOptions,
+} from './bootstrap/compression';
