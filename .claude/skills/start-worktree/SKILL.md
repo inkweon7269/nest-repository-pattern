@@ -45,6 +45,22 @@ argument-hint: '[브랜치명]'
 
 9. **준비 완료 보고** — 브랜치명 / base 브랜치 / 워크트리 경로를 사용자에게 보고한다.
 
+## 병렬 에이전트 팀에 적용할 때
+
+이 스킬은 **단일 세션이 워크트리로 들어가는 용도**(`EnterWorktree`)다. 병렬 에이전트 팀을 워크트리로 돌릴 때는 **네이티브 `Agent(isolation:"worktree")`를 쓰지 않는다** — 워크트리 폴더가 `agent-<agentId>`(예: `agent-a61df464fc89b9855`)로 자동 명명되어 IDE 파일 트리에서 어떤 작업인지 식별할 수 없다.
+
+대신 **리더가 작업마다 브랜치명 워크트리를 미리 만든 뒤**, 팀원을 그 폴더 경로에 배정한다(팀원은 isolation 없이 지정된 워크트리 안에서만 작업).
+
+```bash
+# 리더가 작업 수만큼 반복 — 폴더명 = 브랜치명의 / 를 - 로 치환
+git worktree add -b <branch> .claude/worktrees/<name> origin/main
+# 예: git worktree add -b docs/readme-compression .claude/worktrees/docs-readme-compression origin/main
+```
+
+- 폴더가 `docs-readme-compression`처럼 읽혀 식별이 쉽다.
+- env 복사·`pnpm install`은 그 작업이 부팅/빌드/테스트를 요구할 때만 수행한다(docs-only면 생략).
+- 정리는 작업별로 `/finish-worktree`를 사용한다.
+
 ## Notes
 
 - 워크트리 폴더(`.claude/worktrees/`)는 `.gitignore`에 등록되어 있어 메인 체크아웃의 `git status`를 더럽히지 않는다.
