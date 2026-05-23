@@ -9,6 +9,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { Logger } from 'nestjs-pino';
 import {
+  applyCompressionMiddleware,
   applySecurityMiddleware,
   HttpExceptionFilter,
   LoggingInterceptor,
@@ -24,6 +25,7 @@ async function bootstrap() {
   applySecurityMiddleware(app, {
     corsOriginEnvKey: 'BACK_OFFICE_CORS_ORIGINS',
   });
+  applyCompressionMiddleware(app);
 
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(app.get(HttpExceptionFilter));

@@ -16,6 +16,7 @@ import {
   deleteDataSourceByName,
 } from 'typeorm-transactional';
 import {
+  applyCompressionMiddleware,
   applySecurityMiddleware,
   CorsOriginEnvKey,
   HttpExceptionFilter,
@@ -64,6 +65,7 @@ export async function createIntegrationApp(
   addTransactionalDataSource(app.get(DataSource));
 
   applySecurityMiddleware(app, { corsOriginEnvKey });
+  applyCompressionMiddleware(app);
 
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(app.get(HttpExceptionFilter));

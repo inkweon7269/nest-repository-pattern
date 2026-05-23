@@ -158,6 +158,15 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `createIntegrationApp(appModule, { corsOriginEnvKey })`로 테스트별 CORS 키를 명시. 기본값은 `SERVICE_CORS_ORIGINS` — back-office 통합 테스트는 `BACK_OFFICE_CORS_ORIGINS`를 명시적으로 전달.
 - 상세 가이드: `docs/helmet-cors-guide.md`
 
+### Compression
+
+- HTTP 응답 본문을 gzip으로 압축하여 전송량/지연을 줄인다. `applyCompressionMiddleware` 공유 헬퍼(`libs/shared/src/bootstrap/compression.ts`)가 service main.ts + back-office main.ts + `createIntegrationApp` 3곳에서 동일하게 호출됨. 압축 설정 변경은 반드시 이 헬퍼 한 곳에서만 한다 (security.ts 선례와 동일).
+- threshold 1KB(`compression` 기본값 유지) — 본문이 1KB 미만이면 압축 오버헤드를 피하기 위해 압축하지 않는다.
+- 라우트별 opt-out: 응답에 `x-no-compression` 헤더를 설정하면 해당 응답은 압축에서 제외된다 (SSE/스트리밍 등). 기본 filter를 확장하여 이 헤더를 감지하고, 그 외에는 `compression` 기본 filter에 위임한다.
+- 미들웨어 순서: `applySecurityMiddleware` 호출 **직후**에 `applyCompressionMiddleware`를 호출하여 보안 → 압축 순서를 모든 진입점에서 일관되게 유지한다.
+- `compression`은 Express 미들웨어 패키지로, 양쪽 앱의 Express 어댑터 위에서 `app.use()`로 등록된다. Brotli·env 런타임 튜닝은 범위 외.
+- 상세 가이드: `docs/compression-guide.md`
+
 ### Cache Layer
 
 - `CacheService` (`libs/shared/src/cache/`) — 기존 `REDIS_CLIENT`(ioredis)를 재사용한 캐시 유틸리티. 추가 패키지 없음
