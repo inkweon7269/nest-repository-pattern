@@ -17,6 +17,9 @@ export class User extends BaseTimeEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   hashedRefreshToken: string | null;
 
+  @Column({ type: 'boolean', default: false })
+  marketingConsent: boolean;
+
   @OneToMany(() => Post, (post) => post.user)
   posts: Relation<Post[]>;
 }

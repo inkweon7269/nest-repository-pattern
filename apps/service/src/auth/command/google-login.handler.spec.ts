@@ -153,6 +153,7 @@ describe('GoogleLoginHandler', () => {
       email: 'newuser@example.com',
       password: 'hashed-random-secret',
       name: '홍길동',
+      marketingConsent: false,
     });
     expect(oauthWriteRepository.create).toHaveBeenCalledWith({
       userId: 7,

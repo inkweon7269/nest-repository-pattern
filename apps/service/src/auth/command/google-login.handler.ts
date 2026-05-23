@@ -100,6 +100,8 @@ export class GoogleLoginHandler implements ICommandHandler<
         email: profile.email,
         password: hashedPassword,
         name: profile.displayName,
+        // OAuth 가입자는 동의 화면을 거치지 않으므로 기본 미동의
+        marketingConsent: false,
       });
     } catch (error) {
       if (

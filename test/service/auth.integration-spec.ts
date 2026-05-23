@@ -30,6 +30,7 @@ describe('Auth (integration)', () => {
     email: 'test@example.com',
     password: 'password123',
     name: '테스트유저',
+    marketingConsent: true,
   };
 
   function registerUser(body: Record<string, unknown> = {}) {
@@ -54,12 +55,34 @@ describe('Auth (integration)', () => {
   // POST /auth/register
   // ============================================================
   describe('POST /auth/register', () => {
-    it('should register and return { id } with 201', async () => {
+    it('should register and return { id, marketingConsent } with 201', async () => {
       const res = await registerUser().expect(201);
 
       expect(res.body.id).toBeDefined();
       expect(typeof res.body.id).toBe('number');
-      expect(Object.keys(res.body)).toEqual(['id']);
+      expect(Object.keys(res.body).sort()).toEqual(['id', 'marketingConsent']);
+    });
+
+    it('marketingConsent: true로 가입하면 응답에 marketingConsent: true가 포함된다', async () => {
+      const res = await registerUser({ marketingConsent: true }).expect(201);
+
+      expect(res.body.marketingConsent).toBe(true);
+    });
+
+    it('marketingConsent: false로 가입하면 응답에 marketingConsent: false가 포함된다', async () => {
+      const res = await registerUser({
+        email: 'noconsent@example.com',
+        marketingConsent: false,
+      }).expect(201);
+
+      expect(res.body.marketingConsent).toBe(false);
+    });
+
+    it('marketingConsent가 누락되면 400을 반환한다', () => {
+      return request(app.getHttpServer())
+        .post('/v1/auth/register')
+        .send({ email: 'a@b.com', password: 'password123', name: '테스트' })
+        .expect(400);
     });
 
     it('should persist user (verified via login)', async () => {
@@ -82,7 +105,11 @@ describe('Auth (integration)', () => {
     it('should return 400 when email is missing', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
-        .send({ password: 'password123', name: '테스트' })
+        .send({
+          password: 'password123',
+          name: '테스트',
+          marketingConsent: true,
+        })
         .expect(400);
     });
 
@@ -93,6 +120,7 @@ describe('Auth (integration)', () => {
           email: 'not-an-email',
           password: 'password123',
           name: '테스트',
+          marketingConsent: true,
         })
         .expect(400);
     });
@@ -100,21 +128,30 @@ describe('Auth (integration)', () => {
     it('should return 400 when password is missing', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
-        .send({ email: 'a@b.com', name: '테스트' })
+        .send({ email: 'a@b.com', name: '테스트', marketingConsent: true })
         .expect(400);
     });
 
     it('should return 400 when password is shorter than 8 characters', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
-        .send({ email: 'a@b.com', password: 'short', name: '테스트' })
+        .send({
+          email: 'a@b.com',
+          password: 'short',
+          name: '테스트',
+          marketingConsent: true,
+        })
         .expect(400);
     });
 
     it('should return 400 when name is missing', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
-        .send({ email: 'a@b.com', password: 'password123' })
+        .send({
+          email: 'a@b.com',
+          password: 'password123',
+          marketingConsent: true,
+        })
         .expect(400);
     });
 
@@ -245,7 +282,7 @@ describe('Auth (integration)', () => {
   // GET /auth/profile
   // ============================================================
   describe('GET /auth/profile', () => {
-    it('should return profile with { id, email, name, createdAt, updatedAt } and 200', async () => {
+    it('should return profile with { id, email, name, marketingConsent, createdAt, updatedAt } and 200', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -263,9 +300,38 @@ describe('Auth (integration)', () => {
         'createdAt',
         'email',
         'id',
+        'marketingConsent',
         'name',
         'updatedAt',
       ]);
+    });
+
+    it('가입 시 동의한 marketingConsent가 프로필 조회에 반영된다', async () => {
+      const tokens = await registerAndLogin({
+        email: 'consent-profile@example.com',
+        marketingConsent: true,
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/profile')
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .expect(200);
+
+      expect(res.body.marketingConsent).toBe(true);
+    });
+
+    it('가입 시 미동의한 marketingConsent가 프로필 조회에 반영된다', async () => {
+      const tokens = await registerAndLogin({
+        email: 'noconsent-profile@example.com',
+        marketingConsent: false,
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/auth/profile')
+        .set('Authorization', `Bearer ${tokens.accessToken}`)
+        .expect(200);
+
+      expect(res.body.marketingConsent).toBe(false);
     });
 
     it('should not include password or hashedRefreshToken in response', async () => {

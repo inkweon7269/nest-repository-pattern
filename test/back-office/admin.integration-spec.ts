@@ -61,6 +61,7 @@ describe('Admin (integration)', () => {
         email: 'user@example.com',
         password: 'password123',
         name: '일반유저',
+        marketingConsent: true,
       })
       .expect(201);
     const res = await request(app.getHttpServer())

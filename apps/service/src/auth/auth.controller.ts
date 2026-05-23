@@ -86,9 +86,14 @@ export class AuthController {
     @Body() dto: RegisterRequestDto,
   ): Promise<RegisterResponseDto> {
     const id = await this.commandBus.execute<RegisterCommand, number>(
-      new RegisterCommand(dto.email, dto.password, dto.name),
+      new RegisterCommand(
+        dto.email,
+        dto.password,
+        dto.name,
+        dto.marketingConsent,
+      ),
     );
-    return RegisterResponseDto.of(id);
+    return RegisterResponseDto.of(id, dto.marketingConsent);
   }
 
   @Post('login')

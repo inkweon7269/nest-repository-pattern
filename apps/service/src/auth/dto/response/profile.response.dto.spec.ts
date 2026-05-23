@@ -30,6 +30,22 @@ describe('ProfileResponseDto', () => {
       expect(dto.updatedAt).toBe(user.updatedAt);
     });
 
+    it('user.marketingConsent를 DTO에 매핑한다 (true)', () => {
+      const user = createUser({ marketingConsent: true });
+
+      const dto = ProfileResponseDto.of(user);
+
+      expect(dto.marketingConsent).toBe(true);
+    });
+
+    it('user.marketingConsent를 DTO에 매핑한다 (false)', () => {
+      const user = createUser({ marketingConsent: false });
+
+      const dto = ProfileResponseDto.of(user);
+
+      expect(dto.marketingConsent).toBe(false);
+    });
+
     it('ProfileResponseDto 인스턴스를 반환한다', () => {
       const user = createUser();
 

@@ -62,7 +62,7 @@ describe('Google OAuth (integration)', () => {
   ) {
     await request(app.getHttpServer())
       .post('/v1/auth/register')
-      .send({ email, password, name })
+      .send({ email, password, name, marketingConsent: true })
       .expect(201);
   }
 
