@@ -29,6 +29,7 @@ argument-hint: '[브랜치명]'
    git fetch origin --prune
    git pull --ff-only
    ```
+   - 머지된 작업이 `package.json`/`pnpm-lock.yaml`을 바꿨다면 이어서 `pnpm install`로 base 체크아웃의 node_modules를 동기화한다. 워크트리는 node_modules를 공유하지 않아, 빼먹으면 lint·build가 stale 의존성으로 깨진다.
 
 5. **워크트리 제거** — 워크트리 경로명은 브랜치명의 `/`를 `-`로 치환한 값이다(예: `feature/comments` → `feature-comments`).
    ```bash
@@ -50,3 +51,4 @@ argument-hint: '[브랜치명]'
 
 - 생성은 `/start-worktree`로 수행한다.
 - 2번 검증 없이 5·6번을 실행하지 않는다 — 머지 안 된 작업의 영구 유실을 막는 핵심 안전장치다.
+- 머지된 워크트리가 의존성(`package.json`)을 바꿨다면 base 체크아웃에서 `pnpm install`을 잊지 않는다 — 오늘 `@types/compression` 누락으로 lint가 깨진 사례가 이 경우다.
