@@ -191,6 +191,14 @@ export const postRepositoryProviders: Provider[] = [
 - fallback: `local`/`development`에서 env 미설정 시 모든 origin 허용, `production`에서는 env 누락 시 CORS 비활성화(fail-safe)
 - 상세 가이드: [docs/helmet-cors-guide.md](./docs/helmet-cors-guide.md)
 
+### Compression
+
+- HTTP 응답 본문을 gzip으로 압축해 전송량/지연을 줄인다. `applyCompressionMiddleware` 공유 헬퍼(`libs/shared/src/bootstrap/compression.ts`)가 service/back-office main.ts + `createIntegrationApp`에서 동일 호출 — 압축 설정 단일 소스(security.ts 선례와 동일)
+- threshold 1KB(`compression` 기본값) — 본문이 1KB 미만이면 압축 오버헤드를 피해 압축하지 않는다
+- 라우트별 opt-out: 응답에 `x-no-compression` 헤더를 설정하면 해당 응답은 압축에서 제외(SSE/스트리밍 등)
+- 미들웨어 순서: `applySecurityMiddleware` 직후 호출하여 보안 → 압축 순서를 모든 진입점에서 일관 유지
+- 상세 가이드: [docs/compression-guide.md](./docs/compression-guide.md)
+
 ### Database Naming Convention
 
 - 코드는 **camelCase**, DB 컬럼은 **snake_case**. `typeorm-naming-strategies`의 `SnakeNamingStrategy`를 `DataSourceOptions.namingStrategy`로 적용 (`libs/shared/src/database/typeorm.config.ts`)
