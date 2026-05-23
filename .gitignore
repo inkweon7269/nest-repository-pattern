@@ -32,6 +32,7 @@ yarn-error.log*
 
 # claude
 .claude/settings.local.json
+.claude/worktrees/
 
 # misc
 *.tsbuildinfo

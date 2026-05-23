@@ -293,6 +293,14 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 
 - 사용자가 커밋과 푸시를 요청하면, 변경 사항을 재분석하거나 재계획하지 않고 즉시 수행한다. 사용자가 이미 작업을 검토했다고 가정한다.
 
+### Worktree Workflow
+
+병렬 작업은 워크트리로 격리한다. 워크트리는 Claude 네이티브 기본 위치인 `.claude/worktrees/`에 두며(`.gitignore`에 등록되어 메인 체크아웃 `git status`를 더럽히지 않음), 생성·정리는 전용 스킬로 표준화한다.
+
+- **생성**: `/start-worktree <브랜치명>`. 타입별 base(`feature/*`→`origin/dev`, 그 외→`origin/main`)에서 분기하고, gitignore된 `.env.*`·`settings.local.json`을 복사한 뒤 `pnpm install`까지 수행한다. 이 레포는 env 누락 시 부팅·마이그레이션·통합테스트가 모두 실패하고 node_modules도 공유되지 않으므로, 이 두 단계가 빠지면 워크트리가 동작하지 않는다.
+- **정리**: `/finish-worktree <브랜치명>`. **반드시 메인 체크아웃에서 실행**(제거 대상 워크트리 안에서는 삭제 불가). `gh pr view`로 머지(MERGED)를 확인한 뒤에만 워크트리·로컬 브랜치를 제거한다.
+- **squash 삭제 주의**: `feature/* → dev`는 squash-merge라 로컬 브랜치가 git상 "미머지"로 남는다. 머지 확정 후 `git branch -D`(강제)가 정상 경로이며, `-d`는 거부된다.
+
 ### Planning
 
 - 작업 계획 시 사용자가 명시적으로 요청한 범위만으로 제한한다. 요청하지 않은 추가 작업이나 단계를 포함하지 않는다.
@@ -324,3 +332,5 @@ pnpm test:e2e           # 통합 테스트 통과 확인 (Docker 필수)
 | `respond-coderabbit`    | CodeRabbit PR 리뷰 코멘트를 자동 분석하고 응답합니다                            |
 | `commit`                | 검증(`format` → `lint:check` → `build` → `test` → `test:e2e`) 후 한국어 conventional commit 생성 및 푸시 |
 | `create-pr`             | 브랜치 정책에 따라 대상 브랜치(`feature/*`→`dev`, `dev`→`main`)를 판별해 PR 생성 |
+| `start-worktree`        | 타입별 base(`feature/*`→`origin/dev`, 그 외→`origin/main`)에서 워크트리 생성 + gitignore된 env·설정 복사 + `pnpm install` 자동화 |
+| `finish-worktree`       | PR 머지 확인(`gh pr view` state=MERGED) 후 워크트리·로컬 브랜치 정리 + base 브랜치 갱신 |
