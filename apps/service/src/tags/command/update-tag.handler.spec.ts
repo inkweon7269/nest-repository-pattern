@@ -1,6 +1,7 @@
 import { TestBed, type Mocked } from '@suites/unit';
 import type { Type } from '@suites/types.common';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { QueryFailedError } from 'typeorm';
 import { UpdateTagHandler } from './update-tag.handler';
 import { UpdateTagCommand } from './update-tag.command';
 import { ITagWriteRepository } from '@service/tags/interface/tag-write-repository.interface';
@@ -44,6 +45,19 @@ describe('UpdateTagHandler', () => {
     const command = new UpdateTagCommand(1, 999, 'typescript');
 
     await expect(handler.execute(command)).rejects.toThrow(NotFoundException);
+    expect(cacheService.del).not.toHaveBeenCalled();
+  });
+
+  it('update에서 23505 QueryFailedError가 발생하면 ConflictException으로 변환한다', async () => {
+    tagWriteRepository.update.mockRejectedValue(
+      new QueryFailedError('update', [], {
+        code: '23505',
+      } as unknown as Error),
+    );
+
+    const command = new UpdateTagCommand(1, 5, 'duplicate');
+
+    await expect(handler.execute(command)).rejects.toThrow(ConflictException);
     expect(cacheService.del).not.toHaveBeenCalled();
   });
 });

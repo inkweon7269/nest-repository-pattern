@@ -88,12 +88,13 @@ export class PostRepository
     const post = this.postRepository.create(scalars);
     const saved = await this.postRepository.save(post);
 
-    if (tagIds?.length) {
+    const normalizedTagIds = tagIds ? [...new Set(tagIds)] : [];
+    if (normalizedTagIds.length) {
       await this.postRepository
         .createQueryBuilder()
         .relation(Post, 'tags')
         .of(saved.id)
-        .add(tagIds);
+        .add(normalizedTagIds);
     }
 
     const reloaded = await this.postRepository.findOne({
@@ -150,11 +151,12 @@ export class PostRepository
     }
 
     const currentTagIds = (existing.tags ?? []).map((tag) => tag.id);
+    const normalizedTagIds = [...new Set(tagIds)];
     await this.postRepository
       .createQueryBuilder()
       .relation(Post, 'tags')
       .of(id)
-      .addAndRemove(tagIds, currentTagIds);
+      .addAndRemove(normalizedTagIds, currentTagIds);
   }
 
   async delete(id: number, userId: number): Promise<number> {

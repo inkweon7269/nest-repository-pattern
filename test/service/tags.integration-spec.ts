@@ -378,6 +378,18 @@ describe('Tags (integration)', () => {
         .expect(404);
     });
 
+    it('이미 존재하는 이름으로 수정하면 409를 반환한다', async () => {
+      await createTag(token, { name: 'existing' }).expect(201);
+      const createRes = await createTag(token, { name: 'target' }).expect(201);
+      const id = createRes.body.id as number;
+
+      await request(app.getHttpServer())
+        .patch(`/v1/tags/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'existing' })
+        .expect(409);
+    });
+
     it('이름이 빈 문자열이면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .patch('/v1/tags/1')
