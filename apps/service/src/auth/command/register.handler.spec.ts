@@ -38,6 +38,7 @@ describe('RegisterHandler', () => {
       'user@example.com',
       'password123',
       '홍길동',
+      true,
     );
     const result = await handler.execute(command);
 
@@ -50,6 +51,27 @@ describe('RegisterHandler', () => {
       email: 'user@example.com',
       password: 'hashed-password',
       name: '홍길동',
+      marketingConsent: true,
+    });
+  });
+
+  it('marketingConsent가 false면 create input에 false가 그대로 전달된다', async () => {
+    userReadRepository.findByEmail.mockResolvedValue(null);
+    userWriteRepository.create.mockResolvedValue({ id: 1 } as User);
+
+    const command = new RegisterCommand(
+      'user@example.com',
+      'password123',
+      '홍길동',
+      false,
+    );
+    await handler.execute(command);
+
+    expect(userWriteRepository.create).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      password: 'hashed-password',
+      name: '홍길동',
+      marketingConsent: false,
     });
   });
 
@@ -60,6 +82,7 @@ describe('RegisterHandler', () => {
       'user@example.com',
       'password123',
       '홍길동',
+      true,
     );
 
     await expect(handler.execute(command)).rejects.toThrow(ConflictException);
@@ -77,6 +100,7 @@ describe('RegisterHandler', () => {
       'user@example.com',
       'password123',
       '홍길동',
+      true,
     );
 
     await expect(handler.execute(command)).rejects.toThrow(ConflictException);

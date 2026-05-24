@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterRequestDto {
   @ApiProperty({ description: '이메일', example: 'user@example.com' })
@@ -17,4 +23,8 @@ export class RegisterRequestDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @ApiProperty({ description: '마케팅 수신 동의', example: true })
+  @IsBoolean()
+  marketingConsent: boolean;
 }

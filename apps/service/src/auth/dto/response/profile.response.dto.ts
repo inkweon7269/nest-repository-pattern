@@ -17,6 +17,9 @@ export class ProfileResponseDto {
   @ApiProperty({ description: '수정일시' })
   updatedAt: Date;
 
+  @ApiProperty({ description: '마케팅 수신 동의', example: true })
+  marketingConsent: boolean;
+
   static of(user: User): ProfileResponseDto {
     const dto = new ProfileResponseDto();
     dto.id = user.id;
@@ -24,6 +27,7 @@ export class ProfileResponseDto {
     dto.name = user.name;
     dto.createdAt = user.createdAt;
     dto.updatedAt = user.updatedAt;
+    dto.marketingConsent = user.marketingConsent;
     return dto;
   }
 }

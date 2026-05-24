@@ -23,6 +23,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
       email: command.email,
       password: hashedPassword,
       name: command.name,
+      marketingConsent: command.marketingConsent,
     });
   }
 

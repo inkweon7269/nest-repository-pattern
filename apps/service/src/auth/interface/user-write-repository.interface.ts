@@ -4,6 +4,7 @@ export interface CreateUserInput {
   email: string;
   password: string;
   name: string;
+  marketingConsent: boolean;
 }
 
 export interface UpdateUserInput {

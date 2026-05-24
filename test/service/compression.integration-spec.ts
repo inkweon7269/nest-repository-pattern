@@ -30,6 +30,7 @@ describe('Compression (integration)', () => {
     email: 'compression-test@example.com',
     password: 'password123',
     name: '테스트유저',
+    marketingConsent: true,
   };
 
   async function registerAndLogin(body: Record<string, unknown> = {}) {
