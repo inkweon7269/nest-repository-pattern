@@ -28,7 +28,9 @@ export class AdminRefreshTokenHandler implements ICommandHandler<AdminRefreshTok
     };
     try {
       payload = this.jwtService.verify(command.refreshToken, {
-        secret: this.configService.get<string>('JWT_ADMIN_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>(
+          'JWT_ADMIN_REFRESH_SECRET',
+        ),
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
@@ -61,7 +63,7 @@ export class AdminRefreshTokenHandler implements ICommandHandler<AdminRefreshTok
     };
 
     const accessToken = this.jwtService.sign(newPayload, {
-      secret: this.configService.get<string>('JWT_ADMIN_ACCESS_SECRET'),
+      secret: this.configService.getOrThrow<string>('JWT_ADMIN_ACCESS_SECRET'),
       expiresIn: this.configService.get<string>(
         'JWT_ADMIN_ACCESS_EXPIRATION',
         '15m',
@@ -71,7 +73,9 @@ export class AdminRefreshTokenHandler implements ICommandHandler<AdminRefreshTok
     const refreshToken = this.jwtService.sign(
       { ...newPayload, type: 'refresh', jti: randomUUID() },
       {
-        secret: this.configService.get<string>('JWT_ADMIN_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>(
+          'JWT_ADMIN_REFRESH_SECRET',
+        ),
         expiresIn: this.configService.get<string>(
           'JWT_ADMIN_REFRESH_EXPIRATION',
           '7d',

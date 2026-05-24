@@ -35,7 +35,7 @@ export class AdminLoginHandler implements ICommandHandler<AdminLoginCommand> {
     const payload = { sub: admin.id, email: admin.email, role: admin.role };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_ADMIN_ACCESS_SECRET'),
+      secret: this.configService.getOrThrow<string>('JWT_ADMIN_ACCESS_SECRET'),
       expiresIn: this.configService.get<string>(
         'JWT_ADMIN_ACCESS_EXPIRATION',
         '15m',
@@ -45,7 +45,9 @@ export class AdminLoginHandler implements ICommandHandler<AdminLoginCommand> {
     const refreshToken = this.jwtService.sign(
       { ...payload, type: 'refresh', jti: randomUUID() },
       {
-        secret: this.configService.get<string>('JWT_ADMIN_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>(
+          'JWT_ADMIN_REFRESH_SECRET',
+        ),
         expiresIn: this.configService.get<string>(
           'JWT_ADMIN_REFRESH_EXPIRATION',
           '7d',
