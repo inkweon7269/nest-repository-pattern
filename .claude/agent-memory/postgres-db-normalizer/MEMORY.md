@@ -1,2 +1,3 @@
 - [nullable union type에 type 명시 필요](feedback_nullable_varchar.md) — `string | null` 컬럼은 반드시 `type: 'varchar'` 명시, 미명시 시 TypeORM이 "Object"로 추론하여 migration:generate 실패
 - [SnakeNamingStrategy 자동 변환](patterns_naming.md) — camelCase 프로퍼티명만 선언하면 DB 컬럼은 자동 snake_case 변환, @Column({ name: ... }) 수동 지정 금지
+- [M:N JoinTable 정션 FK CASCADE](patterns_manytomany_jointable.md) — @JoinTable inverse FK는 항상 NO ACTION, CASCADE 필요 시 마이그레이션 직접 작성 + synchronize:false로 회귀 방지. 정션 컬럼명은 posts_id/tags_id
