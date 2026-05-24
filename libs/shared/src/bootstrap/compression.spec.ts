@@ -1,5 +1,9 @@
+import type { INestApplication } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { shouldCompressResponse } from './compression';
+import {
+  applyCompressionMiddleware,
+  shouldCompressResponse,
+} from './compression';
 
 describe('shouldCompressResponse', () => {
   // compression의 기본 filter는 req를 읽지 않으므로 최소 mock으로 충분하다.
@@ -30,5 +34,28 @@ describe('shouldCompressResponse', () => {
     const res = createRes({ 'content-type': 'image/png' });
 
     expect(shouldCompressResponse(req, res)).toBe(false);
+  });
+});
+
+describe('applyCompressionMiddleware', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  function createApp(): { use: jest.Mock } {
+    return { use: jest.fn() };
+  }
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  // production-skip 경로는 통합 테스트(NODE_ENV=test)가 커버할 수 없는 유일한 분기이므로 단위 테스트로 검증한다.
+  // 등록 경로(local·development·test)는 통합 테스트가 gzip 동작으로 이미 증명하므로 중복 테스트하지 않는다.
+  it('production 환경에서는 압축 미들웨어를 등록하지 않는다 (nginx가 압축 담당)', () => {
+    process.env.NODE_ENV = 'production';
+    const app = createApp();
+
+    applyCompressionMiddleware(app as unknown as INestApplication);
+
+    expect(app.use).not.toHaveBeenCalled();
   });
 });

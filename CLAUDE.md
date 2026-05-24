@@ -164,6 +164,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - threshold 1KB(`compression` 기본값 유지) — 본문이 1KB 미만이면 압축 오버헤드를 피하기 위해 압축하지 않는다.
 - 라우트별 opt-out: 응답에 `x-no-compression` 헤더를 설정하면 해당 응답은 압축에서 제외된다 (SSE/스트리밍 등). 기본 filter를 확장하여 이 헤더를 감지하고, 그 외에는 `compression` 기본 filter에 위임한다.
 - 미들웨어 순서: `applySecurityMiddleware` 호출 **직후**에 `applyCompressionMiddleware`를 호출하여 보안 → 압축 순서를 모든 진입점에서 일관되게 유지한다.
+- **상용은 nginx 위임**: `applyCompressionMiddleware`는 `NODE_ENV === 'production'`이면 미들웨어를 등록하지 않고 early return한다. `compression`은 이벤트 루프에서 동기 gzip을 수행해 고트래픽 시 CPU 병목이 되므로, 상용에서는 nginx 등 리버스 프록시가 압축을 담당하고 앱·프록시 이중 압축을 회피한다. `local`·`development`·`test`에서는 그대로 활성화(통합 테스트는 jest 기본 `NODE_ENV=test`라 압축 검증이 그대로 통과). 환경 분기는 헬퍼 한 곳에서만 수행하므로 호출부는 변경 없음 — `applySecurityMiddleware`의 production fail-safe 분기와 동일 선례.
 - `compression`은 Express 미들웨어 패키지로, 양쪽 앱의 Express 어댑터 위에서 `app.use()`로 등록된다. Brotli·env 런타임 튜닝은 범위 외.
 - 상세 가이드: `docs/compression-guide.md`
 
