@@ -1,9 +1,8 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { QueryFailedError } from 'typeorm';
 import { UpdateTagCommand } from './update-tag.command';
 import { ITagWriteRepository } from '@service/tags/interface/tag-write-repository.interface';
-import { CacheService } from '@app/shared';
+import { CacheService, isUniqueViolation } from '@app/shared';
 
 @CommandHandler(UpdateTagCommand)
 export class UpdateTagHandler implements ICommandHandler<UpdateTagCommand> {
@@ -29,10 +28,7 @@ export class UpdateTagHandler implements ICommandHandler<UpdateTagCommand> {
         name: command.name,
       });
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(
           `Tag with name '${command.name}' already exists`,
         );

@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { QueryFailedError } from 'typeorm';
+import { isUniqueViolation } from '@app/shared';
 import * as bcrypt from 'bcrypt';
 import { AdminRegisterCommand } from './admin-register.command';
 import { IAdminReadRepository } from '@back-office/auth/interface/admin-read-repository.interface';
@@ -32,10 +32,7 @@ export class AdminRegisterHandler implements ICommandHandler<AdminRegisterComman
       });
       return admin.id;
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(
           `Admin with email '${command.email}' already exists`,
         );

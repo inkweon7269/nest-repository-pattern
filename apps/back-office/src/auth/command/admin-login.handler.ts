@@ -1,62 +1,39 @@
-import { createHash, randomUUID } from 'crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { JwtService, JwtSignOptions } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { AdminLoginCommand } from './admin-login.command';
 import { IAdminReadRepository } from '@back-office/auth/interface/admin-read-repository.interface';
-import { IAdminWriteRepository } from '@back-office/auth/interface/admin-write-repository.interface';
-import { AuthTokens } from '@app/shared';
+import { AdminTokenIssuer } from '@back-office/auth/admin-token-issuer.service';
+import { Admin, AuthTokens } from '@app/shared';
 
 @CommandHandler(AdminLoginCommand)
 export class AdminLoginHandler implements ICommandHandler<AdminLoginCommand> {
   constructor(
     private readonly adminReadRepository: IAdminReadRepository,
-    private readonly adminWriteRepository: IAdminWriteRepository,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly tokenIssuer: AdminTokenIssuer,
   ) {}
 
   async execute(command: AdminLoginCommand): Promise<AuthTokens> {
-    const admin = await this.adminReadRepository.findByEmail(command.email);
+    const admin = await this.loadAdminByEmail(command.email);
+    await this.validatePasswordMatches(command.password, admin.password);
+    return this.tokenIssuer.issueTokens(admin);
+  }
+
+  private async loadAdminByEmail(email: string): Promise<Admin> {
+    const admin = await this.adminReadRepository.findByEmail(email);
     if (!admin) {
       throw new UnauthorizedException('Invalid email or password');
     }
+    return admin;
+  }
 
-    const isPasswordValid = await bcrypt.compare(
-      command.password,
-      admin.password,
-    );
+  private async validatePasswordMatches(
+    raw: string,
+    hashed: string,
+  ): Promise<void> {
+    const isPasswordValid = await bcrypt.compare(raw, hashed);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
-
-    const payload = { sub: admin.id, email: admin.email, role: admin.role };
-
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_ADMIN_ACCESS_SECRET'),
-      expiresIn: this.configService.get<string>(
-        'JWT_ADMIN_ACCESS_EXPIRATION',
-        '15m',
-      ),
-    } as JwtSignOptions);
-
-    const refreshToken = this.jwtService.sign(
-      { ...payload, type: 'refresh', jti: randomUUID() },
-      {
-        secret: this.configService.get<string>('JWT_ADMIN_REFRESH_SECRET'),
-        expiresIn: this.configService.get<string>(
-          'JWT_ADMIN_REFRESH_EXPIRATION',
-          '7d',
-        ),
-      } as JwtSignOptions,
-    );
-
-    const tokenDigest = createHash('sha256').update(refreshToken).digest('hex');
-    const hashedRefreshToken = await bcrypt.hash(tokenDigest, 10);
-    await this.adminWriteRepository.update(admin.id, { hashedRefreshToken });
-
-    return { accessToken, refreshToken };
   }
 }

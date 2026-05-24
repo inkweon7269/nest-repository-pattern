@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { QueryFailedError } from 'typeorm';
+import { isUniqueViolation } from '@app/shared';
 import * as bcrypt from 'bcrypt';
 import { RegisterCommand } from './register.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
@@ -39,10 +39,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
       const user = await this.userWriteRepository.create(input);
       return user.id;
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(
           `User with email '${input.email}' already exists`,
         );
