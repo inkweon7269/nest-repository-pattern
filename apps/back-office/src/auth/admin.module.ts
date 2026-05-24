@@ -9,6 +9,7 @@ import { AdminRefreshTokenHandler } from './command/admin-refresh-token.handler'
 import { AdminLogoutHandler } from './command/admin-logout.handler';
 import { GetAdminProfileHandler } from './query/get-admin-profile.handler';
 import { adminRepositoryProviders } from './admin-repository.provider';
+import { AdminTokenIssuer } from './admin-token-issuer.service';
 import { AdminJwtStrategy } from './strategy/admin-jwt.strategy';
 import { AdminJwtAuthGuard } from './guard/admin-jwt-auth.guard';
 
@@ -28,6 +29,7 @@ const queryHandlers = [GetAdminProfileHandler];
     ...commandHandlers,
     ...queryHandlers,
     ...adminRepositoryProviders,
+    AdminTokenIssuer,
     AdminJwtStrategy,
     AdminJwtAuthGuard,
   ],
