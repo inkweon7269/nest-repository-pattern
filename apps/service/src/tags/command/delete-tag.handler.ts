@@ -20,10 +20,10 @@ export class DeleteTagHandler implements ICommandHandler<DeleteTagCommand> {
       throw new NotFoundException(`Tag with ID ${command.id} not found`);
     }
 
-    await this.invalidateCaches(command.userId, command.id);
+    await this.invalidateTagCaches(command.userId, command.id);
   }
 
-  private async invalidateCaches(userId: number, id: number): Promise<void> {
+  private async invalidateTagCaches(userId: number, id: number): Promise<void> {
     await this.cacheService.del(`tag:${userId}:${id}`);
     await this.cacheService.delByPattern(`tags:${userId}:*`);
     await this.cacheService.delByPattern(`posts:${userId}:*`);

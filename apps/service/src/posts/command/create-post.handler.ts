@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryFailedError } from 'typeorm';
@@ -9,7 +9,7 @@ import {
   CreatePostInput,
   IPostWriteRepository,
 } from '@service/posts/interface/post-write-repository.interface';
-import { ITagReadRepository } from '@service/tags/interface/tag-read-repository.interface';
+import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
 import { CacheService, Post } from '@app/shared';
 
 @CommandHandler(CreatePostCommand)
@@ -17,14 +17,17 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
   constructor(
     private readonly postReadRepository: IPostReadRepository,
     private readonly postWriteRepository: IPostWriteRepository,
-    private readonly tagReadRepository: ITagReadRepository,
+    private readonly tagOwnershipValidator: TagOwnershipValidator,
     private readonly eventEmitter: EventEmitter2,
     private readonly cacheService: CacheService,
   ) {}
 
   async execute(command: CreatePostCommand): Promise<number> {
     await this.validateTitleNotDuplicated(command.userId, command.title);
-    await this.validateTagsOwnedByUser(command.userId, command.tagIds);
+    await this.tagOwnershipValidator.validateOwnedByUser(
+      command.userId,
+      command.tagIds,
+    );
     const post = await this.persistPostOrConflict({
       userId: command.userId,
       title: command.title,
@@ -47,26 +50,6 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
     );
     if (existing) {
       throw new ConflictException(`Post with title '${title}' already exists`);
-    }
-  }
-
-  private async validateTagsOwnedByUser(
-    userId: number,
-    tagIds?: number[],
-  ): Promise<void> {
-    if (!tagIds?.length) {
-      return;
-    }
-
-    const uniqueIds = [...new Set(tagIds)];
-    const tags = await this.tagReadRepository.findByIdsAndUserId(
-      uniqueIds,
-      userId,
-    );
-    if (tags.length !== uniqueIds.length) {
-      throw new BadRequestException(
-        'One or more tags do not exist or are not owned by the user',
-      );
     }
   }
 

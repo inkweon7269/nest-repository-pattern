@@ -4,13 +4,12 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UpdatePostHandler } from './update-post.handler';
 import { UpdatePostCommand } from './update-post.command';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
-import { ITagReadRepository } from '@service/tags/interface/tag-read-repository.interface';
-import { Tag } from '@app/shared';
+import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
 
 describe('UpdatePostHandler', () => {
   let handler: UpdatePostHandler;
   let postWriteRepository: Mocked<IPostWriteRepository>;
-  let tagReadRepository: Mocked<ITagReadRepository>;
+  let tagOwnershipValidator: Mocked<TagOwnershipValidator>;
 
   beforeEach(async () => {
     const { unit, unitRef } =
@@ -20,9 +19,7 @@ describe('UpdatePostHandler', () => {
     postWriteRepository = unitRef.get<IPostWriteRepository>(
       IPostWriteRepository as Type<IPostWriteRepository>,
     );
-    tagReadRepository = unitRef.get<ITagReadRepository>(
-      ITagReadRepository as Type<ITagReadRepository>,
-    );
+    tagOwnershipValidator = unitRef.get(TagOwnershipValidator);
   });
 
   it('존재하는 본인의 게시글을 수정하면 void를 반환한다', async () => {
@@ -47,10 +44,7 @@ describe('UpdatePostHandler', () => {
   });
 
   it('소유한 태그가 검증되면 tagIds와 함께 수정한다', async () => {
-    tagReadRepository.findByIdsAndUserId.mockResolvedValue([
-      { id: 1 } as Tag,
-      { id: 2 } as Tag,
-    ]);
+    tagOwnershipValidator.validateOwnedByUser.mockResolvedValue(undefined);
     postWriteRepository.update.mockResolvedValue(1);
 
     const command = new UpdatePostCommand(
@@ -63,9 +57,9 @@ describe('UpdatePostHandler', () => {
     );
     await handler.execute(command);
 
-    expect(tagReadRepository.findByIdsAndUserId).toHaveBeenCalledWith(
-      [1, 2],
+    expect(tagOwnershipValidator.validateOwnedByUser).toHaveBeenCalledWith(
       1,
+      [1, 2],
     );
     expect(postWriteRepository.update).toHaveBeenCalledWith(1, 1, {
       title: 'Updated Title',
@@ -76,7 +70,11 @@ describe('UpdatePostHandler', () => {
   });
 
   it('요청한 태그 중 소유하지 않은 것이 있으면 BadRequestException을 발생시킨다', async () => {
-    tagReadRepository.findByIdsAndUserId.mockResolvedValue([{ id: 1 } as Tag]);
+    tagOwnershipValidator.validateOwnedByUser.mockRejectedValue(
+      new BadRequestException(
+        'One or more tags do not exist or are not owned by the user',
+      ),
+    );
 
     const command = new UpdatePostCommand(
       1,

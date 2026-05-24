@@ -5,14 +5,14 @@ import { CreatePostHandler } from './create-post.handler';
 import { CreatePostCommand } from './create-post.command';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
-import { ITagReadRepository } from '@service/tags/interface/tag-read-repository.interface';
-import { Post, Tag } from '@app/shared';
+import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
+import { Post } from '@app/shared';
 
 describe('CreatePostHandler', () => {
   let handler: CreatePostHandler;
   let postReadRepository: Mocked<IPostReadRepository>;
   let postWriteRepository: Mocked<IPostWriteRepository>;
-  let tagReadRepository: Mocked<ITagReadRepository>;
+  let tagOwnershipValidator: Mocked<TagOwnershipValidator>;
 
   beforeEach(async () => {
     const { unit, unitRef } =
@@ -25,9 +25,7 @@ describe('CreatePostHandler', () => {
     postWriteRepository = unitRef.get<IPostWriteRepository>(
       IPostWriteRepository as Type<IPostWriteRepository>,
     );
-    tagReadRepository = unitRef.get<ITagReadRepository>(
-      ITagReadRepository as Type<ITagReadRepository>,
-    );
+    tagOwnershipValidator = unitRef.get(TagOwnershipValidator);
   });
 
   it('중복되지 않는 제목이면 게시글을 생성하고 id를 반환한다', async () => {
@@ -64,10 +62,7 @@ describe('CreatePostHandler', () => {
 
   it('소유한 태그가 모두 검증되면 tagIds와 함께 게시글을 생성한다', async () => {
     postReadRepository.findByUserIdAndTitle.mockResolvedValue(null);
-    tagReadRepository.findByIdsAndUserId.mockResolvedValue([
-      { id: 1 } as Tag,
-      { id: 2 } as Tag,
-    ]);
+    tagOwnershipValidator.validateOwnedByUser.mockResolvedValue(undefined);
     postWriteRepository.create.mockResolvedValue({ id: 10 } as Post);
 
     const command = new CreatePostCommand(
@@ -80,9 +75,9 @@ describe('CreatePostHandler', () => {
     const result = await handler.execute(command);
 
     expect(result).toBe(10);
-    expect(tagReadRepository.findByIdsAndUserId).toHaveBeenCalledWith(
-      [1, 2],
+    expect(tagOwnershipValidator.validateOwnedByUser).toHaveBeenCalledWith(
       1,
+      [1, 2],
     );
     expect(postWriteRepository.create).toHaveBeenCalledWith({
       userId: 1,
@@ -95,7 +90,11 @@ describe('CreatePostHandler', () => {
 
   it('요청한 태그 중 소유하지 않은 것이 있으면 BadRequestException을 발생시킨다', async () => {
     postReadRepository.findByUserIdAndTitle.mockResolvedValue(null);
-    tagReadRepository.findByIdsAndUserId.mockResolvedValue([{ id: 1 } as Tag]);
+    tagOwnershipValidator.validateOwnedByUser.mockRejectedValue(
+      new BadRequestException(
+        'One or more tags do not exist or are not owned by the user',
+      ),
+    );
 
     const command = new CreatePostCommand(
       1,
