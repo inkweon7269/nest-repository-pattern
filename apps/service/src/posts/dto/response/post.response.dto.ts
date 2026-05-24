@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Post } from '@app/shared';
+import { TagResponseDto } from '@service/tags/dto/response/tag.response.dto';
 
 export class PostResponseDto {
   @ApiProperty({ description: '게시글 ID', example: 1 })
@@ -23,6 +24,9 @@ export class PostResponseDto {
   @ApiProperty({ description: '수정일시' })
   updatedAt: Date;
 
+  @ApiProperty({ description: '연결된 태그 목록', type: [TagResponseDto] })
+  tags: TagResponseDto[];
+
   static of(post: Post): PostResponseDto {
     const dto = new PostResponseDto();
     dto.id = post.id;
@@ -32,6 +36,7 @@ export class PostResponseDto {
     dto.isPublished = post.isPublished;
     dto.createdAt = post.createdAt;
     dto.updatedAt = post.updatedAt;
+    dto.tags = (post.tags ?? []).map((tag) => TagResponseDto.of(tag));
     return dto;
   }
 }

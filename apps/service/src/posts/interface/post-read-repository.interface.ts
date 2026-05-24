@@ -3,6 +3,7 @@ import { Post } from '@app/shared';
 export type PostFilter = {
   userId?: number;
   isPublished?: boolean;
+  tagId?: number;
 };
 
 export abstract class IPostReadRepository {

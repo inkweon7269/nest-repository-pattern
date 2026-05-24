@@ -17,8 +17,8 @@ export class FindAllPostsPaginatedHandler implements IQueryHandler<FindAllPostsP
   async execute(
     query: FindAllPostsPaginatedQuery,
   ): Promise<PaginatedResponseDto<PostResponseDto>> {
-    const { userId, isPublished } = query.filter;
-    const cacheKey = `posts:${userId}:${query.page}:${query.limit}:${isPublished ?? 'all'}`;
+    const { userId, isPublished, tagId } = query.filter;
+    const cacheKey = `posts:${userId}:${query.page}:${query.limit}:${isPublished ?? 'all'}:${tagId ?? 'all'}`;
     const cached =
       await this.cacheService.get<PaginatedResponseDto<PostResponseDto>>(
         cacheKey,

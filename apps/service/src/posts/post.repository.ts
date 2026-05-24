@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, FindOptionsWhere, IsNull } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import { BaseRepository } from '@app/shared';
 import {
   IPostReadRepository,
   PostFilter,
 } from './interface/post-read-repository.interface';
-import {
+import { IPostWriteRepository } from './interface/post-write-repository.interface';
+import type {
   CreatePostInput,
-  IPostWriteRepository,
   UpdatePostInput,
 } from './interface/post-write-repository.interface';
 import { Post } from '@app/shared';
@@ -26,7 +26,10 @@ export class PostRepository
   }
 
   async findById(id: number): Promise<Post | null> {
-    return this.postRepository.findOneBy({ id });
+    return this.postRepository.findOne({
+      where: { id },
+      relations: { tags: true },
+    });
   }
 
   async findByUserIdAndTitle(
@@ -41,27 +44,58 @@ export class PostRepository
     limit: number,
     filter: PostFilter = {},
   ): Promise<[Post[], number]> {
-    const where: FindOptionsWhere<Post> = {};
+    const qb = this.postRepository
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.tags', 'tag');
 
     if (filter.userId !== undefined) {
-      where.userId = filter.userId;
+      qb.andWhere('post.userId = :userId', { userId: filter.userId });
     }
 
     if (filter.isPublished !== undefined) {
-      where.isPublished = filter.isPublished;
+      qb.andWhere('post.isPublished = :isPublished', {
+        isPublished: filter.isPublished,
+      });
     }
 
-    return this.postRepository.findAndCount({
-      where,
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { id: 'DESC' },
-    });
+    if (filter.tagId !== undefined) {
+      qb.andWhere(
+        (sub) => {
+          const subQuery = sub
+            .subQuery()
+            .select('filterPost.id')
+            .from(Post, 'filterPost')
+            .innerJoin('filterPost.tags', 'filterTag')
+            .where('filterTag.id = :tagId')
+            .getQuery();
+          return `post.id IN ${subQuery}`;
+        },
+        { tagId: filter.tagId },
+      );
+    }
+
+    return qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('post.id', 'DESC')
+      .getManyAndCount();
   }
 
   async create(input: CreatePostInput): Promise<Post> {
-    const post = this.postRepository.create(input);
-    return this.postRepository.save(post);
+    const { tagIds, ...scalars } = input;
+    const post = this.postRepository.create(scalars);
+    const saved = await this.postRepository.save(post);
+
+    const normalizedTagIds = tagIds ? [...new Set(tagIds)] : [];
+    if (normalizedTagIds.length) {
+      await this.postRepository
+        .createQueryBuilder()
+        .relation(Post, 'tags')
+        .of(saved.id)
+        .add(normalizedTagIds);
+    }
+
+    return saved;
   }
 
   async update(
@@ -69,11 +103,53 @@ export class PostRepository
     userId: number,
     input: UpdatePostInput,
   ): Promise<number> {
-    const result = await this.postRepository.update(
-      { id, userId, deletedAt: IsNull() },
-      input,
-    );
+    const { tagIds, ...scalars } = input;
+
+    const affected = await this.updateScalars(id, userId, scalars);
+    if (affected === 0 || tagIds === undefined) {
+      return affected;
+    }
+
+    await this.replaceTags(id, userId, tagIds);
+    return affected;
+  }
+
+  private async updateScalars(
+    id: number,
+    userId: number,
+    scalars: Omit<UpdatePostInput, 'tagIds'>,
+  ): Promise<number> {
+    const criteria = { id, userId, deletedAt: IsNull() };
+
+    if (Object.keys(scalars).length === 0) {
+      const count = await this.postRepository.countBy(criteria);
+      return count;
+    }
+
+    const result = await this.postRepository.update(criteria, scalars);
     return result.affected ?? 0;
+  }
+
+  private async replaceTags(
+    id: number,
+    userId: number,
+    tagIds: number[],
+  ): Promise<void> {
+    const existing = await this.postRepository.findOne({
+      where: { id, userId, deletedAt: IsNull() },
+      relations: { tags: true },
+    });
+    if (!existing) {
+      return;
+    }
+
+    const currentTagIds = (existing.tags ?? []).map((tag) => tag.id);
+    const normalizedTagIds = [...new Set(tagIds)];
+    await this.postRepository
+      .createQueryBuilder()
+      .relation(Post, 'tags')
+      .of(id)
+      .addAndRemove(normalizedTagIds, currentTagIds);
   }
 
   async delete(id: number, userId: number): Promise<number> {

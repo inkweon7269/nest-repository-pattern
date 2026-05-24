@@ -2,6 +2,7 @@
 export { BaseTimeEntity } from './entities/base.entity';
 export { User } from './entities/user.entity';
 export { Post } from './entities/post.entity';
+export { Tag } from './entities/tag.entity';
 export { Admin } from './entities/admin.entity';
 export { OAuthAccount } from './entities/oauth-account.entity';
 

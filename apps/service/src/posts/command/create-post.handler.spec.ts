@@ -1,16 +1,25 @@
 import { TestBed, type Mocked } from '@suites/unit';
 import type { Type } from '@suites/types.common';
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { CreatePostHandler } from './create-post.handler';
 import { CreatePostCommand } from './create-post.command';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
+import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
 import { Post } from '@app/shared';
+
+// 단위 테스트는 실 DataSource를 부트스트랩하지 않으므로 `@Transactional()`을
+// 트랜잭션 컨텍스트 초기화 없이 통과시키도록 no-op으로 치환한다. 트랜잭션 의미는
+// 통합 테스트에서 검증한다.
+jest.mock('typeorm-transactional', () => ({
+  Transactional: () => () => undefined,
+}));
 
 describe('CreatePostHandler', () => {
   let handler: CreatePostHandler;
   let postReadRepository: Mocked<IPostReadRepository>;
   let postWriteRepository: Mocked<IPostWriteRepository>;
+  let tagOwnershipValidator: Mocked<TagOwnershipValidator>;
 
   beforeEach(async () => {
     const { unit, unitRef } =
@@ -23,6 +32,7 @@ describe('CreatePostHandler', () => {
     postWriteRepository = unitRef.get<IPostWriteRepository>(
       IPostWriteRepository as Type<IPostWriteRepository>,
     );
+    tagOwnershipValidator = unitRef.get(TagOwnershipValidator);
   });
 
   it('중복되지 않는 제목이면 게시글을 생성하고 id를 반환한다', async () => {
@@ -42,6 +52,7 @@ describe('CreatePostHandler', () => {
       title: 'New Title',
       content: 'Content',
       isPublished: false,
+      tagIds: undefined,
     });
   });
 
@@ -53,6 +64,54 @@ describe('CreatePostHandler', () => {
     const command = new CreatePostCommand(1, 'Duplicate Title', 'Content');
 
     await expect(handler.execute(command)).rejects.toThrow(ConflictException);
+    expect(postWriteRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('소유한 태그가 모두 검증되면 tagIds와 함께 게시글을 생성한다', async () => {
+    postReadRepository.findByUserIdAndTitle.mockResolvedValue(null);
+    tagOwnershipValidator.validateOwnedByUser.mockResolvedValue(undefined);
+    postWriteRepository.create.mockResolvedValue({ id: 10 } as Post);
+
+    const command = new CreatePostCommand(
+      1,
+      'Tagged',
+      'Content',
+      false,
+      [1, 2],
+    );
+    const result = await handler.execute(command);
+
+    expect(result).toBe(10);
+    expect(tagOwnershipValidator.validateOwnedByUser).toHaveBeenCalledWith(
+      1,
+      [1, 2],
+    );
+    expect(postWriteRepository.create).toHaveBeenCalledWith({
+      userId: 1,
+      title: 'Tagged',
+      content: 'Content',
+      isPublished: false,
+      tagIds: [1, 2],
+    });
+  });
+
+  it('요청한 태그 중 소유하지 않은 것이 있으면 BadRequestException을 발생시킨다', async () => {
+    postReadRepository.findByUserIdAndTitle.mockResolvedValue(null);
+    tagOwnershipValidator.validateOwnedByUser.mockRejectedValue(
+      new BadRequestException(
+        'One or more tags do not exist or are not owned by the user',
+      ),
+    );
+
+    const command = new CreatePostCommand(
+      1,
+      'Tagged',
+      'Content',
+      false,
+      [1, 2],
+    );
+
+    await expect(handler.execute(command)).rejects.toThrow(BadRequestException);
     expect(postWriteRepository.create).not.toHaveBeenCalled();
   });
 });

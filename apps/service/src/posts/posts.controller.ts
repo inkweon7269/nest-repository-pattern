@@ -65,6 +65,7 @@ export class PostsController {
       new FindAllPostsPaginatedQuery(dto.page, dto.limit, {
         userId: user.id,
         isPublished: dto.isPublished,
+        tagId: dto.tagId,
       }),
     );
   }
@@ -98,7 +99,13 @@ export class PostsController {
     @Body() dto: CreatePostRequestDto,
   ): Promise<CreatePostResponseDto> {
     const id = await this.commandBus.execute<CreatePostCommand, number>(
-      new CreatePostCommand(user.id, dto.title, dto.content, dto.isPublished),
+      new CreatePostCommand(
+        user.id,
+        dto.title,
+        dto.content,
+        dto.isPublished,
+        dto.tagIds,
+      ),
     );
     return CreatePostResponseDto.of(id);
   }
@@ -122,6 +129,7 @@ export class PostsController {
         dto.title,
         dto.content,
         dto.isPublished,
+        dto.tagIds,
       ),
     );
   }

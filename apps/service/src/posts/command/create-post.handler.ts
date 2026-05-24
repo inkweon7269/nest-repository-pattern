@@ -2,13 +2,13 @@ import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryFailedError } from 'typeorm';
+import { Transactional } from 'typeorm-transactional';
 import { CreatePostCommand } from './create-post.command';
 import { PostCreatedEvent } from '@service/posts/event/post-created.event';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
-import {
-  CreatePostInput,
-  IPostWriteRepository,
-} from '@service/posts/interface/post-write-repository.interface';
+import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
+import type { CreatePostInput } from '@service/posts/interface/post-write-repository.interface';
+import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
 import { CacheService, Post } from '@app/shared';
 
 @CommandHandler(CreatePostCommand)
@@ -16,17 +16,23 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
   constructor(
     private readonly postReadRepository: IPostReadRepository,
     private readonly postWriteRepository: IPostWriteRepository,
+    private readonly tagOwnershipValidator: TagOwnershipValidator,
     private readonly eventEmitter: EventEmitter2,
     private readonly cacheService: CacheService,
   ) {}
 
   async execute(command: CreatePostCommand): Promise<number> {
     await this.validateTitleNotDuplicated(command.userId, command.title);
+    await this.tagOwnershipValidator.validateOwnedByUser(
+      command.userId,
+      command.tagIds,
+    );
     const post = await this.persistPostOrConflict({
       userId: command.userId,
       title: command.title,
       content: command.content,
       isPublished: command.isPublished,
+      tagIds: command.tagIds,
     });
     this.emitCreatedEvent(post.id, command.title, command.userId);
     await this.invalidateUserCache(command.userId);
@@ -46,6 +52,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
     }
   }
 
+  @Transactional()
   private async persistPostOrConflict(input: CreatePostInput): Promise<Post> {
     try {
       return await this.postWriteRepository.create(input);
