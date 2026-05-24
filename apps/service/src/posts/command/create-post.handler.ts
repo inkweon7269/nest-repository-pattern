@@ -2,13 +2,12 @@ import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryFailedError } from 'typeorm';
+import { Transactional } from 'typeorm-transactional';
 import { CreatePostCommand } from './create-post.command';
 import { PostCreatedEvent } from '@service/posts/event/post-created.event';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
-import {
-  CreatePostInput,
-  IPostWriteRepository,
-} from '@service/posts/interface/post-write-repository.interface';
+import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
+import type { CreatePostInput } from '@service/posts/interface/post-write-repository.interface';
 import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
 import { CacheService, Post } from '@app/shared';
 
@@ -53,6 +52,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
     }
   }
 
+  @Transactional()
   private async persistPostOrConflict(input: CreatePostInput): Promise<Post> {
     try {
       return await this.postWriteRepository.create(input);

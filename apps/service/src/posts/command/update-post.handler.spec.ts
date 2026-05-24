@@ -6,6 +6,13 @@ import { UpdatePostCommand } from './update-post.command';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
 
+// 단위 테스트는 실 DataSource를 부트스트랩하지 않으므로 `@Transactional()`을
+// 트랜잭션 컨텍스트 초기화 없이 통과시키도록 no-op으로 치환한다. 트랜잭션 의미는
+// 통합 테스트에서 검증한다.
+jest.mock('typeorm-transactional', () => ({
+  Transactional: () => () => undefined,
+}));
+
 describe('UpdatePostHandler', () => {
   let handler: UpdatePostHandler;
   let postWriteRepository: Mocked<IPostWriteRepository>;

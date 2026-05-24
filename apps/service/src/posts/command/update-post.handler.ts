@@ -1,5 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { NotFoundException } from '@nestjs/common';
+import { Transactional } from 'typeorm-transactional';
 import { UpdatePostCommand } from './update-post.command';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
@@ -22,6 +23,7 @@ export class UpdatePostHandler implements ICommandHandler<UpdatePostCommand> {
     await this.invalidatePostCache(command.userId, command.id);
   }
 
+  @Transactional()
   private async updatePostOrThrow(command: UpdatePostCommand): Promise<void> {
     const affected = await this.postWriteRepository.update(
       command.id,

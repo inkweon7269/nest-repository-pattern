@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, IsNull } from 'typeorm';
-import { Transactional } from 'typeorm-transactional';
 import { BaseRepository } from '@app/shared';
 import {
   IPostReadRepository,
@@ -82,7 +81,6 @@ export class PostRepository
       .getManyAndCount();
   }
 
-  @Transactional()
   async create(input: CreatePostInput): Promise<Post> {
     const { tagIds, ...scalars } = input;
     const post = this.postRepository.create(scalars);
@@ -97,14 +95,9 @@ export class PostRepository
         .add(normalizedTagIds);
     }
 
-    const reloaded = await this.postRepository.findOne({
-      where: { id: saved.id },
-      relations: { tags: true },
-    });
-    return reloaded ?? saved;
+    return saved;
   }
 
-  @Transactional()
   async update(
     id: number,
     userId: number,
