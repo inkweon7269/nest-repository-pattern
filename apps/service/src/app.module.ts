@@ -12,6 +12,7 @@ import {
   OtelAlertingModule,
 } from '@app/shared';
 import { PostsModule } from './posts/posts.module';
+import { TagsModule } from './tags/tags.module';
 import { AuthModule } from './auth/auth.module';
 
 const nodeEnv = process.env.NODE_ENV || 'local';
@@ -40,6 +41,7 @@ const nodeEnv = process.env.NODE_ENV || 'local';
       }),
     }),
     PostsModule,
+    TagsModule,
     AuthModule,
     HealthModule,
     OtelAlertingModule,

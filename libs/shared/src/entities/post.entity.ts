@@ -4,10 +4,13 @@ import {
   Entity,
   Index,
   JoinColumn,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
 } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { User } from './user.entity';
+import { Tag } from './tag.entity';
 import { BaseTimeEntity } from './base.entity';
 
 @Entity('posts')
@@ -31,6 +34,10 @@ export class Post extends BaseTimeEntity {
 
   @Column({ default: false })
   isPublished: boolean;
+
+  @ManyToMany(() => Tag, (tag) => tag.posts)
+  @JoinTable({ name: 'post_tags', synchronize: false })
+  tags: Relation<Tag[]>;
 
   @DeleteDateColumn()
   deletedAt: Date | null;

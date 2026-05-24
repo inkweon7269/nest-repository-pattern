@@ -768,4 +768,244 @@ describe('Posts (integration)', () => {
       expect(getRes.body.title).toBe('Keep');
     });
   });
+
+  // ============================================================
+  // Posts ↔ Tags (M:N integration)
+  // ============================================================
+  describe('Posts <-> Tags', () => {
+    let token: string;
+
+    function createTag(t: string, name: string) {
+      return request(app.getHttpServer())
+        .post('/v1/tags')
+        .set('Authorization', `Bearer ${t}`)
+        .set('Idempotency-Key', crypto.randomUUID())
+        .send({ name });
+    }
+
+    async function createTagAndGetId(t: string, name: string): Promise<number> {
+      const res = await createTag(t, name).expect(201);
+      return res.body.id as number;
+    }
+
+    beforeEach(async () => {
+      const tokens = await registerAndLogin();
+      token = tokens.accessToken;
+    });
+
+    it('소유한 tagIds로 게시글을 생성하면 GET 시 tags가 채워진다', async () => {
+      const tagId1 = await createTagAndGetId(token, 'nestjs');
+      const tagId2 = await createTagAndGetId(token, 'typescript');
+
+      const getRes = await createAndGet(token, {
+        title: 'Tagged Post',
+        tagIds: [tagId1, tagId2],
+      });
+
+      expect(getRes.body.tags).toHaveLength(2);
+      const names = (getRes.body.tags as Array<{ name: string }>)
+        .map((t) => t.name)
+        .sort();
+      expect(names).toEqual(['nestjs', 'typescript']);
+    });
+
+    it('tagIds가 없으면 tags는 빈 배열이다', async () => {
+      const getRes = await createAndGet(token, { title: 'No Tags' });
+
+      expect(getRes.body.tags).toEqual([]);
+    });
+
+    it('소유하지 않은 tagId로 게시글을 생성하면 400을 반환한다', async () => {
+      const ownTagId = await createTagAndGetId(token, 'mine');
+
+      const tokens2 = await registerAndLogin({
+        email: 'other@example.com',
+        name: '다른유저',
+      });
+      const otherTagId = await createTagAndGetId(tokens2.accessToken, 'theirs');
+
+      await createPost(token, {
+        title: 'Steal Tag',
+        tagIds: [ownTagId, otherTagId],
+      }).expect(400);
+    });
+
+    it('존재하지 않는 tagId로 게시글을 생성하면 400을 반환한다', async () => {
+      await createPost(token, {
+        title: 'Ghost Tag',
+        tagIds: [99999],
+      }).expect(400);
+    });
+
+    it('소유하지 않은 tagId로 게시글을 수정하면 400을 반환한다', async () => {
+      const createRes = await createPost(token, { title: 'Editable' }).expect(
+        201,
+      );
+      const postId = createRes.body.id as number;
+
+      const tokens2 = await registerAndLogin({
+        email: 'other@example.com',
+        name: '다른유저',
+      });
+      const otherTagId = await createTagAndGetId(tokens2.accessToken, 'theirs');
+
+      await request(app.getHttpServer())
+        .patch(`/v1/posts/${postId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          title: 'Editable',
+          content: 'Default Content',
+          isPublished: false,
+          tagIds: [otherTagId],
+        })
+        .expect(400);
+    });
+
+    it('tagIds를 교체하면 게시글의 tags가 변경된다', async () => {
+      const tagId1 = await createTagAndGetId(token, 'first');
+      const tagId2 = await createTagAndGetId(token, 'second');
+
+      const createRes = await createPost(token, {
+        title: 'Replace Tags',
+        tagIds: [tagId1],
+      }).expect(201);
+      const postId = createRes.body.id as number;
+
+      await request(app.getHttpServer())
+        .patch(`/v1/posts/${postId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          title: 'Replace Tags',
+          content: 'Default Content',
+          isPublished: false,
+          tagIds: [tagId2],
+        })
+        .expect(204);
+
+      const getRes = await request(app.getHttpServer())
+        .get(`/v1/posts/${postId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(getRes.body.tags).toHaveLength(1);
+      expect(getRes.body.tags[0].name).toBe('second');
+    });
+
+    it('tagIds: []로 수정하면 게시글의 tags가 비워진다', async () => {
+      const tagId1 = await createTagAndGetId(token, 'first');
+
+      const createRes = await createPost(token, {
+        title: 'Clear Tags',
+        tagIds: [tagId1],
+      }).expect(201);
+      const postId = createRes.body.id as number;
+
+      await request(app.getHttpServer())
+        .patch(`/v1/posts/${postId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          title: 'Clear Tags',
+          content: 'Default Content',
+          isPublished: false,
+          tagIds: [],
+        })
+        .expect(204);
+
+      const getRes = await request(app.getHttpServer())
+        .get(`/v1/posts/${postId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(getRes.body.tags).toEqual([]);
+    });
+
+    it('GET /posts?tagId=X는 해당 태그를 가진 게시글만 반환하고 각 게시글은 전체 태그를 보여준다', async () => {
+      const tagId1 = await createTagAndGetId(token, 'target');
+      const tagId2 = await createTagAndGetId(token, 'extra');
+
+      await createPost(token, {
+        title: 'Has Target',
+        tagIds: [tagId1, tagId2],
+      }).expect(201);
+      await createPost(token, {
+        title: 'No Target',
+        tagIds: [tagId2],
+      }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/posts?tagId=${tagId1}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe('Has Target');
+      expect(res.body.meta.totalElements).toBe(1);
+
+      const names = (res.body.items[0].tags as Array<{ name: string }>)
+        .map((t) => t.name)
+        .sort();
+      expect(names).toEqual(['extra', 'target']);
+    });
+
+    it('동일 page/limit으로 서로 다른 tagId를 연속 조회해도 캐시가 충돌하지 않는다', async () => {
+      const tagIdA = await createTagAndGetId(token, 'alpha');
+      const tagIdB = await createTagAndGetId(token, 'beta');
+
+      await createPost(token, {
+        title: 'Only Alpha',
+        tagIds: [tagIdA],
+      }).expect(201);
+      await createPost(token, {
+        title: 'Only Beta',
+        tagIds: [tagIdB],
+      }).expect(201);
+
+      // tagId=A를 먼저 조회하여 캐시에 적재한다.
+      const resA = await request(app.getHttpServer())
+        .get(`/v1/posts?page=1&limit=10&tagId=${tagIdA}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect(resA.body.items).toHaveLength(1);
+      expect(resA.body.items[0].title).toBe('Only Alpha');
+
+      // 같은 page/limit으로 tagId=B 조회 — 캐시 키에 tagId가 누락되면 A 결과가 반환된다.
+      const resB = await request(app.getHttpServer())
+        .get(`/v1/posts?page=1&limit=10&tagId=${tagIdB}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect(resB.body.items).toHaveLength(1);
+      expect(resB.body.items[0].title).toBe('Only Beta');
+
+      // 필터 없는 조회는 두 게시글 모두 반환한다 (tagId='all' 키).
+      const resAll = await request(app.getHttpServer())
+        .get(`/v1/posts?page=1&limit=10`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect(resAll.body.meta.totalElements).toBe(2);
+    });
+
+    it('태그를 삭제하면 해당 태그를 참조하던 게시글에서 제거된다 (FK CASCADE)', async () => {
+      const tagId1 = await createTagAndGetId(token, 'to-delete');
+      const tagId2 = await createTagAndGetId(token, 'to-keep');
+
+      const createRes = await createPost(token, {
+        title: 'Cascade Post',
+        tagIds: [tagId1, tagId2],
+      }).expect(201);
+      const postId = createRes.body.id as number;
+
+      await request(app.getHttpServer())
+        .delete(`/v1/tags/${tagId1}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(204);
+
+      const getRes = await request(app.getHttpServer())
+        .get(`/v1/posts/${postId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(getRes.body.tags).toHaveLength(1);
+      expect(getRes.body.tags[0].name).toBe('to-keep');
+    });
+  });
 });

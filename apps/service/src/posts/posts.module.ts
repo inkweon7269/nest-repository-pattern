@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { AuthModule } from '@service/auth/auth.module';
+import { TagsModule } from '@service/tags/tags.module';
 import { PostsController } from './posts.controller';
 import { CreatePostHandler } from './command/create-post.handler';
 import { UpdatePostHandler } from './command/update-post.handler';
@@ -23,7 +24,7 @@ const queryHandlers = [GetPostByIdHandler, FindAllPostsPaginatedHandler];
 const eventHandlers = [PostCreatedHandler];
 
 @Module({
-  imports: [CqrsModule, AuthModule, SlackModule, AppCacheModule],
+  imports: [CqrsModule, AuthModule, TagsModule, SlackModule, AppCacheModule],
   controllers: [PostsController],
   providers: [
     ...commandHandlers,

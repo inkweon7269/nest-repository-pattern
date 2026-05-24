@@ -5,5 +5,6 @@ export class UpdatePostCommand {
     public readonly title: string,
     public readonly content: string,
     public readonly isPublished: boolean,
+    public readonly tagIds?: number[],
   ) {}
 }

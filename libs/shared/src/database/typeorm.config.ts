@@ -4,8 +4,9 @@ import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Admin } from '../entities/admin.entity';
 import { OAuthAccount } from '../entities/oauth-account.entity';
+import { Tag } from '../entities/tag.entity';
 
-const entities = [User, Post, Admin, OAuthAccount];
+const entities = [User, Post, Admin, OAuthAccount, Tag];
 
 export function createDataSourceOptions(
   env: Record<string, string | undefined>,

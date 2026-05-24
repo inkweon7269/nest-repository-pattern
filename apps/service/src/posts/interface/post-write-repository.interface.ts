@@ -5,12 +5,14 @@ export interface CreatePostInput {
   title: string;
   content: string;
   isPublished?: boolean;
+  tagIds?: number[];
 }
 
 export interface UpdatePostInput {
   title?: string;
   content?: string;
   isPublished?: boolean;
+  tagIds?: number[];
 }
 
 export abstract class IPostWriteRepository {
