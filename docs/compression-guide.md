@@ -29,6 +29,28 @@ helmet/CORS(`applySecurityMiddleware`)와 동일하게 main.ts 두 곳과 통합
 
 - `applySecurityMiddleware` 호출 **이후**에 `applyCompressionMiddleware`를 호출한다. 두 미들웨어 모두 라우트 핸들러보다 먼저 등록되므로 헤더/압축 동작에 충돌은 없으나, 적용 순서를 모든 진입점에서 일관되게 유지한다.
 
+### 5. 상용 환경에서는 앱 레벨 압축 비활성화 (nginx 위임)
+
+- `compression`은 Express 미들웨어로 **이벤트 루프(단일 스레드)에서 동기적으로 gzip을 수행**한다. 고트래픽 상용 환경에서는 압축 CPU 비용이 처리량 병목이 될 수 있다.
+- 상용에서는 nginx 등 리버스 프록시가 앞단에서 압축을 담당하는 것이 일반적이며, 프록시는 워커 기반으로 압축이 더 효율적이고 Brotli·정적 자산 사전압축까지 지원한다. 앱과 프록시가 **이중으로 압축을 시도하는 낭비**도 피한다.
+- 따라서 `applyCompressionMiddleware`는 `NODE_ENV === 'production'`일 때 미들웨어 등록을 건너뛴다(early return). `local`·`development`·`test`에서는 그대로 압축을 적용하여 개발/검증 단계에서 압축 동작을 확인할 수 있게 한다.
+- 이 분기는 `applySecurityMiddleware`의 `NODE_ENV` 기반 fail-safe 분기(production에서 CORS whitelist 누락 시 비활성화)와 동일한 선례를 따른다. 환경 분기는 헬퍼 한 곳에서만 수행하므로 호출부(main.ts 2곳 + 통합 테스트 헬퍼)는 변경 없이 그대로 `applyCompressionMiddleware(app)`만 호출한다.
+
+```typescript
+export function applyCompressionMiddleware(
+  app: INestApplication,
+  options?: CompressionOptions,
+): void {
+  // 상용에서는 nginx 등 리버스 프록시가 압축을 담당하므로 앱 레벨 압축을 건너뛴다.
+  const nodeEnv = process.env.NODE_ENV ?? 'local';
+  if (nodeEnv === 'production') return;
+
+  app.use(compression({ threshold: 1024, filter: shouldCompressResponse, ...options }));
+}
+```
+
+> 통합 테스트는 jest 기본값으로 `NODE_ENV=test`에서 실행되므로 압축이 활성화된다. 따라서 `Content-Encoding: gzip`·`Vary: Accept-Encoding`을 검증하는 기존 통합 테스트는 그대로 통과한다.
+
 ## 아키텍처
 
 ```text
@@ -47,7 +69,8 @@ NestJS 파이프라인 (Guards → Interceptors → Pipes → Handlers)
 
 ```text
 [압축 여부 판단]
-응답 준비됨
+NODE_ENV === 'production'              → 미들웨어 미등록 (nginx가 압축 담당)
+응답 준비됨 (production 외 환경)
    ├─ x-no-compression 헤더 있음        → 압축 안 함 (opt-out)
    ├─ Accept-Encoding에 gzip 없음        → 압축 안 함 (평문 반환)
    ├─ 본문 크기 < 1KB(threshold)         → 압축 안 함
@@ -61,7 +84,7 @@ NestJS 파이프라인 (Guards → Interceptors → Pipes → Handlers)
 
 **파일**: `libs/shared/src/bootstrap/compression.ts`
 
-`INestApplication`을 받아 압축 미들웨어를 적용하는 부트스트랩 유틸리티. 두 앱이 동일하게 사용하므로 앱별로 다른 인자가 필요 없다. 옵션은 선택적으로 받아 헬퍼 기본값에 병합한다.
+`INestApplication`을 받아 압축 미들웨어를 적용하는 부트스트랩 유틸리티. 두 앱이 동일하게 사용하므로 앱별로 다른 인자가 필요 없다. 옵션은 선택적으로 받아 헬퍼 기본값에 병합한다. `NODE_ENV === 'production'`이면 미들웨어를 등록하지 않고 즉시 반환한다(상용 압축은 nginx 위임, "설계 원칙 §5" 참고).
 
 | 파라미터 | 타입 | 설명 |
 |---------|------|------|
@@ -148,19 +171,22 @@ stream(@Res() res: Response) {
 
 ## 검증
 
-분기 로직(`shouldCompressResponse`의 opt-out/위임)은 단위 테스트로, 미들웨어 wiring과 실제 압축 동작은 통합 테스트로 검증한다.
+분기 로직(`shouldCompressResponse`의 opt-out/위임, `applyCompressionMiddleware`의 `NODE_ENV` 분기)은 단위 테스트로, 미들웨어 wiring과 실제 압축 동작은 통합 테스트로 검증한다.
 
 ### 단위 테스트
 
 **파일**: `libs/shared/src/bootstrap/compression.spec.ts`
 
-opt-out filter 함수 `shouldCompressResponse`의 분기를 직접 검증한다.
+opt-out filter 함수 `shouldCompressResponse`의 분기와 `applyCompressionMiddleware`의 환경 분기를 직접 검증한다.
 
 | 검증 항목 | 기대 결과 |
 |-----------|----------|
 | `x-no-compression` 헤더가 설정된 응답 | `false` 반환 (압축 대상에서 제외) |
 | compressible content-type(`application/json`) + opt-out 없음 | `true` 반환 (기본 filter에 위임) |
 | 비압축 대상 content-type(`image/png`) | `false` 반환 |
+| `NODE_ENV=production` | `app.use` 미호출 (압축 미들웨어 미등록) |
+
+> 등록 경로(`local`·`development`·`test`)는 통합 테스트가 `NODE_ENV=test`에서 gzip 동작으로 이미 증명하므로 단위 테스트로 중복 검증하지 않는다. production-skip만 통합 테스트가 커버할 수 없어 단위 테스트로 남긴다.
 
 ### 통합 테스트
 

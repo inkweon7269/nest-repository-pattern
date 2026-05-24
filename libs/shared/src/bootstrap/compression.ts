@@ -21,6 +21,12 @@ export function applyCompressionMiddleware(
   app: INestApplication,
   options?: CompressionOptions,
 ): void {
+  // 상용에서는 nginx 등 리버스 프록시가 압축을 담당하므로 앱 레벨 압축을 건너뛴다.
+  // (compression은 이벤트 루프에서 동기 gzip을 수행 → 고트래픽 시 CPU 병목 + 프록시와 이중 압축 회피)
+  // local·development·test에서는 그대로 압축을 적용한다 (security.ts의 NODE_ENV 분기 선례와 동일).
+  const nodeEnv = process.env.NODE_ENV ?? 'local';
+  if (nodeEnv === 'production') return;
+
   app.use(
     compression({
       // 작은 응답은 압축 오버헤드 회피 (compression 기본값 1KB 유지)
