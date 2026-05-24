@@ -1,7 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { QueryFailedError } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { CreatePostCommand } from './create-post.command';
 import { PostCreatedEvent } from '@service/posts/event/post-created.event';
@@ -9,7 +8,7 @@ import { IPostReadRepository } from '@service/posts/interface/post-read-reposito
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import type { CreatePostInput } from '@service/posts/interface/post-write-repository.interface';
 import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
-import { CacheService, Post } from '@app/shared';
+import { CacheService, Post, isUniqueViolation } from '@app/shared';
 
 @CommandHandler(CreatePostCommand)
 export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
@@ -57,10 +56,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
     try {
       return await this.postWriteRepository.create(input);
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(
           `Post with title '${input.title}' already exists`,
         );

@@ -1,13 +1,12 @@
 import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { QueryFailedError } from 'typeorm';
 import { CreateTagCommand } from './create-tag.command';
 import { ITagReadRepository } from '@service/tags/interface/tag-read-repository.interface';
 import {
   CreateTagInput,
   ITagWriteRepository,
 } from '@service/tags/interface/tag-write-repository.interface';
-import { CacheService, Tag } from '@app/shared';
+import { CacheService, Tag, isUniqueViolation } from '@app/shared';
 
 @CommandHandler(CreateTagCommand)
 export class CreateTagHandler implements ICommandHandler<CreateTagCommand> {
@@ -44,10 +43,7 @@ export class CreateTagHandler implements ICommandHandler<CreateTagCommand> {
     try {
       return await this.tagWriteRepository.create(input);
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(
           `Tag with name '${input.name}' already exists`,
         );

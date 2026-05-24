@@ -5,7 +5,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { QueryFailedError } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import * as bcrypt from 'bcrypt';
 import { GoogleLoginCommand } from './google-login.command';
@@ -18,7 +17,7 @@ import {
 } from '@service/auth/interface/oauth-account-write-repository.interface';
 import { AuthTokenIssuer } from '@service/auth/auth-token-issuer.service';
 import type { GoogleProfilePayload } from '@service/auth/strategy/google-profile.type';
-import { AuthTokens, OAuthAccount, User } from '@app/shared';
+import { AuthTokens, OAuthAccount, User, isUniqueViolation } from '@app/shared';
 
 @CommandHandler(GoogleLoginCommand)
 export class GoogleLoginHandler implements ICommandHandler<
@@ -104,10 +103,7 @@ export class GoogleLoginHandler implements ICommandHandler<
         marketingConsent: false,
       });
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(
           `이미 가입된 이메일입니다: '${profile.email}'`,
         );
@@ -122,10 +118,7 @@ export class GoogleLoginHandler implements ICommandHandler<
     try {
       await this.oauthWriteRepository.create(input);
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string })?.code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException('이미 연결된 Google 계정입니다');
       }
       throw error;

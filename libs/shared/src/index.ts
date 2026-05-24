@@ -11,6 +11,7 @@ export { AdminRole } from './enum/admin-role.enum';
 
 // Database
 export { createDataSourceOptions } from './database/typeorm.config';
+export { isUniqueViolation } from './database/postgres-error.util';
 
 // Common - Base Repository
 export { BaseRepository } from './common/base.repository';
