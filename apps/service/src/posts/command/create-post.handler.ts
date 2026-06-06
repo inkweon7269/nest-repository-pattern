@@ -1,6 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 import { Transactional } from 'typeorm-transactional';
 import { CreatePostCommand } from './create-post.command';
 import { PostCreatedEvent } from '@service/posts/event/post-created.event';
@@ -16,7 +15,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
     private readonly postReadRepository: IPostReadRepository,
     private readonly postWriteRepository: IPostWriteRepository,
     private readonly tagOwnershipValidator: TagOwnershipValidator,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly eventBus: EventBus,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -70,10 +69,7 @@ export class CreatePostHandler implements ICommandHandler<CreatePostCommand> {
     title: string,
     userId: number,
   ): void {
-    this.eventEmitter.emit(
-      PostCreatedEvent.event,
-      new PostCreatedEvent(postId, title, userId),
-    );
+    this.eventBus.publish(new PostCreatedEvent(postId, title, userId));
   }
 
   private async invalidateUserCache(userId: number): Promise<void> {

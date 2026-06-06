@@ -1,13 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 import { PostCreatedEvent } from './post-created.event';
 import { SlackService } from '@app/shared';
 
-@Injectable()
-export class PostCreatedHandler {
+@EventsHandler(PostCreatedEvent)
+export class PostCreatedHandler implements IEventHandler<PostCreatedEvent> {
   constructor(private readonly slackService: SlackService) {}
 
-  @OnEvent(PostCreatedEvent.event, { async: true })
   async handle(event: PostCreatedEvent): Promise<void> {
     await this.slackService.sendPostCreatedNotification(
       event.postId,
