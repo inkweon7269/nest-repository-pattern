@@ -33,6 +33,10 @@ export type { AuthTokens } from './auth.types';
 export { AppCacheModule } from './cache/cache.module';
 export { CacheService } from './cache/cache.service';
 
+// CQRS
+export { CqrsLoggingModule } from './cqrs/cqrs-logging.module';
+export { UnhandledEventExceptionsLogger } from './cqrs/unhandled-event-exceptions.logger';
+
 // Logging
 export { LoggingModule } from './logging/logging.module';
 export { HttpExceptionFilter } from './logging/http-exception.filter';

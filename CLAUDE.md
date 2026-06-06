@@ -191,12 +191,13 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - Redis 기반 멱등성 키 저장. `IdempotencyInterceptor`가 요청 헤더의 키로 중복 여부 판단
 - `IdempotencyModule`을 import하여 사용
 
-### Event-Driven (EventEmitter + Slack)
+### Event-Driven (CQRS EventBus + Slack)
 
-- `@nestjs/event-emitter` 기반 도메인 이벤트 발행 — Command Handler에서 상태 변경 후 이벤트 발행
-- `PostCreatedEvent` → `PostCreatedHandler`가 Slack 알림 전송 (`apps/service/src/posts/event/`)
-- `SlackModule` / `SlackService` (`libs/shared/src/slack/`) — Slack Bot Token으로 채널 알림 전송
-- 이벤트 핸들러는 비동기 처리되므로 메인 요청 흐름에 영향 없음
+- `@nestjs/cqrs`의 `EventBus` 기반 도메인 이벤트 발행 — Command Handler에서 상태 변경 후 `eventBus.publish(new XxxEvent(...))`. 별도 이벤트 문자열 키 없이 이벤트 클래스 자체로 라우팅
+- `PostCreatedEvent` → `PostCreatedHandler`(`@EventsHandler` + `IEventHandler<T>`)가 Slack 알림 전송 (`apps/service/src/posts/event/`)
+- `SlackModule` / `SlackService` (`libs/shared/src/slack/`) — Slack Bot Token으로 채널 알림 전송. 내부 catch로 Fail-Open (전송 실패가 핸들러로 전파되지 않음)
+- 이벤트 핸들러는 RxJS 스트림에서 비동기 처리되므로 메인 요청 흐름에 영향 없음. 핸들러 실패도 publisher(Command Handler)에 전파되지 않음
+- **이벤트 핸들러 예외는 Exception filter 미적용** — request-response cycle 밖이므로 `HttpExceptionFilter`가 잡지 못한다. EventBus 내장 `catchError`가 예외를 `UnhandledExceptionBus`(CqrsModule이 export하는 앱 전체 싱글톤)로 발행하고, `CqrsLoggingModule`의 `UnhandledEventExceptionsLogger`(`libs/shared/src/cqrs/`)가 이를 구독하여 앱 전역의 이벤트 핸들러 예외를 중앙 로깅. EventBus로 이벤트를 발행하는 앱의 AppModule에서 `CqrsLoggingModule`을 import한다 (현재 service만 — back-office는 이벤트 도입 시점에 추가). 이벤트 핸들러 안에 별도 try/catch를 추가하지 않는다 (SlackService Fail-Open + UnhandledExceptionBus 안전망으로 충분 — dead catch 방지)
 
 ### OpenTelemetry
 
@@ -210,7 +211,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 외부 OTEL 백엔드 없이도 단일 PostgreSQL 쿼리가 임계값을 넘으면 Slack 채널로 알림을 보내는 인앱 후크. 코드는 `libs/shared/src/otel/` + `libs/shared/src/instrumentation.ts` + `libs/shared/src/slack/slack.service.ts`(sendSlowQueryAlert).
 
 - 데이터 흐름: pg 자동 계측 → `SlowQuerySpanProcessor` → 모듈 레벨 callback registry → `SlowQueryAlertHandler` (NestJS DI) → `SlackService.sendSlowQueryAlert` → `#prod-slow-query` / `#dev-slow-query` 채널
-- Boot-time SpanProcessor와 NestJS DI 사이 연결: 모듈 레벨 callback + buffer(BUFFER_CAP=100건) 패턴. EventEmitter는 back-office에 미등록되어 있어 사용 안 함.
+- Boot-time SpanProcessor와 NestJS DI 사이 연결: 모듈 레벨 callback + buffer(BUFFER_CAP=100건) 패턴. SpanProcessor는 NestJS DI 컨테이너 부팅 전에 생성되므로 EventBus 등 DI 기반 이벤트 시스템을 사용할 수 없음.
 - Dedup: SQL 본문 SHA-1 앞 16자를 키로 60초 TTL Redis 중복 제거 (분산 환경 모든 인스턴스 공유). `CacheService` Fail-Open이라 Redis 장애 시 dedup 효과만 사라지고 알림 자체는 계속 전송
 - 환경변수: `SLOW_QUERY_THRESHOLD_MS`(기본 5000, NaN/음수면 폴백), `SLACK_BOT_TOKEN` 미설정 시 silent skip
 - 양쪽 앱 활성화: 각 AppModule이 `OtelAlertingModule` import 필수

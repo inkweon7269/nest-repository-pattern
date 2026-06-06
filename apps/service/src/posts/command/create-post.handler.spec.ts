@@ -1,8 +1,10 @@
 import { TestBed, type Mocked } from '@suites/unit';
 import type { Type } from '@suites/types.common';
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
 import { CreatePostHandler } from './create-post.handler';
 import { CreatePostCommand } from './create-post.command';
+import { PostCreatedEvent } from '@service/posts/event/post-created.event';
 import { IPostReadRepository } from '@service/posts/interface/post-read-repository.interface';
 import { IPostWriteRepository } from '@service/posts/interface/post-write-repository.interface';
 import { TagOwnershipValidator } from '@service/tags/tag-ownership.validator';
@@ -20,6 +22,7 @@ describe('CreatePostHandler', () => {
   let postReadRepository: Mocked<IPostReadRepository>;
   let postWriteRepository: Mocked<IPostWriteRepository>;
   let tagOwnershipValidator: Mocked<TagOwnershipValidator>;
+  let eventBus: Mocked<EventBus>;
 
   beforeEach(async () => {
     const { unit, unitRef } =
@@ -33,6 +36,7 @@ describe('CreatePostHandler', () => {
       IPostWriteRepository as Type<IPostWriteRepository>,
     );
     tagOwnershipValidator = unitRef.get(TagOwnershipValidator);
+    eventBus = unitRef.get(EventBus);
   });
 
   it('중복되지 않는 제목이면 게시글을 생성하고 id를 반환한다', async () => {
@@ -54,6 +58,9 @@ describe('CreatePostHandler', () => {
       isPublished: false,
       tagIds: undefined,
     });
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      new PostCreatedEvent(1, 'New Title', 1),
+    );
   });
 
   it('동일한 제목이 이미 존재하면 ConflictException을 발생시킨다', async () => {

@@ -1,5 +1,7 @@
 # Slack 알림 PRD: Post 생성 시 Slack 알림 전송
 
+> **[2026-06 마이그레이션 노트]** 이 문서는 최초 구현 당시 `@nestjs/event-emitter`를 선택한 기록이다. 이후 이벤트 시스템은 `@nestjs/cqrs`의 `EventBus`(`@EventsHandler`)로 마이그레이션되었고 `@nestjs/event-emitter` 의존성은 제거되었다. 당시 미선택 사유였던 "EventBus는 동기 실행이라 핸들러 실패가 전파됨"은 @nestjs/cqrs v11 기준 부정확하다 — EventBus는 RxJS 스트림으로 핸들러를 비동기 실행하고, 핸들러 예외는 내부 `catchError`가 `UnhandledExceptionBus`로 발행하므로 publisher에 전파되지 않는다. 현행 구조는 CLAUDE.md의 "Event-Driven (CQRS EventBus + Slack)" 섹션 참고.
+
 ## 0. 용어 해설
 
 이 문서에서 사용하는 주요 용어를 정리한다.

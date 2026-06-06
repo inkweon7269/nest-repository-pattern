@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -28,7 +27,6 @@ const nodeEnv = process.env.NODE_ENV || 'local';
         { name: 'long', ttl: 60000, limit: 60 },
       ],
     }),
-    EventEmitterModule.forRoot(),
     LoggingModule,
     IdempotencyModule,
     TypeOrmModule.forRootAsync({
