@@ -201,7 +201,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `PostCreatedEvent` → `PostCreatedHandler`(`@EventsHandler` + `IEventHandler<T>`)가 Slack 알림 전송 (`apps/service/src/posts/event/`)
 - `SlackModule` / `SlackService` (`libs/shared/src/slack/`) — Slack Bot Token으로 채널 알림 전송. 내부 catch로 Fail-Open (전송 실패가 핸들러로 전파되지 않음)
 - 이벤트 핸들러는 RxJS 스트림에서 비동기 처리되므로 메인 요청 흐름에 영향 없음. 핸들러 실패도 publisher(Command Handler)에 전파되지 않음
-- **이벤트 핸들러 예외는 Exception filter 미적용** — request-response cycle 밖이므로 `HttpExceptionFilter`가 잡지 못한다. EventBus 내장 `catchError`가 예외를 `UnhandledExceptionBus`(CqrsModule이 export하는 앱 전체 싱글톤)로 발행하고, `CqrsLoggingModule`의 `UnhandledEventExceptionsLogger`(`libs/shared/src/cqrs/`)가 이를 구독하여 앱 전역의 이벤트 핸들러 예외를 중앙 로깅. EventBus로 이벤트를 발행하는 앱의 AppModule에서 `CqrsLoggingModule`을 import한다 (현재 service만 — back-office는 이벤트 도입 시점에 추가). 이벤트 핸들러 안에 별도 try/catch를 추가하지 않는다 (SlackService Fail-Open + UnhandledExceptionBus 안전망으로 충분 — dead catch 방지)
+- **이벤트 핸들러 예외는 Exception filter 미적용** — request-response cycle 밖이므로 `HttpExceptionFilter`가 잡지 못한다. EventBus 내장 `catchError`가 예외를 `UnhandledExceptionBus`(CqrsModule이 export하는 앱 전체 싱글톤)로 발행하고, `CqrsLoggingModule`의 `UnhandledEventExceptionsLogger`(`libs/shared/src/cqrs/`)가 이를 구독하여 앱 전역의 이벤트 핸들러 예외를 중앙 로깅. EventBus로 이벤트를 발행하는 앱의 루트 모듈에서 `CqrsLoggingModule`을 import한다 (현재 `ServiceAppModule`만 — back-office는 이벤트 도입 시점에 추가). 이벤트 핸들러 안에 별도 try/catch를 추가하지 않는다 (SlackService Fail-Open + UnhandledExceptionBus 안전망으로 충분 — dead catch 방지)
 
 ### OpenTelemetry
 
@@ -218,7 +218,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - Boot-time SpanProcessor와 NestJS DI 사이 연결: 모듈 레벨 callback + buffer(BUFFER_CAP=100건) 패턴. SpanProcessor는 NestJS DI 컨테이너 부팅 전에 생성되므로 EventBus 등 DI 기반 이벤트 시스템을 사용할 수 없음.
 - Dedup: SQL 본문 SHA-1 앞 16자를 키로 60초 TTL Redis 중복 제거 (분산 환경 모든 인스턴스 공유). `CacheService` Fail-Open이라 Redis 장애 시 dedup 효과만 사라지고 알림 자체는 계속 전송
 - 환경변수: `SLOW_QUERY_THRESHOLD_MS`(기본 5000, NaN/음수면 폴백), `SLACK_BOT_TOKEN` 미설정 시 silent skip
-- 양쪽 앱 활성화: 각 AppModule이 `OtelAlertingModule` import 필수
+- 양쪽 앱 활성화: 각 앱의 루트 모듈(`ServiceAppModule`/`BackOfficeAppModule`)이 `OtelAlertingModule` import 필수
 - 민감 정보 보호: pg 자동 계측의 `enhancedDatabaseReporting` 기본값 `false` 유지로 SQL 파라미터 값(비밀번호 등) 캡처 안 됨
 
 ### Transaction Infrastructure (typeorm-transactional)
@@ -289,7 +289,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
   - **Repository 인터페이스 토큰(abstract class)은 캐스팅 필수**: `IPostReadRepository`처럼 abstract class를 DI 토큰으로 쓰면 `unitRef.get`의 `Type<T>`(non-abstract constructor) 시그니처에 할당되지 못해 `TS2769` 발생. `import type { Type } from '@suites/types.common'`을 추가하고 `unitRef.get<IPostReadRepository>(IPostReadRepository as Type<IPostReadRepository>)` 패턴을 사용한다. `JwtService`/`ConfigService` 등 concrete class 토큰은 캐스팅 불필요. SWC 빌드(`pnpm build:all`)는 spec을 제외하므로 통과하지만 `tsc` strict 체크에서 잡힘.
   - Handler: 분기 로직(검증, 23505→`ConflictException` 매핑, `NotFoundException` 분기, DTO 변환 등)이 있는 Handler는 단위 테스트로 커버. 진정한 pass-through(예: `LogoutHandler`처럼 단일 write로 즉시 반환하고 검증 없음)는 통합 테스트로만.
   - DTO: `PostResponseDto.of()`, `PaginatedResponseDto.of()` — 순수 팩토리 함수
-- **통합 테스트** (`test/service/*.integration-spec.ts`, `test/back-office/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL/Redis 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp(AppModule)`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+- **통합 테스트** (`test/service/*.integration-spec.ts`, `test/back-office/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL/Redis 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp(ServiceAppModule)`(back-office는 `AdminTestModule`)으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
   - **격리 메커니즘**: `useTransactionRollback().start()`(beforeEach)에서 **TRUNCATE RESTART IDENTITY CASCADE + Redis FLUSHDB**로 매 테스트 직전 정리. `rollback()`(afterEach)는 no-op. `dataSource.manager` override 방식은 `@Transactional()`(typeorm-transactional)이 별도 커넥션으로 새 트랜잭션을 열어 충돌하므로 사용하지 않는다. 첫 테스트 실행 전과 다른 spec 파일 사이에는 새 `createIntegrationApp` 호출이 정리를 보장.
   - **typeorm-transactional 등록**: `createIntegrationApp` 내부에서 `deleteDataSourceByName('default')` 후 `addTransactionalDataSource(app.get(DataSource))` 호출. spec 파일마다 새 DataSource를 만들므로 매번 재등록 필요.
   - **Jest setupFiles**: 루트 `jest` 설정과 `test/{service,back-office}/jest-e2e.json`에 `test/setup/jest-setup.ts`가 등록되어 `initializeTransactionalContext()`를 1회 실행.
