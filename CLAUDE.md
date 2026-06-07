@@ -39,6 +39,10 @@ npx jest --config ./test/service/jest-e2e.json test/service/posts.integration-sp
 pnpm lint
 pnpm format
 
+# Docs (Compodoc — 소스 구조 문서)
+pnpm docs:serve         # localhost:8080에 구조 문서 라이브 서버 (watch 포함)
+pnpm docs:build         # documentation/에 정적 사이트 생성 (gitignore됨, 커밋 금지)
+
 # Migration (libs/shared/src/data-source.ts 기준)
 pnpm migration:local                                                          # 로컬 DB에 pending migration 실행
 pnpm migration:dev                                                            # dev DB에 pending migration 실행
@@ -256,6 +260,18 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 ### Swagger
 
 `/api` 경로에서 Swagger UI 확인 가능. DTO에 `@ApiProperty`/`@ApiPropertyOptional` 적용. Bearer Auth 설정이 포함되어 있으므로 인증이 필요한 엔드포인트에 `@ApiBearerAuth()` 적용.
+
+### Compodoc (소스 구조 문서)
+
+내부 개발자용 구조 문서(모듈 트리·클래스 카탈로그·DI 의존성 그래프·JSDoc 본문) 자동 생성. Swagger와 보완 관계 — Compodoc = 내부 구조 문서, Swagger = 외부 API 문서. Compodoc의 라우트 추출은 Angular `@RouterModule` 전용이라 NestJS `@Controller` 라우트를 읽지 못해 빈 Routes 페이지가 생기므로 `disableRoutesGraph: true`로 메뉴를 제거함 — 라우트 문서는 Swagger가 담당.
+
+- `pnpm docs:serve`(로컬 서버 + watch) / `pnpm docs:build`(`documentation/`에 정적 생성, gitignore됨)
+- **설정은 `.compodocrc.json` 단일 파일** — scripts에 CLI 플래그를 중복 정의하지 않는다 (실행 모드 `-s -w`만 예외)
+- **스캔 범위는 `tsconfig.doc.json`으로 제어** — Compodoc에는 `--exclude` CLI 플래그가 없으며 tsconfig의 `include`/`exclude`를 따른다. 루트 `tsconfig.json`·빌드·마이그레이션 경로는 건드리지 않는다
+- **앱 간 동일 클래스명 금지** — Compodoc은 클래스명으로 문서 페이지를 만들어 동명 클래스가 서로 덮어쓴다. 루트 모듈을 `ServiceAppModule`/`BackOfficeAppModule`로 분리한 선례를 따라, 새 앱/모듈 추가 시 앱 간 클래스명이 겹치지 않게 한다
+- **Guides 메뉴** — `docs/summary.json`에 등록된 가이드 문서만 사이트에 포함된다. 큐레이션 원칙: 현재 유효한 아키텍처 가이드만 포함, PRD·todo(작업 이력)는 제외. 새 가이드 문서 작성 시 `summary.json`에 추가
+- **알려진 제약: 가이드 본문의 `.md` 상대 링크는 사이트에서 404** — 원본 md는 GitHub 열람 기준이라 `./xxx-guide.md` 링크를 사용하는데, Compodoc은 이를 HTML 슬러그로 재작성하지 않는다. 사이트용으로 고치면 GitHub 렌더링이 깨지므로 그대로 둔다 (README 페이지의 레포 상대 링크도 동일)
+- 도입 배경·결정 사항: `docs/compodoc-prd.md`
 
 ### Testing
 

@@ -6,14 +6,14 @@ import {
   useTransactionRollback,
   TransactionHelper,
 } from '../setup/integration-helper';
-import { AppModule } from '../../apps/service/src/app.module';
+import { ServiceAppModule } from '../../apps/service/src/app.module';
 
 describe('Posts (integration)', () => {
   let app: INestApplication<App>;
   let txHelper: TransactionHelper;
 
   beforeAll(async () => {
-    app = await createIntegrationApp(AppModule);
+    app = await createIntegrationApp(ServiceAppModule);
     txHelper = useTransactionRollback(app);
   });
 

@@ -30,6 +30,9 @@ yarn-error.log*
 /coverage
 .test-env.json
 
+# compodoc
+/documentation
+
 # claude
 .claude/settings.local.json
 .claude/worktrees/
