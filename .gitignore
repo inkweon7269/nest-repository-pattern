@@ -36,6 +36,7 @@ yarn-error.log*
 # claude
 .claude/settings.local.json
 .claude/worktrees/
+.playwright-mcp/
 
 # misc
 *.tsbuildinfo
