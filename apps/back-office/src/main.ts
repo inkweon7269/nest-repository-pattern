@@ -14,12 +14,14 @@ import {
   HttpExceptionFilter,
   LoggingInterceptor,
 } from '@app/shared';
-import { AppModule } from './app.module';
+import { BackOfficeAppModule } from './app.module';
 
 async function bootstrap() {
   initializeTransactionalContext();
 
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(BackOfficeAppModule, {
+    bufferLogs: true,
+  });
   addTransactionalDataSource(app.get(DataSource));
 
   applySecurityMiddleware(app, {

@@ -39,6 +39,10 @@ npx jest --config ./test/service/jest-e2e.json test/service/posts.integration-sp
 pnpm lint
 pnpm format
 
+# Docs (Compodoc — 소스 구조 문서)
+pnpm docs:serve         # localhost:8080에 구조 문서 라이브 서버 (watch 포함)
+pnpm docs:build         # documentation/에 정적 사이트 생성 (gitignore됨, 커밋 금지)
+
 # Migration (libs/shared/src/data-source.ts 기준)
 pnpm migration:local                                                          # 로컬 DB에 pending migration 실행
 pnpm migration:dev                                                            # dev DB에 pending migration 실행
@@ -197,7 +201,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - `PostCreatedEvent` → `PostCreatedHandler`(`@EventsHandler` + `IEventHandler<T>`)가 Slack 알림 전송 (`apps/service/src/posts/event/`)
 - `SlackModule` / `SlackService` (`libs/shared/src/slack/`) — Slack Bot Token으로 채널 알림 전송. 내부 catch로 Fail-Open (전송 실패가 핸들러로 전파되지 않음)
 - 이벤트 핸들러는 RxJS 스트림에서 비동기 처리되므로 메인 요청 흐름에 영향 없음. 핸들러 실패도 publisher(Command Handler)에 전파되지 않음
-- **이벤트 핸들러 예외는 Exception filter 미적용** — request-response cycle 밖이므로 `HttpExceptionFilter`가 잡지 못한다. EventBus 내장 `catchError`가 예외를 `UnhandledExceptionBus`(CqrsModule이 export하는 앱 전체 싱글톤)로 발행하고, `CqrsLoggingModule`의 `UnhandledEventExceptionsLogger`(`libs/shared/src/cqrs/`)가 이를 구독하여 앱 전역의 이벤트 핸들러 예외를 중앙 로깅. EventBus로 이벤트를 발행하는 앱의 AppModule에서 `CqrsLoggingModule`을 import한다 (현재 service만 — back-office는 이벤트 도입 시점에 추가). 이벤트 핸들러 안에 별도 try/catch를 추가하지 않는다 (SlackService Fail-Open + UnhandledExceptionBus 안전망으로 충분 — dead catch 방지)
+- **이벤트 핸들러 예외는 Exception filter 미적용** — request-response cycle 밖이므로 `HttpExceptionFilter`가 잡지 못한다. EventBus 내장 `catchError`가 예외를 `UnhandledExceptionBus`(CqrsModule이 export하는 앱 전체 싱글톤)로 발행하고, `CqrsLoggingModule`의 `UnhandledEventExceptionsLogger`(`libs/shared/src/cqrs/`)가 이를 구독하여 앱 전역의 이벤트 핸들러 예외를 중앙 로깅. EventBus로 이벤트를 발행하는 앱의 루트 모듈에서 `CqrsLoggingModule`을 import한다 (현재 `ServiceAppModule`만 — back-office는 이벤트 도입 시점에 추가). 이벤트 핸들러 안에 별도 try/catch를 추가하지 않는다 (SlackService Fail-Open + UnhandledExceptionBus 안전망으로 충분 — dead catch 방지)
 
 ### OpenTelemetry
 
@@ -214,7 +218,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 - Boot-time SpanProcessor와 NestJS DI 사이 연결: 모듈 레벨 callback + buffer(BUFFER_CAP=100건) 패턴. SpanProcessor는 NestJS DI 컨테이너 부팅 전에 생성되므로 EventBus 등 DI 기반 이벤트 시스템을 사용할 수 없음.
 - Dedup: SQL 본문 SHA-1 앞 16자를 키로 60초 TTL Redis 중복 제거 (분산 환경 모든 인스턴스 공유). `CacheService` Fail-Open이라 Redis 장애 시 dedup 효과만 사라지고 알림 자체는 계속 전송
 - 환경변수: `SLOW_QUERY_THRESHOLD_MS`(기본 5000, NaN/음수면 폴백), `SLACK_BOT_TOKEN` 미설정 시 silent skip
-- 양쪽 앱 활성화: 각 AppModule이 `OtelAlertingModule` import 필수
+- 양쪽 앱 활성화: 각 앱의 루트 모듈(`ServiceAppModule`/`BackOfficeAppModule`)이 `OtelAlertingModule` import 필수
 - 민감 정보 보호: pg 자동 계측의 `enhancedDatabaseReporting` 기본값 `false` 유지로 SQL 파라미터 값(비밀번호 등) 캡처 안 됨
 
 ### Transaction Infrastructure (typeorm-transactional)
@@ -257,6 +261,18 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
 
 `/api` 경로에서 Swagger UI 확인 가능. DTO에 `@ApiProperty`/`@ApiPropertyOptional` 적용. Bearer Auth 설정이 포함되어 있으므로 인증이 필요한 엔드포인트에 `@ApiBearerAuth()` 적용.
 
+### Compodoc (소스 구조 문서)
+
+내부 개발자용 구조 문서(모듈 트리·클래스 카탈로그·DI 의존성 그래프·JSDoc 본문) 자동 생성. Swagger와 보완 관계 — Compodoc = 내부 구조 문서, Swagger = 외부 API 문서. Compodoc의 라우트 추출은 Angular `@RouterModule` 전용이라 NestJS `@Controller` 라우트를 읽지 못해 빈 Routes 페이지가 생기므로 `disableRoutesGraph: true`로 메뉴를 제거함 — 라우트 문서는 Swagger가 담당.
+
+- `pnpm docs:serve`(로컬 서버 + watch) / `pnpm docs:build`(`documentation/`에 정적 생성, gitignore됨)
+- **설정은 `.compodocrc.json` 단일 파일** — scripts에 CLI 플래그를 중복 정의하지 않는다 (실행 모드 `-s -w`만 예외)
+- **스캔 범위는 `tsconfig.doc.json`으로 제어** — Compodoc에는 `--exclude` CLI 플래그가 없으며 tsconfig의 `include`/`exclude`를 따른다. 루트 `tsconfig.json`·빌드·마이그레이션 경로는 건드리지 않는다
+- **앱 간 동일 클래스명 금지** — Compodoc은 클래스명으로 문서 페이지를 만들어 동명 클래스가 서로 덮어쓴다. 루트 모듈을 `ServiceAppModule`/`BackOfficeAppModule`로 분리한 선례를 따라, 새 앱/모듈 추가 시 앱 간 클래스명이 겹치지 않게 한다
+- **Guides 메뉴** — `docs/summary.json`에 등록된 가이드 문서만 사이트에 포함된다. 큐레이션 원칙: 현재 유효한 아키텍처 가이드만 포함, PRD·todo(작업 이력)는 제외. 새 가이드 문서 작성 시 `summary.json`에 추가
+- **알려진 제약: 가이드 본문의 `.md` 상대 링크는 사이트에서 404** — 원본 md는 GitHub 열람 기준이라 `./xxx-guide.md` 링크를 사용하는데, Compodoc은 이를 HTML 슬러그로 재작성하지 않는다. 사이트용으로 고치면 GitHub 렌더링이 깨지므로 그대로 둔다 (README 페이지의 레포 상대 링크도 동일)
+- 도입 배경·결정 사항: `docs/compodoc-prd.md`
+
 ### Testing
 
 - 코드 변경 후 항상 `pnpm build:all`과 `pnpm test`를 실행한다.
@@ -273,7 +289,7 @@ Controller → CommandBus / QueryBus → Handler (검증 + 로직) → IPostRead
   - **Repository 인터페이스 토큰(abstract class)은 캐스팅 필수**: `IPostReadRepository`처럼 abstract class를 DI 토큰으로 쓰면 `unitRef.get`의 `Type<T>`(non-abstract constructor) 시그니처에 할당되지 못해 `TS2769` 발생. `import type { Type } from '@suites/types.common'`을 추가하고 `unitRef.get<IPostReadRepository>(IPostReadRepository as Type<IPostReadRepository>)` 패턴을 사용한다. `JwtService`/`ConfigService` 등 concrete class 토큰은 캐스팅 불필요. SWC 빌드(`pnpm build:all`)는 spec을 제외하므로 통과하지만 `tsc` strict 체크에서 잡힘.
   - Handler: 분기 로직(검증, 23505→`ConflictException` 매핑, `NotFoundException` 분기, DTO 변환 등)이 있는 Handler는 단위 테스트로 커버. 진정한 pass-through(예: `LogoutHandler`처럼 단일 write로 즉시 반환하고 검증 없음)는 통합 테스트로만.
   - DTO: `PostResponseDto.of()`, `PaginatedResponseDto.of()` — 순수 팩토리 함수
-- **통합 테스트** (`test/service/*.integration-spec.ts`, `test/back-office/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL/Redis 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp(AppModule)`으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
+- **통합 테스트** (`test/service/*.integration-spec.ts`, `test/back-office/*.integration-spec.ts`) — Testcontainers + `globalSetup` 패턴. `globalSetup`에서 PostgreSQL/Redis 컨테이너를 1회 기동하고 migration을 실행한 뒤, 접속 정보를 `.test-env.json`에 기록. 각 테스트 파일은 `createIntegrationApp(ServiceAppModule)`(back-office는 `AdminTestModule`)으로 앱을 생성하고 `useTransactionRollback()`으로 **per-test 격리**를 적용하여 mock 없이 전체 플로우(Controller → CommandBus/QueryBus → Handler → Repository → TypeORM → PostgreSQL) 검증. HTTP 레이어(ValidationPipe, 라우팅, 상태 코드)도 통합 테스트에서 함께 검증. `globalTeardown`에서 컨테이너 종료 및 임시 파일 삭제. Docker 필수.
   - **격리 메커니즘**: `useTransactionRollback().start()`(beforeEach)에서 **TRUNCATE RESTART IDENTITY CASCADE + Redis FLUSHDB**로 매 테스트 직전 정리. `rollback()`(afterEach)는 no-op. `dataSource.manager` override 방식은 `@Transactional()`(typeorm-transactional)이 별도 커넥션으로 새 트랜잭션을 열어 충돌하므로 사용하지 않는다. 첫 테스트 실행 전과 다른 spec 파일 사이에는 새 `createIntegrationApp` 호출이 정리를 보장.
   - **typeorm-transactional 등록**: `createIntegrationApp` 내부에서 `deleteDataSourceByName('default')` 후 `addTransactionalDataSource(app.get(DataSource))` 호출. spec 파일마다 새 DataSource를 만들므로 매번 재등록 필요.
   - **Jest setupFiles**: 루트 `jest` 설정과 `test/{service,back-office}/jest-e2e.json`에 `test/setup/jest-setup.ts`가 등록되어 `initializeTransactionalContext()`를 1회 실행.

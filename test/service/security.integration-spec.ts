@@ -2,13 +2,13 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { createIntegrationApp } from '../setup/integration-helper';
-import { AppModule } from '../../apps/service/src/app.module';
+import { ServiceAppModule } from '../../apps/service/src/app.module';
 
 describe('Security (integration)', () => {
   let app: INestApplication<App>;
 
   beforeAll(async () => {
-    app = await createIntegrationApp(AppModule);
+    app = await createIntegrationApp(ServiceAppModule);
   });
 
   afterAll(async () => {

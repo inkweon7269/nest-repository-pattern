@@ -1,0 +1,42 @@
+[
+    {
+        "title": "CQRS 가이드",
+        "file": "cqrs-guide.md"
+    },
+    {
+        "title": "인터페이스 분리 원칙 (ISP)",
+        "file": "interface-segregation-principle.md"
+    },
+    {
+        "title": "테스트 전략",
+        "file": "testing-strategy.md"
+    },
+    {
+        "title": "캐시 레이어 가이드",
+        "file": "cache-layer-guide.md"
+    },
+    {
+        "title": "보안 (helmet + CORS) 가이드",
+        "file": "helmet-cors-guide.md"
+    },
+    {
+        "title": "압축 (Compression) 가이드",
+        "file": "compression-guide.md"
+    },
+    {
+        "title": "멱등성 (Idempotency) 가이드",
+        "file": "idempotency-guide.md"
+    },
+    {
+        "title": "Google OAuth 가이드",
+        "file": "google-oauth-prd.md"
+    },
+    {
+        "title": "SWC 마이그레이션 가이드",
+        "file": "swc-migration-guide.md"
+    },
+    {
+        "title": "GitHub Actions 가이드",
+        "file": "github-actions-guide.md"
+    }
+]

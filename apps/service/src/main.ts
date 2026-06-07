@@ -14,12 +14,12 @@ import {
   HttpExceptionFilter,
   LoggingInterceptor,
 } from '@app/shared';
-import { AppModule } from './app.module';
+import { ServiceAppModule } from './app.module';
 
 async function bootstrap() {
   initializeTransactionalContext();
 
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(ServiceAppModule, { bufferLogs: true });
   addTransactionalDataSource(app.get(DataSource));
 
   applySecurityMiddleware(app, { corsOriginEnvKey: 'SERVICE_CORS_ORIGINS' });

@@ -19,6 +19,8 @@
     "start:service:prod": "cross-env NODE_ENV=production OTEL_SERVICE_NAME=service node dist/apps/service/main",
     "start:back-office:prod": "cross-env NODE_ENV=production OTEL_SERVICE_NAME=back-office node dist/apps/back-office/main",
     "start:service:debug": "cross-env NODE_ENV=development OTEL_SERVICE_NAME=service nest start service --debug --watch",
+    "docs:serve": "compodoc -s -w",
+    "docs:build": "compodoc",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
@@ -79,6 +81,7 @@
     "typeorm-transactional": "^0.5.0"
   },
   "devDependencies": {
+    "@compodoc/compodoc": "^1.2.1",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^11.0.16",

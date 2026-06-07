@@ -9,7 +9,7 @@ import {
 } from '../setup/integration-helper';
 import { MockGoogleStrategy } from '../setup/google-strategy.mock';
 import { MockGoogleLinkStrategy } from '../setup/google-link-strategy.mock';
-import { AppModule } from '../../apps/service/src/app.module';
+import { ServiceAppModule } from '../../apps/service/src/app.module';
 import { GoogleStrategy } from '../../apps/service/src/auth/strategy/google.strategy';
 import { GoogleLinkStrategy } from '../../apps/service/src/auth/strategy/google-link.strategy';
 import { OAuthAccount, User } from '@app/shared';
@@ -20,7 +20,7 @@ describe('Google OAuth (integration)', () => {
   let dataSource: DataSource;
 
   beforeAll(async () => {
-    app = await createIntegrationApp(AppModule, {
+    app = await createIntegrationApp(ServiceAppModule, {
       overrideProviders: [
         { provide: GoogleStrategy, useClass: MockGoogleStrategy },
         { provide: GoogleLinkStrategy, useClass: MockGoogleLinkStrategy },
