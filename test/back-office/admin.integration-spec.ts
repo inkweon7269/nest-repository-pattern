@@ -75,7 +75,7 @@ describe('Admin (integration)', () => {
   // POST /admin/auth/register
   // ============================================================
   describe('POST /admin/auth/register', () => {
-    it('should register and return { id } with 201', async () => {
+    it('회원가입 성공 시 201과 { id }를 반환한다', async () => {
       const res = await registerAdmin().expect(201);
 
       expect(res.body.id).toBeDefined();
@@ -83,7 +83,7 @@ describe('Admin (integration)', () => {
       expect(Object.keys(res.body)).toEqual(['id']);
     });
 
-    it('should persist admin (verified via login)', async () => {
+    it('관리자를 저장한다 (로그인으로 검증)', async () => {
       await registerAdmin().expect(201);
 
       await request(app.getHttpServer())
@@ -92,7 +92,7 @@ describe('Admin (integration)', () => {
         .expect(200);
     });
 
-    it('should always register with MANAGER role', async () => {
+    it('항상 MANAGER 역할로 등록한다', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -103,7 +103,7 @@ describe('Admin (integration)', () => {
       expect(res.body.role).toBe('MANAGER');
     });
 
-    it('should return 409 for duplicate email', async () => {
+    it('중복된 이메일이면 409를 반환한다', async () => {
       await registerAdmin().expect(201);
 
       const res = await registerAdmin().expect(409);
@@ -111,28 +111,28 @@ describe('Admin (integration)', () => {
       expect(res.body.message).toContain(defaultAdmin.email);
     });
 
-    it('should return 400 when email is missing', () => {
+    it('email이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/register')
         .send({ password: 'password123', name: '테스트' })
         .expect(400);
     });
 
-    it('should return 400 when password is shorter than 8 characters', () => {
+    it('password가 8자 미만이면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/register')
         .send({ email: 'a@b.com', password: 'short', name: '테스트' })
         .expect(400);
     });
 
-    it('should return 400 when name is missing', () => {
+    it('name이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/register')
         .send({ email: 'a@b.com', password: 'password123' })
         .expect(400);
     });
 
-    it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
+    it('알 수 없는 속성이 포함되면 400을 반환한다 (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/register')
         .send({ ...defaultAdmin, role: 'SUPER' })
@@ -144,7 +144,7 @@ describe('Admin (integration)', () => {
   // POST /admin/auth/login
   // ============================================================
   describe('POST /admin/auth/login', () => {
-    it('should login and return { accessToken, refreshToken } with 200', async () => {
+    it('로그인 성공 시 200과 { accessToken, refreshToken }을 반환한다', async () => {
       await registerAdmin().expect(201);
 
       const res = await request(app.getHttpServer())
@@ -162,14 +162,14 @@ describe('Admin (integration)', () => {
       ]);
     });
 
-    it('should return 401 for non-existent email', () => {
+    it('존재하지 않는 이메일이면 401을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/login')
         .send({ email: 'nobody@example.com', password: 'password123' })
         .expect(401);
     });
 
-    it('should return 401 for wrong password', async () => {
+    it('비밀번호가 틀리면 401을 반환한다', async () => {
       await registerAdmin().expect(201);
 
       return request(app.getHttpServer())
@@ -178,14 +178,14 @@ describe('Admin (integration)', () => {
         .expect(401);
     });
 
-    it('should return 400 when email is missing', () => {
+    it('email이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/login')
         .send({ password: 'password123' })
         .expect(400);
     });
 
-    it('should return 400 when password is missing', () => {
+    it('password가 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/login')
         .send({ email: 'a@b.com' })
@@ -197,7 +197,7 @@ describe('Admin (integration)', () => {
   // POST /admin/auth/refresh
   // ============================================================
   describe('POST /admin/auth/refresh', () => {
-    it('should return new { accessToken, refreshToken } with 200', async () => {
+    it('새로운 { accessToken, refreshToken }과 200을 반환한다', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -210,7 +210,7 @@ describe('Admin (integration)', () => {
       expect(res.body.refreshToken).not.toBe(tokens.refreshToken);
     });
 
-    it('should invalidate old refresh token after rotation', async () => {
+    it('rotation 후 기존 refresh token을 무효화한다', async () => {
       const tokens = await registerAndLogin();
 
       await request(app.getHttpServer())
@@ -224,14 +224,14 @@ describe('Admin (integration)', () => {
         .expect(401);
     });
 
-    it('should return 401 for invalid token', () => {
+    it('유효하지 않은 토큰이면 401을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/refresh')
         .send({ refreshToken: 'invalid-token' })
         .expect(401);
     });
 
-    it('should return 400 when refreshToken is missing', () => {
+    it('refreshToken이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/refresh')
         .send({})
@@ -243,7 +243,7 @@ describe('Admin (integration)', () => {
   // GET /admin/auth/profile
   // ============================================================
   describe('GET /admin/auth/profile', () => {
-    it('should return profile with { id, email, name, role, createdAt, updatedAt } and 200', async () => {
+    it('200과 함께 { id, email, name, role, createdAt, updatedAt } 프로필을 반환한다', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -268,7 +268,7 @@ describe('Admin (integration)', () => {
       ]);
     });
 
-    it('should not include password or hashedRefreshToken in response', async () => {
+    it('응답에 password와 hashedRefreshToken을 포함하지 않는다', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -280,13 +280,13 @@ describe('Admin (integration)', () => {
       expect(res.body).not.toHaveProperty('hashedRefreshToken');
     });
 
-    it('should return 401 without token', () => {
+    it('토큰 없이 호출 시 401을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/back-office/auth/profile')
         .expect(401);
     });
 
-    it('should return 401 with invalid token', () => {
+    it('유효하지 않은 토큰으로 호출 시 401을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/back-office/auth/profile')
         .set('Authorization', 'Bearer invalid-token')
@@ -298,7 +298,7 @@ describe('Admin (integration)', () => {
   // POST /admin/auth/logout
   // ============================================================
   describe('POST /admin/auth/logout', () => {
-    it('should return 204 on successful logout', async () => {
+    it('로그아웃 성공 시 204를 반환한다', async () => {
       const { accessToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
@@ -307,7 +307,7 @@ describe('Admin (integration)', () => {
         .expect(204);
     });
 
-    it('should invalidate refresh token after logout', async () => {
+    it('로그아웃 후 refresh token을 무효화한다', async () => {
       const { accessToken, refreshToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
@@ -321,13 +321,13 @@ describe('Admin (integration)', () => {
         .expect(401);
     });
 
-    it('should return 401 when no Authorization header is provided', () => {
+    it('Authorization 헤더가 없으면 401을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/logout')
         .expect(401);
     });
 
-    it('should return 401 when an invalid token is provided', () => {
+    it('유효하지 않은 토큰이 제공되면 401을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/back-office/auth/logout')
         .set('Authorization', 'Bearer invalid-token')
@@ -339,7 +339,7 @@ describe('Admin (integration)', () => {
   // 토큰 격리: User ↔ Admin 토큰 교차 사용 불가
   // ============================================================
   describe('Token isolation', () => {
-    it('should reject User token on Admin endpoints (401)', async () => {
+    it('Admin 엔드포인트에서 User 토큰 사용 시 401로 거부한다', async () => {
       const userTokens = await registerAndLoginUser();
 
       await request(app.getHttpServer())
@@ -348,7 +348,7 @@ describe('Admin (integration)', () => {
         .expect(401);
     });
 
-    it('should reject Admin token on User endpoints (401)', async () => {
+    it('User 엔드포인트에서 Admin 토큰 사용 시 401로 거부한다', async () => {
       const adminTokens = await registerAndLogin();
 
       await request(app.getHttpServer())

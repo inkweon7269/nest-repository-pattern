@@ -18,7 +18,7 @@ describe('PostResponseDto', () => {
   };
 
   describe('of', () => {
-    it('should map all Post entity fields to DTO', () => {
+    it('Post 엔티티의 모든 필드를 DTO로 매핑한다', () => {
       const post = createPost();
 
       const dto = PostResponseDto.of(post);
@@ -32,7 +32,7 @@ describe('PostResponseDto', () => {
       expect(dto.updatedAt).toBe(post.updatedAt);
     });
 
-    it('should return an instance of PostResponseDto', () => {
+    it('PostResponseDto 인스턴스를 반환한다', () => {
       const post = createPost();
 
       const dto = PostResponseDto.of(post);
@@ -40,7 +40,7 @@ describe('PostResponseDto', () => {
       expect(dto).toBeInstanceOf(PostResponseDto);
     });
 
-    it('should correctly map isPublished: true', () => {
+    it('isPublished: true 값을 그대로 매핑한다', () => {
       const post = createPost({ isPublished: true });
 
       const dto = PostResponseDto.of(post);
@@ -48,7 +48,7 @@ describe('PostResponseDto', () => {
       expect(dto.isPublished).toBe(true);
     });
 
-    it('should correctly map userId', () => {
+    it('userId 값을 그대로 매핑한다', () => {
       const post = createPost({ userId: 42 });
 
       const dto = PostResponseDto.of(post);

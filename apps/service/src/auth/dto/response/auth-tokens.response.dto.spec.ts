@@ -2,7 +2,7 @@ import { AuthTokensResponseDto } from './auth-tokens.response.dto';
 
 describe('AuthTokensResponseDto', () => {
   describe('of', () => {
-    it('should map accessToken and refreshToken to DTO', () => {
+    it('accessToken과 refreshToken을 DTO로 매핑한다', () => {
       const dto = AuthTokensResponseDto.of({
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
@@ -12,7 +12,7 @@ describe('AuthTokensResponseDto', () => {
       expect(dto.refreshToken).toBe('refresh-token');
     });
 
-    it('should return an instance of AuthTokensResponseDto', () => {
+    it('AuthTokensResponseDto 인스턴스를 반환한다', () => {
       const dto = AuthTokensResponseDto.of({
         accessToken: 'a',
         refreshToken: 'r',

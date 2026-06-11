@@ -55,7 +55,7 @@ describe('Auth (integration)', () => {
   // POST /auth/register
   // ============================================================
   describe('POST /auth/register', () => {
-    it('should register and return { id, marketingConsent } with 201', async () => {
+    it('가입에 성공하면 201과 함께 { id, marketingConsent }를 반환한다', async () => {
       const res = await registerUser().expect(201);
 
       expect(res.body.id).toBeDefined();
@@ -85,7 +85,7 @@ describe('Auth (integration)', () => {
         .expect(400);
     });
 
-    it('should persist user (verified via login)', async () => {
+    it('가입한 사용자가 영속화된다 (로그인으로 검증)', async () => {
       await registerUser().expect(201);
 
       await request(app.getHttpServer())
@@ -94,7 +94,7 @@ describe('Auth (integration)', () => {
         .expect(200);
     });
 
-    it('should return 409 for duplicate email', async () => {
+    it('중복된 email로 가입하면 409를 반환한다', async () => {
       await registerUser().expect(201);
 
       const res = await registerUser().expect(409);
@@ -102,7 +102,7 @@ describe('Auth (integration)', () => {
       expect(res.body.message).toContain(defaultUser.email);
     });
 
-    it('should return 400 when email is missing', () => {
+    it('email이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
         .send({
@@ -113,7 +113,7 @@ describe('Auth (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when email format is invalid', () => {
+    it('email 형식이 올바르지 않으면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
         .send({
@@ -125,14 +125,14 @@ describe('Auth (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when password is missing', () => {
+    it('password가 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
         .send({ email: 'a@b.com', name: '테스트', marketingConsent: true })
         .expect(400);
     });
 
-    it('should return 400 when password is shorter than 8 characters', () => {
+    it('password가 8자 미만이면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
         .send({
@@ -144,7 +144,7 @@ describe('Auth (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when name is missing', () => {
+    it('name이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
         .send({
@@ -155,7 +155,7 @@ describe('Auth (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
+    it('정의되지 않은 속성을 보내면 400을 반환한다 (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/register')
         .send({ ...defaultUser, hacked: true })
@@ -167,7 +167,7 @@ describe('Auth (integration)', () => {
   // POST /auth/login
   // ============================================================
   describe('POST /auth/login', () => {
-    it('should login and return { accessToken, refreshToken } with 200', async () => {
+    it('로그인에 성공하면 200과 함께 { accessToken, refreshToken }을 반환한다', async () => {
       await registerUser().expect(201);
 
       const res = await request(app.getHttpServer())
@@ -185,14 +185,14 @@ describe('Auth (integration)', () => {
       ]);
     });
 
-    it('should return 401 for non-existent email', () => {
+    it('존재하지 않는 email로 로그인하면 401을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/login')
         .send({ email: 'nobody@example.com', password: 'password123' })
         .expect(401);
     });
 
-    it('should return 401 for wrong password', async () => {
+    it('잘못된 password로 로그인하면 401을 반환한다', async () => {
       await registerUser().expect(201);
 
       return request(app.getHttpServer())
@@ -201,21 +201,21 @@ describe('Auth (integration)', () => {
         .expect(401);
     });
 
-    it('should return 400 when email is missing', () => {
+    it('email이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/login')
         .send({ password: 'password123' })
         .expect(400);
     });
 
-    it('should return 400 when password is missing', () => {
+    it('password가 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/login')
         .send({ email: 'a@b.com' })
         .expect(400);
     });
 
-    it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
+    it('정의되지 않은 속성을 보내면 400을 반환한다 (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/login')
         .send({ email: 'a@b.com', password: 'password123', hacked: true })
@@ -227,7 +227,7 @@ describe('Auth (integration)', () => {
   // POST /auth/refresh
   // ============================================================
   describe('POST /auth/refresh', () => {
-    it('should return new { accessToken, refreshToken } with 200', async () => {
+    it('refresh에 성공하면 200과 함께 새로운 { accessToken, refreshToken }을 반환한다', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -240,7 +240,7 @@ describe('Auth (integration)', () => {
       expect(res.body.refreshToken).not.toBe(tokens.refreshToken);
     });
 
-    it('should invalidate old refresh token after rotation', async () => {
+    it('rotation 후 이전 refreshToken으로 다시 시도하면 401을 반환한다', async () => {
       const tokens = await registerAndLogin();
 
       // 첫 번째 refresh — 성공
@@ -256,21 +256,21 @@ describe('Auth (integration)', () => {
         .expect(401);
     });
 
-    it('should return 401 for invalid token', () => {
+    it('유효하지 않은 토큰이면 401을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/refresh')
         .send({ refreshToken: 'invalid-token' })
         .expect(401);
     });
 
-    it('should return 400 when refreshToken is missing', () => {
+    it('refreshToken이 누락되면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/refresh')
         .send({})
         .expect(400);
     });
 
-    it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
+    it('정의되지 않은 속성을 보내면 400을 반환한다 (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .post('/v1/auth/refresh')
         .send({ refreshToken: 'some-token', hacked: true })
@@ -282,7 +282,7 @@ describe('Auth (integration)', () => {
   // GET /auth/profile
   // ============================================================
   describe('GET /auth/profile', () => {
-    it('should return profile with { id, email, name, marketingConsent, createdAt, updatedAt } and 200', async () => {
+    it('프로필 조회에 성공하면 200과 함께 { id, email, name, marketingConsent, createdAt, updatedAt }를 반환한다', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -334,7 +334,7 @@ describe('Auth (integration)', () => {
       expect(res.body.marketingConsent).toBe(false);
     });
 
-    it('should not include password or hashedRefreshToken in response', async () => {
+    it('응답에 password와 hashedRefreshToken을 포함하지 않는다', async () => {
       const tokens = await registerAndLogin();
 
       const res = await request(app.getHttpServer())
@@ -346,11 +346,11 @@ describe('Auth (integration)', () => {
       expect(res.body).not.toHaveProperty('hashedRefreshToken');
     });
 
-    it('should return 401 without token', () => {
+    it('토큰 없이 조회하면 401을 반환한다', () => {
       return request(app.getHttpServer()).get('/v1/auth/profile').expect(401);
     });
 
-    it('should return 401 with invalid token', () => {
+    it('유효하지 않은 토큰으로 조회하면 401을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/auth/profile')
         .set('Authorization', 'Bearer invalid-token')
@@ -428,7 +428,7 @@ describe('Auth (integration)', () => {
   // POST /auth/logout
   // ============================================================
   describe('POST /auth/logout', () => {
-    it('should return 204 on successful logout', async () => {
+    it('로그아웃에 성공하면 204를 반환한다', async () => {
       const { accessToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
@@ -437,7 +437,7 @@ describe('Auth (integration)', () => {
         .expect(204);
     });
 
-    it('should invalidate refresh token after logout', async () => {
+    it('로그아웃 후 refreshToken으로 refresh를 시도하면 401을 반환한다', async () => {
       const { accessToken, refreshToken } = await registerAndLogin();
 
       await request(app.getHttpServer())
@@ -451,11 +451,11 @@ describe('Auth (integration)', () => {
         .expect(401);
     });
 
-    it('should return 401 when no Authorization header is provided', async () => {
+    it('Authorization 헤더 없이 호출하면 401을 반환한다', async () => {
       await request(app.getHttpServer()).post('/v1/auth/logout').expect(401);
     });
 
-    it('should return 401 when an invalid token is provided', async () => {
+    it('유효하지 않은 토큰으로 호출하면 401을 반환한다', async () => {
       await request(app.getHttpServer())
         .post('/v1/auth/logout')
         .set('Authorization', 'Bearer invalid-token')
