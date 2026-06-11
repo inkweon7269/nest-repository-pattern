@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { Admin, AuthTokens } from '@app/shared';
+import { Admin, AuthTokens, BCRYPT_SALT_ROUNDS } from '@app/shared';
 import { IAdminWriteRepository } from '@back-office/auth/interface/admin-write-repository.interface';
 
 @Injectable()
@@ -54,7 +54,10 @@ export class AdminTokenIssuer {
     refreshToken: string,
   ): Promise<void> {
     const tokenDigest = createHash('sha256').update(refreshToken).digest('hex');
-    const hashedRefreshToken = await bcrypt.hash(tokenDigest, 10);
+    const hashedRefreshToken = await bcrypt.hash(
+      tokenDigest,
+      BCRYPT_SALT_ROUNDS,
+    );
     await this.adminWriteRepository.update(adminId, { hashedRefreshToken });
   }
 }

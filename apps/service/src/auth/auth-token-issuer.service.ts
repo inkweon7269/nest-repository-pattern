@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { AuthTokens, User } from '@app/shared';
+import { AuthTokens, BCRYPT_SALT_ROUNDS, User } from '@app/shared';
 import { IUserWriteRepository } from '@service/auth/interface/user-write-repository.interface';
 
 @Injectable()
@@ -49,7 +49,10 @@ export class AuthTokenIssuer {
     refreshToken: string,
   ): Promise<void> {
     const tokenDigest = createHash('sha256').update(refreshToken).digest('hex');
-    const hashedRefreshToken = await bcrypt.hash(tokenDigest, 10);
+    const hashedRefreshToken = await bcrypt.hash(
+      tokenDigest,
+      BCRYPT_SALT_ROUNDS,
+    );
     await this.userWriteRepository.update(userId, { hashedRefreshToken });
   }
 }

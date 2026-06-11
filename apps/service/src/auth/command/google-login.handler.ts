@@ -17,7 +17,13 @@ import {
 } from '@service/auth/interface/oauth-account-write-repository.interface';
 import { AuthTokenIssuer } from '@service/auth/auth-token-issuer.service';
 import type { GoogleProfilePayload } from '@service/auth/strategy/google-profile.type';
-import { AuthTokens, OAuthAccount, User, isUniqueViolation } from '@app/shared';
+import {
+  AuthTokens,
+  BCRYPT_SALT_ROUNDS,
+  OAuthAccount,
+  User,
+  isUniqueViolation,
+} from '@app/shared';
 
 @CommandHandler(GoogleLoginCommand)
 export class GoogleLoginHandler implements ICommandHandler<
@@ -93,7 +99,7 @@ export class GoogleLoginHandler implements ICommandHandler<
     profile: GoogleProfilePayload,
   ): Promise<User> {
     const randomSecret = randomBytes(32).toString('hex');
-    const hashedPassword = await bcrypt.hash(randomSecret, 10);
+    const hashedPassword = await bcrypt.hash(randomSecret, BCRYPT_SALT_ROUNDS);
     try {
       return await this.userWriteRepository.create({
         email: profile.email,

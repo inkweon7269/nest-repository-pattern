@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { isUniqueViolation } from '@app/shared';
+import { BCRYPT_SALT_ROUNDS, isUniqueViolation } from '@app/shared';
 import * as bcrypt from 'bcrypt';
 import { AdminRegisterCommand } from './admin-register.command';
 import { IAdminReadRepository } from '@back-office/auth/interface/admin-read-repository.interface';
@@ -21,7 +21,10 @@ export class AdminRegisterHandler implements ICommandHandler<AdminRegisterComman
       );
     }
 
-    const hashedPassword = await bcrypt.hash(command.password, 10);
+    const hashedPassword = await bcrypt.hash(
+      command.password,
+      BCRYPT_SALT_ROUNDS,
+    );
 
     try {
       const admin = await this.adminWriteRepository.create({
