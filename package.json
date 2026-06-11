@@ -132,7 +132,8 @@
       "^.+\\.(t|j)s$": "@swc/jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "apps/**/*.ts",
+      "libs/**/*.ts"
     ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
