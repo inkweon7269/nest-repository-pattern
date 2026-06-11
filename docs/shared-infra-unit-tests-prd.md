@@ -115,4 +115,4 @@ DI가 string token(`REDIS_CLIENT`) + `PinoLogger`(nestjs-pino)라 **수동 인�
 
 ## 7. 작업 중 발견 사항 (코드 수정 없이 기록만)
 
-1. **IdempotencyInterceptor 로그-동작 불일치** (`idempotency.interceptor.ts:88-96`): 손상된 캐시 엔트리를 만나면 `'Corrupted cache entry, reprocessing'`을 로깅하고 키를 삭제한 뒤 — 재처리(reprocess)가 아니라 **`ConflictException`(409)을 던진다**. 클라이언트가 재시도하면 그때 재처리되므로 동작 자체는 안전하지만, 로그 문구가 오해를 유발한다. 테스트는 현재 동작(409)을 고정한다. 후속 작업에서 로그 문구 수정 권장.
+1. **IdempotencyInterceptor 로그-동작 불일치** (`idempotency.interceptor.ts:88-96`): 손상된 캐시 엔트리를 만나면 `'Corrupted cache entry, reprocessing'`을 로깅하고 키를 삭제한 뒤 — 재처리(reprocess)가 아니라 **`ConflictException`(409)을 던진다**. 클라이언트가 재시도하면 그때 재처리되므로 동작 자체는 안전하지만, 로그 문구가 오해를 유발한다. 테스트는 현재 동작(409)을 고정한다. ~~후속 작업에서 로그 문구 수정 권장.~~ **처리 완료** — `docs/infra-hardening-prd.md` §1.3에서 로그 문구를 실제 동작 서술로 수정함 (동작 무변경).

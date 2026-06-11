@@ -16,6 +16,9 @@ export { isUniqueViolation } from './database/postgres-error.util';
 // Common - Base Repository
 export { BaseRepository } from './common/base.repository';
 
+// Common - Security Constants
+export { BCRYPT_SALT_ROUNDS } from './common/security.constant';
+
 // Common - DTOs
 export {
   PaginatedResponseDto,

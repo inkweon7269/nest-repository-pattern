@@ -86,7 +86,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
           response.status(existing.statusCode);
           return of(existing.body);
         } catch {
-          this.logger.warn({ cacheKey }, 'Corrupted cache entry, reprocessing');
+          this.logger.warn(
+            { cacheKey },
+            'Corrupted cache entry deleted — responding 409 so the client retry can reprocess',
+          );
           await this.redis.del(cacheKey);
         }
       }

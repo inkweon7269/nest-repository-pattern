@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { isUniqueViolation } from '@app/shared';
+import { BCRYPT_SALT_ROUNDS, isUniqueViolation } from '@app/shared';
 import * as bcrypt from 'bcrypt';
 import { RegisterCommand } from './register.command';
 import { IUserReadRepository } from '@service/auth/interface/user-read-repository.interface';
@@ -18,7 +18,10 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
 
   async execute(command: RegisterCommand): Promise<number> {
     await this.validateEmailNotTaken(command.email);
-    const hashedPassword = await bcrypt.hash(command.password, 10);
+    const hashedPassword = await bcrypt.hash(
+      command.password,
+      BCRYPT_SALT_ROUNDS,
+    );
     return this.createUserOrConflict({
       email: command.email,
       password: hashedPassword,
