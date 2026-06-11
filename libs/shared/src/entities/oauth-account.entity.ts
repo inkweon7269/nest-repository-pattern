@@ -10,21 +10,21 @@ import { BaseTimeEntity } from './base.entity';
 @Index('UQ_oauth_user_provider', ['userId', 'provider'], { unique: true })
 export class OAuthAccount extends BaseTimeEntity {
   @Column()
-  userId: number;
+  userId!: number;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
-  user: Relation<User>;
+  user!: Relation<User>;
 
   @Column({ length: 20 })
-  provider: string;
+  provider!: string;
 
   @Column({ length: 255 })
-  providerId: string;
+  providerId!: string;
 
   @Column({ length: 255 })
-  providerEmail: string;
+  providerEmail!: string;
 
   @Column({ type: 'boolean', default: false })
-  emailVerified: boolean;
+  emailVerified!: boolean;
 }

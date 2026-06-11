@@ -5,17 +5,17 @@ import { AdminRole } from '../enum/admin-role.enum';
 @Entity('admins')
 export class Admin extends BaseTimeEntity {
   @Column({ length: 255, unique: true })
-  email: string;
+  email!: string;
 
   @Column({ length: 255 })
-  password: string;
+  password!: string;
 
   @Column({ length: 100 })
-  name: string;
+  name!: string;
 
   @Column({ type: 'varchar', length: 20, default: AdminRole.MANAGER })
-  role: AdminRole;
+  role!: AdminRole;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  hashedRefreshToken: string | null;
+  hashedRefreshToken!: string | null;
 }

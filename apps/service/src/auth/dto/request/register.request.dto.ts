@@ -11,20 +11,20 @@ export class RegisterRequestDto {
   @ApiProperty({ description: '이메일', example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @ApiProperty({ description: '비밀번호 (최소 8자)', example: 'password123' })
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  password: string;
+  password!: string;
 
   @ApiProperty({ description: '이름', example: '홍길동' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: '마케팅 수신 동의', example: true })
   @IsBoolean()
-  marketingConsent: boolean;
+  marketingConsent!: boolean;
 }

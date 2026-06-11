@@ -32,9 +32,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type check (current config)
+      # tsconfig.json이 "strict": true이므로 이 체크가 곧 strict 체크다.
+      # 과거의 advisory(continue-on-error) 단계는 full strict 달성으로 중복이 되어 제거함.
+      - name: Type check (strict)
         run: npx tsc --noEmit
-
-      - name: Strict type check (advisory)
-        continue-on-error: true
-        run: npx tsc --noEmit --strict

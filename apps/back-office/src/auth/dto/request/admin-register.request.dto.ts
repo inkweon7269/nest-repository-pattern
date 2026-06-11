@@ -5,16 +5,16 @@ export class AdminRegisterRequestDto {
   @ApiProperty({ description: '이메일', example: 'admin@example.com' })
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @ApiProperty({ description: '비밀번호 (최소 8자)', example: 'password123' })
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  password: string;
+  password!: string;
 
   @ApiProperty({ description: '이름', example: '관리자' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 }

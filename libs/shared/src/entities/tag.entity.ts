@@ -15,15 +15,15 @@ import { BaseTimeEntity } from './base.entity';
 @Index('UQ_tags_user_id_name', ['userId', 'name'], { unique: true })
 export class Tag extends BaseTimeEntity {
   @Column()
-  userId: number;
+  userId!: number;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
-  user: Relation<User>;
+  user!: Relation<User>;
 
   @Column({ length: 50 })
-  name: string;
+  name!: string;
 
   @ManyToMany(() => Post, (post) => post.tags)
-  posts: Relation<Post[]>;
+  posts!: Relation<Post[]>;
 }

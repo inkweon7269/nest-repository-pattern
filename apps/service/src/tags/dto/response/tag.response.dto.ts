@@ -3,19 +3,19 @@ import { Tag } from '@app/shared';
 
 export class TagResponseDto {
   @ApiProperty({ description: '태그 ID', example: 1 })
-  id: number;
+  id!: number;
 
   @ApiProperty({ description: '소유자 ID', example: 1 })
-  userId: number;
+  userId!: number;
 
   @ApiProperty({ description: '태그 이름', example: 'nestjs' })
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: '생성일시' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: '수정일시' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   static of(tag: Tag): TagResponseDto {
     const dto = new TagResponseDto();

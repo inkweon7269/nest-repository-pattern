@@ -6,20 +6,20 @@ import { Post } from './post.entity';
 @Entity('users')
 export class User extends BaseTimeEntity {
   @Column({ length: 255, unique: true })
-  email: string;
+  email!: string;
 
   @Column({ length: 255 })
-  password: string;
+  password!: string;
 
   @Column({ length: 100 })
-  name: string;
+  name!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  hashedRefreshToken: string | null;
+  hashedRefreshToken!: string | null;
 
   @Column({ type: 'boolean', default: false })
-  marketingConsent: boolean;
+  marketingConsent!: boolean;
 
   @OneToMany(() => Post, (post) => post.user)
-  posts: Relation<Post[]>;
+  posts!: Relation<Post[]>;
 }

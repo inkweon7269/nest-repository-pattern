@@ -3,26 +3,26 @@ import { Admin, AdminRole } from '@app/shared';
 
 export class AdminProfileResponseDto {
   @ApiProperty({ description: '관리자 ID', example: 1 })
-  id: number;
+  id!: number;
 
   @ApiProperty({ description: '이메일', example: 'admin@example.com' })
-  email: string;
+  email!: string;
 
   @ApiProperty({ description: '이름', example: '관리자' })
-  name: string;
+  name!: string;
 
   @ApiProperty({
     description: '등급',
     enum: AdminRole,
     example: AdminRole.MANAGER,
   })
-  role: AdminRole;
+  role!: AdminRole;
 
   @ApiProperty({ description: '생성일시' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: '수정일시' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   static of(admin: Admin): AdminProfileResponseDto {
     const dto = new AdminProfileResponseDto();

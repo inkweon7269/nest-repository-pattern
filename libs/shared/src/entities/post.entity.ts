@@ -20,25 +20,25 @@ import { BaseTimeEntity } from './base.entity';
 })
 export class Post extends BaseTimeEntity {
   @Column()
-  userId: number;
+  userId!: number;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
-  user: Relation<User>;
+  user!: Relation<User>;
 
   @Column({ length: 200 })
-  title: string;
+  title!: string;
 
   @Column({ type: 'text' })
-  content: string;
+  content!: string;
 
   @Column({ default: false })
-  isPublished: boolean;
+  isPublished!: boolean;
 
   @ManyToMany(() => Tag, (tag) => tag.posts)
   @JoinTable({ name: 'post_tags', synchronize: false })
-  tags: Relation<Tag[]>;
+  tags!: Relation<Tag[]>;
 
   @DeleteDateColumn()
-  deletedAt: Date | null;
+  deletedAt!: Date | null;
 }

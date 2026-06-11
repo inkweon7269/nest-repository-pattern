@@ -7,7 +7,7 @@ export class LinkInitiateResponseDto {
     example:
       'https://accounts.google.com/o/oauth2/v2/auth?client_id=...&state=...',
   })
-  authorizationUrl: string;
+  authorizationUrl!: string;
 
   static of(authorizationUrl: string): LinkInitiateResponseDto {
     const dto = new LinkInitiateResponseDto();

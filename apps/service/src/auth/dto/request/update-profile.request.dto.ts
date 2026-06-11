@@ -11,5 +11,5 @@ export class UpdateProfileRequestDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 30)
-  name: string;
+  name!: string;
 }

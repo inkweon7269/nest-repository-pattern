@@ -6,5 +6,5 @@ export class CreateTagRequestDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  name: string;
+  name!: string;
 }

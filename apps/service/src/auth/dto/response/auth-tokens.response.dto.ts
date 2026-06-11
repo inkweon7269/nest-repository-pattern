@@ -3,10 +3,10 @@ import { AuthTokens } from '@app/shared';
 
 export class AuthTokensResponseDto {
   @ApiProperty({ description: '액세스 토큰' })
-  accessToken: string;
+  accessToken!: string;
 
   @ApiProperty({ description: '리프레시 토큰' })
-  refreshToken: string;
+  refreshToken!: string;
 
   static of(tokens: AuthTokens): AuthTokensResponseDto {
     const dto = new AuthTokensResponseDto();

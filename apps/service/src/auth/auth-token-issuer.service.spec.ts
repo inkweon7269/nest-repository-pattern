@@ -43,7 +43,7 @@ describe('AuthTokenIssuer', () => {
       .mockReturnValueOnce('refresh-token');
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-refresh-token');
     userWriteRepository.update.mockResolvedValue(1);
-    configService.get.mockImplementation(
+    (configService.get as jest.Mock).mockImplementation(
       (key: string, defaultValue?: string) => {
         if (key === 'JWT_ACCESS_EXPIRATION') return defaultValue ?? '15m';
         if (key === 'JWT_REFRESH_EXPIRATION') return defaultValue ?? '7d';
