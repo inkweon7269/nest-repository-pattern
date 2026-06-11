@@ -18,7 +18,6 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
-  ApiForbiddenResponse,
   ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -114,8 +113,9 @@ export class PostsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '게시글 수정 (전체 업데이트)' })
   @ApiNoContentResponse({ description: '수정 성공' })
-  @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
-  @ApiForbiddenResponse({ description: '본인의 게시글만 수정 가능' })
+  @ApiNotFoundResponse({
+    description: '게시글을 찾을 수 없음 (본인의 게시글이 아닌 경우 포함)',
+  })
   @ApiBadRequestResponse({ description: '잘못된 요청' })
   async updatePost(
     @CurrentUser() user: AuthUser,
@@ -138,8 +138,9 @@ export class PostsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '게시글 삭제' })
   @ApiNoContentResponse({ description: '삭제 성공' })
-  @ApiNotFoundResponse({ description: '게시글을 찾을 수 없음' })
-  @ApiForbiddenResponse({ description: '본인의 게시글만 삭제 가능' })
+  @ApiNotFoundResponse({
+    description: '게시글을 찾을 수 없음 (본인의 게시글이 아닌 경우 포함)',
+  })
   async deletePost(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
