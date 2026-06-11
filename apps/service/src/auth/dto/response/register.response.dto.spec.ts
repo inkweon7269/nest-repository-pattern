@@ -2,13 +2,13 @@ import { RegisterResponseDto } from './register.response.dto';
 
 describe('RegisterResponseDto', () => {
   describe('of', () => {
-    it('should map id to DTO', () => {
+    it('id를 DTO로 매핑한다', () => {
       const dto = RegisterResponseDto.of(42, true);
 
       expect(dto.id).toBe(42);
     });
 
-    it('should return an instance of RegisterResponseDto', () => {
+    it('RegisterResponseDto 인스턴스를 반환한다', () => {
       const dto = RegisterResponseDto.of(1, true);
 
       expect(dto).toBeInstanceOf(RegisterResponseDto);

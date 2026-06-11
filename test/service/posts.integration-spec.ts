@@ -71,29 +71,29 @@ describe('Posts (integration)', () => {
   // 인증 없이 요청 시 401
   // ============================================================
   describe('Authentication required', () => {
-    it('should return 401 for GET /posts without token', () => {
+    it('토큰 없이 GET /posts 호출 시 401을 반환한다', () => {
       return request(app.getHttpServer()).get('/v1/posts').expect(401);
     });
 
-    it('should return 401 for GET /posts/:id without token', () => {
+    it('토큰 없이 GET /posts/:id 호출 시 401을 반환한다', () => {
       return request(app.getHttpServer()).get('/v1/posts/1').expect(401);
     });
 
-    it('should return 401 for POST /posts without token', () => {
+    it('토큰 없이 POST /posts 호출 시 401을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/posts')
         .send({ title: 'Test', content: 'Content' })
         .expect(401);
     });
 
-    it('should return 401 for PATCH /posts/:id without token', () => {
+    it('토큰 없이 PATCH /posts/:id 호출 시 401을 반환한다', () => {
       return request(app.getHttpServer())
         .patch('/v1/posts/1')
         .send({ title: 'Test', content: 'Content', isPublished: false })
         .expect(401);
     });
 
-    it('should return 401 for DELETE /posts/:id without token', () => {
+    it('토큰 없이 DELETE /posts/:id 호출 시 401을 반환한다', () => {
       return request(app.getHttpServer()).delete('/v1/posts/1').expect(401);
     });
   });
@@ -109,7 +109,7 @@ describe('Posts (integration)', () => {
       token = tokens.accessToken;
     });
 
-    it('should create a post and return { id }', async () => {
+    it('게시글을 생성하고 { id }를 반환한다', async () => {
       const res = await createPost(token, {
         title: 'Integration Test',
         content: 'Real DB',
@@ -120,7 +120,7 @@ describe('Posts (integration)', () => {
       expect(Object.keys(res.body)).toEqual(['id']);
     });
 
-    it('should persist the post to DB (verified via GET)', async () => {
+    it('생성한 게시글이 DB에 저장된다 (GET으로 검증)', async () => {
       const getRes = await createAndGet(token, {
         title: 'Integration Test',
         content: 'Real DB',
@@ -131,7 +131,7 @@ describe('Posts (integration)', () => {
       expect(getRes.body.isPublished).toBe(false);
     });
 
-    it('should store userId of the authenticated user', async () => {
+    it('인증된 사용자의 userId가 저장된다', async () => {
       const getRes = await createAndGet(token, {
         title: 'With Author',
         content: 'Content',
@@ -141,7 +141,7 @@ describe('Posts (integration)', () => {
       expect(typeof getRes.body.userId).toBe('number');
     });
 
-    it('should auto-generate id, createdAt, and updatedAt', async () => {
+    it('id, createdAt, updatedAt이 자동 생성된다', async () => {
       const getRes = await createAndGet(token);
 
       expect(typeof getRes.body.id).toBe('number');
@@ -152,7 +152,7 @@ describe('Posts (integration)', () => {
       expect(new Date(getRes.body.updatedAt as string).getTime()).not.toBeNaN();
     });
 
-    it('should default isPublished to false when not provided', async () => {
+    it('isPublished를 보내지 않으면 기본값 false로 저장된다', async () => {
       const getRes = await createAndGet(token, {
         title: 'No publish flag',
         content: 'Content',
@@ -161,27 +161,27 @@ describe('Posts (integration)', () => {
       expect(getRes.body.isPublished).toBe(false);
     });
 
-    it('should create a post with isPublished: true', async () => {
+    it('isPublished: true로 게시글을 생성한다', async () => {
       const getRes = await createAndGet(token, { isPublished: true });
 
       expect(getRes.body.isPublished).toBe(true);
     });
 
-    it('should accept title at maximum column length (200 chars)', async () => {
+    it('컬럼 최대 길이(200자)의 title을 허용한다', async () => {
       const maxTitle = 'A'.repeat(200);
       const getRes = await createAndGet(token, { title: maxTitle });
 
       expect(getRes.body.title).toBe(maxTitle);
     });
 
-    it('should assign sequential ids for multiple creates', async () => {
+    it('여러 번 생성하면 id가 순차적으로 증가한다', async () => {
       const res1 = await createPost(token, { title: 'First' }).expect(201);
       const res2 = await createPost(token, { title: 'Second' }).expect(201);
 
       expect(res2.body.id).toBeGreaterThan(res1.body.id as number);
     });
 
-    it('should return 400 when title is missing', () => {
+    it('title이 없으면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
@@ -189,7 +189,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when content is missing', () => {
+    it('content가 없으면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
@@ -197,7 +197,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when body is empty', () => {
+    it('body가 비어 있으면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
@@ -205,7 +205,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 for unknown properties (forbidNonWhitelisted)', () => {
+    it('정의되지 않은 속성이 있으면 400을 반환한다 (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .post('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
@@ -213,7 +213,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 409 when same user creates a post with duplicate title', async () => {
+    it('같은 사용자가 중복 title로 게시글을 생성하면 409를 반환한다', async () => {
       await createPost(token, {
         title: 'Unique Title',
         content: 'First',
@@ -227,7 +227,7 @@ describe('Posts (integration)', () => {
       expect(res.body.message).toContain('Unique Title');
     });
 
-    it('should allow different users to create posts with the same title', async () => {
+    it('서로 다른 사용자는 같은 title로 게시글을 생성할 수 있다', async () => {
       await createPost(token, {
         title: 'Shared Title',
         content: 'User 1',
@@ -256,7 +256,7 @@ describe('Posts (integration)', () => {
       token = tokens.accessToken;
     });
 
-    it('should return paginated response with default page=1, limit=10', async () => {
+    it('기본값 page=1, limit=10으로 페이지네이션 응답을 반환한다', async () => {
       await createPost(token, { title: 'Post A' }).expect(201);
 
       const res = await request(app.getHttpServer())
@@ -275,7 +275,7 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.isLast).toBe(true);
     });
 
-    it('should return empty items when no posts exist', async () => {
+    it('게시글이 없으면 빈 items를 반환한다', async () => {
       const res = await request(app.getHttpServer())
         .get('/v1/posts')
         .set('Authorization', `Bearer ${token}`)
@@ -286,7 +286,7 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.totalPages).toBe(0);
     });
 
-    it('should paginate with custom page and limit', async () => {
+    it('지정한 page와 limit으로 페이지네이션한다', async () => {
       for (let i = 0; i < 5; i++) {
         await createPost(token, { title: `Post ${i + 1}` }).expect(201);
       }
@@ -305,7 +305,7 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.isLast).toBe(false);
     });
 
-    it('should return items in id DESC order (newest first)', async () => {
+    it('items를 id DESC 순서로 반환한다 (최신순)', async () => {
       await createPost(token, { title: 'First' }).expect(201);
       await createPost(token, { title: 'Second' }).expect(201);
       await createPost(token, { title: 'Third' }).expect(201);
@@ -320,7 +320,7 @@ describe('Posts (integration)', () => {
       expect(res.body.items[2].title).toBe('First');
     });
 
-    it('should mark last page correctly', async () => {
+    it('마지막 페이지를 올바르게 표시한다', async () => {
       for (let i = 0; i < 3; i++) {
         await createPost(token, { title: `Post ${i + 1}` }).expect(201);
       }
@@ -335,7 +335,7 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.isFirst).toBe(false);
     });
 
-    it('should return correct response shape for items', async () => {
+    it('items가 올바른 응답 형태를 가진다', async () => {
       await createPost(token).expect(201);
 
       const res = await request(app.getHttpServer())
@@ -353,28 +353,28 @@ describe('Posts (integration)', () => {
       expect(post).toHaveProperty('updatedAt');
     });
 
-    it('should return 400 when page is 0', () => {
+    it('page가 0이면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/posts?page=0')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
 
-    it('should return 400 when limit exceeds 100', () => {
+    it('limit이 100을 초과하면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/posts?limit=101')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
 
-    it('should return 400 when page is not a number', () => {
+    it('page가 숫자가 아니면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/posts?page=abc')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
 
-    it('should filter by isPublished=true', async () => {
+    it('isPublished=true로 필터링한다', async () => {
       await createPost(token, {
         title: 'Published',
         isPublished: true,
@@ -394,7 +394,7 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.totalElements).toBe(1);
     });
 
-    it('should filter by isPublished=false', async () => {
+    it('isPublished=false로 필터링한다', async () => {
       await createPost(token, {
         title: 'Published',
         isPublished: true,
@@ -411,7 +411,7 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.totalElements).toBe(1);
     });
 
-    it('should combine isPublished filter with pagination', async () => {
+    it('isPublished 필터와 페이지네이션을 함께 적용한다', async () => {
       for (let i = 0; i < 5; i++) {
         await createPost(token, {
           title: `Published ${i}`,
@@ -430,14 +430,14 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.totalPages).toBe(3);
     });
 
-    it('should return 400 for invalid isPublished value', () => {
+    it('isPublished 값이 유효하지 않으면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/posts?isPublished=notabool')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
 
-    it('should only return posts created by the authenticated user', async () => {
+    it('인증된 사용자가 생성한 게시글만 반환한다', async () => {
       await createPost(token, { title: 'My Post' }).expect(201);
 
       const tokens2 = await registerAndLogin({
@@ -458,7 +458,7 @@ describe('Posts (integration)', () => {
       expect(res.body.meta.totalElements).toBe(1);
     });
 
-    it('should return empty when user has no posts even if other users do', async () => {
+    it('다른 사용자의 게시글이 있어도 본인 게시글이 없으면 빈 결과를 반환한다', async () => {
       await createPost(token, { title: 'User 1 Post' }).expect(201);
 
       const tokens2 = await registerAndLogin({
@@ -487,7 +487,7 @@ describe('Posts (integration)', () => {
       token = tokens.accessToken;
     });
 
-    it('should return a post by id', async () => {
+    it('id로 게시글을 조회한다', async () => {
       const createRes = await createPost(token, {
         title: 'Find Me',
         content: 'By ID',
@@ -504,7 +504,7 @@ describe('Posts (integration)', () => {
       expect(res.body.content).toBe('By ID');
     });
 
-    it('should return all entity fields correctly', async () => {
+    it('모든 엔티티 필드를 올바르게 반환한다', async () => {
       const createRes = await createPost(token, {
         title: 'Full Fields',
         content: 'Check all',
@@ -525,7 +525,7 @@ describe('Posts (integration)', () => {
       expect(res.body.updatedAt).toBeDefined();
     });
 
-    it('should return 404 when post not found', () => {
+    it('게시글이 존재하지 않으면 404를 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/posts/99999')
         .set('Authorization', `Bearer ${token}`)
@@ -535,7 +535,7 @@ describe('Posts (integration)', () => {
         });
     });
 
-    it("should return 404 when accessing another user's post", async () => {
+    it('다른 사용자의 게시글을 조회하면 404를 반환한다', async () => {
       const createRes = await createPost(token, {
         title: 'Private Post',
         content: 'Owner Only',
@@ -553,7 +553,7 @@ describe('Posts (integration)', () => {
         .expect(404);
     });
 
-    it('should return 400 for non-numeric id', () => {
+    it('id가 숫자가 아니면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .get('/v1/posts/abc')
         .set('Authorization', `Bearer ${token}`)
@@ -578,7 +578,7 @@ describe('Posts (integration)', () => {
       token = tokens.accessToken;
     });
 
-    it('should update all fields and return 204', async () => {
+    it('모든 필드를 수정하고 204를 반환한다', async () => {
       const createRes = await createPost(token).expect(201);
       const id = createRes.body.id as number;
 
@@ -598,7 +598,7 @@ describe('Posts (integration)', () => {
       expect(getRes.body.isPublished).toBe(true);
     });
 
-    it('should return 404 when post not found', () => {
+    it('게시글이 존재하지 않으면 404를 반환한다', () => {
       return request(app.getHttpServer())
         .patch('/v1/posts/99999')
         .set('Authorization', `Bearer ${token}`)
@@ -609,7 +609,7 @@ describe('Posts (integration)', () => {
         });
     });
 
-    it("should return 404 when updating another user's post", async () => {
+    it('다른 사용자의 게시글을 수정하면 404를 반환한다', async () => {
       const createRes = await createPost(token).expect(201);
       const id = createRes.body.id as number;
 
@@ -625,7 +625,7 @@ describe('Posts (integration)', () => {
         .expect(404);
     });
 
-    it('should return 400 for non-numeric id', () => {
+    it('id가 숫자가 아니면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .patch('/v1/posts/abc')
         .set('Authorization', `Bearer ${token}`)
@@ -633,7 +633,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 for invalid body (forbidNonWhitelisted)', () => {
+    it('body에 정의되지 않은 속성이 있으면 400을 반환한다 (forbidNonWhitelisted)', () => {
       return request(app.getHttpServer())
         .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
@@ -641,7 +641,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when required field is missing', () => {
+    it('필수 필드가 없으면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
@@ -649,7 +649,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when title is empty string', () => {
+    it('title이 빈 문자열이면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
@@ -657,7 +657,7 @@ describe('Posts (integration)', () => {
         .expect(400);
     });
 
-    it('should return 400 when content is empty string', () => {
+    it('content가 빈 문자열이면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .patch('/v1/posts/1')
         .set('Authorization', `Bearer ${token}`)
@@ -677,7 +677,7 @@ describe('Posts (integration)', () => {
       token = tokens.accessToken;
     });
 
-    it('should delete a post and return 204', async () => {
+    it('게시글을 삭제하고 204를 반환한다', async () => {
       const createRes = await createPost(token).expect(201);
       const id = createRes.body.id as number;
 
@@ -692,7 +692,7 @@ describe('Posts (integration)', () => {
         .expect(404);
     });
 
-    it('should return 404 when post not found', () => {
+    it('게시글이 존재하지 않으면 404를 반환한다', () => {
       return request(app.getHttpServer())
         .delete('/v1/posts/99999')
         .set('Authorization', `Bearer ${token}`)
@@ -702,7 +702,7 @@ describe('Posts (integration)', () => {
         });
     });
 
-    it("should return 404 when deleting another user's post", async () => {
+    it('다른 사용자의 게시글을 삭제하면 404를 반환한다', async () => {
       const createRes = await createPost(token).expect(201);
       const id = createRes.body.id as number;
 
@@ -717,14 +717,14 @@ describe('Posts (integration)', () => {
         .expect(404);
     });
 
-    it('should return 400 for non-numeric id', () => {
+    it('id가 숫자가 아니면 400을 반환한다', () => {
       return request(app.getHttpServer())
         .delete('/v1/posts/abc')
         .set('Authorization', `Bearer ${token}`)
         .expect(400);
     });
 
-    it('should allow creating a post with same title after soft-delete', async () => {
+    it('soft-delete 후 같은 title로 게시글을 생성할 수 있다', async () => {
       const createRes = await createPost(token, {
         title: 'Reusable Title',
         content: 'Original',
@@ -752,7 +752,7 @@ describe('Posts (integration)', () => {
       expect(getRes.body.content).toBe('Recreated');
     });
 
-    it('should not affect other posts', async () => {
+    it('삭제 시 다른 게시글에 영향을 주지 않는다', async () => {
       const res1 = await createPost(token, { title: 'Keep' }).expect(201);
       const res2 = await createPost(token, { title: 'Delete Me' }).expect(201);
 
